@@ -47,7 +47,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "check": "expo lint --quiet && tsc --noEmit --pretty false && jest --silent --reporters=summary"
   },
   "jest": {
     "preset": "jest-expo",
