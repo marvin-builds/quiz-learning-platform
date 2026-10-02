@@ -24,6 +24,8 @@ move procedures into `.claude/skills/`.
 - `npm test`: Jest; one file with `npx jest <path>`
 - `npm run lint`: ESLint with Prettier and the no-hard-coded-strings rule
 - `npm run typecheck`: `tsc --noEmit` in strict mode
+- `npm run -s check`: lint, typecheck and tests with quiet output (only
+  problems and a summary); use it for verification runs
 - `npx expo install <package>`: add dependencies with versions matching the Expo SDK
 - `npx expo-doctor`: check dependency and config problems
 
