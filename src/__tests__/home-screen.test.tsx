@@ -6,10 +6,6 @@ import de from '@/i18n/locales/de.json';
 import en from '@/i18n/locales/en.json';
 
 describe('<HomeScreen />', () => {
-  afterEach(async () => {
-    await i18n.changeLanguage('de');
-  });
-
   it('renders the German home texts from the translation catalog', async () => {
     await i18n.changeLanguage('de');
 
