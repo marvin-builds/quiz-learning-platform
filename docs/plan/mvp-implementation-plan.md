@@ -1,0 +1,284 @@
+---
+type: Plan
+title: Quiz Learning Platform — MVP implementation plan
+description: "High-level MVP build plan: vertical slices, test-first agentic workflow with Claude Code, automatic test and fix loops, human checkpoints."
+tags:
+  - project
+  - plan
+  - quiz-learning-platform
+  - agentic-coding
+timestamp: 2026-10-02
+created: 2026-10-02
+---
+
+# MVP implementation plan
+
+Builds on the [overview](overview.md), [ADR 0001](../adr/0001-expo-react-native-client.md),
+[ADR 0002](../adr/0002-supabase-backend.md) and
+[ADR 0003](../adr/0003-agentic-test-first-workflow.md) (the workflow below). Stack and data model are not
+repeated here.
+
+## 1. What "MVP" means
+
+**MVP = phases 0–3 of the overview, released on the web.**
+
+- Learners browse categories, play quizzes (single and multiple choice, images,
+  explanations) anonymously, and see their result.
+- Admins create, edit, reorder and publish content with images in the browser.
+- Optional account: email + password or magic link, the anonymous session is
+  kept, progress and score history. No OAuth in the MVP, which also avoids the
+  Sign in with Apple requirement until the store release.
+- UI in German and English (i18n from day one).
+
+**Not in the MVP:** store release (phase 4), Realtime, desktop, multilingual
+content, offline. Android and iOS are smoke-tested in an Expo dev build
+throughout, so mobile doesn't drift, but they aren't released.
+
+**MVP is done when** the three end-to-end flows in section 5 pass in CI against
+a fresh local Supabase stack, the pgTAP security suite is green, and the web
+build is deployed with Impressum and privacy policy.
+
+## 2. Working model: agent builds, human decides
+
+One developer plus Claude Code as the main implementer. The human owns **what**
+(specs, acceptance criteria, approving tests) and **whether** (merges,
+security-relevant changes). The agent owns **how**, inside a loop that checks
+itself automatically.
+
+Three principles carry the whole plan:
+
+1. **Tests are the spec the agent works against.** Acceptance criteria become
+   failing tests before any production code. The agent iterates until they
+   pass, not until it "thinks it's done".
+2. **Feedback is automatic and fast.** Hooks run format, lint, typecheck and
+   the relevant tests after every edit and before the agent may stop, so errors
+   come back to the agent within seconds, not at PR time.
+3. **Loops are bounded and gated.** Every automatic loop has an iteration cap
+   and escalates to the human instead of looping forever or weakening tests.
+
+## 3. Agentic harness (built in phase 0, before features)
+
+The harness is code in the repo, versioned and reviewed like the app.
+
+### 3.1 Project instructions
+
+- **`CLAUDE.md`** (short, under ~150 lines): commands, folder layout, the
+  definition of done, the TDD rule, "never edit an approved test to make it
+  pass", security rules (RLS, `check_answer`), i18n rule (no hard-coded UI
+  strings).
+- Deeper procedures go into **project skills** in `.claude/skills/` so they load
+  only when needed:
+  - `db-migration`: new migration → pgTAP test first → `supabase db reset` →
+    regenerate `src/types/database.ts`
+  - `feature-slice`: the full loop in section 4
+  - `e2e-flow`: writing and debugging Playwright tests, including screenshots
+  - `rls-policy`: patterns and the mandatory negative tests for each policy
+
+### 3.2 Hooks: the automatic inner loop
+
+In `.claude/settings.json`:
+
+| Hook | Runs | Effect |
+|---|---|---|
+| `PostToolUse` on Edit/Write | Prettier + ESLint on the file, `tsc --noEmit` (incremental) | Errors are fed straight back to the agent |
+| `PostToolUse` on Edit/Write of `supabase/migrations/*` | `supabase db reset` + `supabase test db` | Schema and RLS errors surface immediately |
+| `PreToolUse` on Edit/Write of approved test files | Block, unless the task is explicitly "change tests" | Stops the agent from weakening tests to get green |
+| `Stop` | `jest --onlyChanged` + typecheck; exit 2 if red | The agent can't end its turn with failing tests |
+
+Plus a permission allowlist for the safe commands (`npm test`, `npx tsc`,
+`supabase start/db reset/test db`, `npx playwright test`) so loops run without
+prompts, while `git push`, deploys and prod database access stay manual.
+
+### 3.3 Subagents with separate roles
+
+Defined in `.claude/agents/`:
+
+- **test-writer**: turns acceptance criteria into failing tests. May only write
+  under `__tests__/`, `supabase/tests/`, `e2e/`. Writing tests in a separate
+  context from the implementation avoids tests that just mirror the code.
+- **implementer**: makes the tests pass. May not touch approved tests (hook
+  above).
+- **reviewer** (read-only): checks the diff for correctness, RLS gaps, hidden
+  `is_correct` leaks, untranslated strings, missing negative tests. Runs as
+  `/code-review` or as an independent agent before every PR.
+- **ui-verifier**: drives the running web app with the Playwright MCP server,
+  takes screenshots on phone and desktop widths and compares them to the
+  acceptance criteria. Catches what unit tests can't (layout, empty states).
+
+### 3.4 Tooling
+
+- **MCP servers:** Playwright (browser verification). GitHub Issues and PRs
+  through the `gh` CLI. The local Supabase stack is reached through the CLI,
+  never the hosted project.
+- **Git worktrees:** one per issue. Sequential (one slice at a time) through
+  phase 1 while the harness matures; from phase 2 on, up to **two** parallel
+  worktree sessions (e.g. a learner slice and an admin slice). Rules for
+  parallel work: migrations get timestamps at merge time, not at creation, and
+  each worktree runs its own local Supabase stack on separate ports.
+- **CI (GitHub Actions):** lint, typecheck, Jest with coverage, `supabase start`
+  + `supabase test db`, Playwright against the web build, axe accessibility
+  check. The same commands as locally, so "green locally" means "green in CI".
+- **Claude runs locally only.** No Claude GitHub Action: the review step is
+  `/code-review` plus the reviewer subagent in the local session, before the
+  PR is opened. Keeps API costs predictable.
+
+## 4. The feature loop (one vertical slice)
+
+Each GitHub issue is one vertical slice (DB → API → UI → e2e), small enough for
+one session (roughly half a day to two days of work).
+
+```
+  ┌─ 1. Spec ───────────── human writes issue: user story + Given/When/Then
+  │
+  ├─ 2. Red ────────────── test-writer: pgTAP / Jest / RNTL / Playwright tests
+  │                        all fail for the right reason
+  │   ▶ HUMAN GATE: review and approve the tests (the real spec)
+  │
+  ├─ 3. Green ──────────── implementer iterates; hooks give feedback per edit;
+  │                        Stop hook refuses to end while red   (cap: ~10 rounds)
+  │
+  ├─ 4. Refactor ───────── /simplify; tests stay green
+  │
+  ├─ 5. Verify ─────────── full suite + ui-verifier screenshots (web + phone
+  │                        width) + mutation testing on changed domain logic
+  │
+  ├─ 6. Review loop ────── reviewer → fix → re-check   (cap: 2–3 rounds)
+  │
+  └─ 7. Ship ───────────── agent commits, drafts the PR; CI must be green
+      ▶ HUMAN GATE: approve push, PR, merge
+```
+
+If a cap is hit, the agent stops and writes down what it tried and where it is
+stuck (systematic debugging), instead of guessing further.
+
+### Test strategy per layer
+
+| Layer | Tool | What it proves | Extra quality check |
+|---|---|---|---|
+| Domain logic (scoring, progress) | Jest + **fast-check** property tests | Scoring rules hold for all inputs, e.g. "all correct ⇒ full points", "any wrong pick in multi-choice ⇒ 0" | **Stryker** mutation testing: tests must kill the mutants |
+| Database, RLS, `check_answer` | pgTAP | Every policy has a positive **and** a negative test per role (anon, learner, admin) | Reviewer checks each new table has RLS on |
+| Components | Jest + React Native Testing Library | Rendering, states (loading/empty/error), i18n keys | — |
+| End-to-end | Playwright on the web build | The real flows in section 5, against a reset local stack with seed data | axe accessibility scan; screenshots as artifacts |
+| Mobile | Expo dev build, manual smoke | Nothing broke on Android/iOS | Once per phase, not per slice |
+
+Test data comes from `supabase/seed.sql` plus small typed factories, so every
+run starts from a known state.
+
+## 5. Phases and slices
+
+Estimates are for one full-time developer with the agentic workflow. Treat them
+as a hypothesis; measure after phase 1 and adjust.
+
+### Phase 0: foundation and harness (~1 week)
+
+1. Repo, Expo app (TypeScript + Router), NativeWind, i18next, ESLint/Prettier,
+   Jest. Lint rule against hard-coded UI strings.
+2. Supabase CLI, local stack, first migration (`profiles`) with pgTAP test.
+3. CI pipeline (section 3.4).
+4. Agentic harness: `CLAUDE.md`, hooks, skills, subagents, MCP config.
+5. **Harness proof:** the scoring function built with the full loop (failing
+   property tests → implementation → mutation score ≥ 80 %). This tests the
+   workflow itself before real features depend on it.
+6. **Walking skeleton:** choose the web host, deploy a minimal web build
+   through CI, create the hosted Supabase project (Frankfurt) with migrations
+   applied by CI. Hosting and deploy problems show up now, not at release.
+
+Item 4 builds only the minimal harness: `CLAUDE.md`, the post-edit check and
+Stop gate hooks, the protected-tests hook, the `test-writer` and `reviewer`
+subagents, the `feature-slice` skill and the permission allowlist. The rest of
+section 3 (`implementer`, `ui-verifier` with Playwright MCP, the `e2e-flow`,
+`rls-policy` and `db-migration` skills, axe) is added in the first slice that
+needs it.
+
+### Phase 1: learner on web (~3 weeks)
+
+1. Content schema (`categories`, `quizzes`, `questions`, `answers`) + RLS +
+   seed data
+2. `check_answer` function: correctness + explanation, never leaks other
+   answers
+3. Category list and quiz list screens
+4. Quiz player: single and multiple choice, images
+5. Answer feedback with explanation, result screen
+6. Anonymous sign-in and `attempts` storage
+
+**E2E flow A:** an anonymous user opens a category, plays a quiz, sees
+explanations and the score.
+
+### Phase 2: admin editor (~3 weeks)
+
+1. Admin role guard (routes + RLS), admin seed user
+2. Category CRUD with publish toggle
+3. Quiz and question editor (react-hook-form + zod, schemas shared with the
+   DB types)
+4. Answers with single/multiple correct, validation (at least one correct)
+5. Image upload to Storage with policies
+6. Reordering and learner preview
+
+**E2E flow B:** an admin logs in, creates a category and a quiz with an image,
+publishes it, and a learner sees it. A learner trying admin routes or writes is
+rejected (UI and API).
+
+### Phase 3: accounts and progress (~2 weeks)
+
+1. Registration and login with email + password and magic link (including
+   verification and password reset, tested against the local Inbucket mail
+   server)
+2. Linking the anonymous identity to the new account, keeping attempts
+3. Progress and score history screens
+
+**E2E flow C:** a guest plays a quiz, registers, and the earlier result is
+still in their history.
+
+### MVP release (~3–5 days, legal work in parallel)
+
+- Web deploy (static export of the Expo web build; host to be chosen)
+- Hosted Supabase project in Frankfurt, migrations applied by CI, DPA signed
+- Impressum, privacy policy, minimal error monitoring (e.g. Sentry)
+- Security pass: `/security-review` over the full RLS and Storage setup, plus
+  a manual read of every policy
+
+## 6. Guardrails and risks
+
+| Risk | Countermeasure |
+|---|---|
+| Agent "fixes" tests instead of code | Human-approved tests, PreToolUse block, reviewer checks the test diff |
+| Weak tests that pass anything | Property tests + mutation testing on domain logic, negative RLS tests mandatory |
+| RLS mistake leaks answers or allows writes | pgTAP per role, reviewer focus, security review before launch; human reads every policy |
+| Endless fix loops, wasted tokens | Iteration caps, escalation note, slices kept small |
+| Flaky e2e tests eroding trust | Reset DB per run, no sleeps (Playwright auto-waits), flaky test = bug ticket |
+| Context drift in long sessions | One slice per session, state in the issue and in commits, not in chat |
+| Agent touches production | Hosted project credentials not available locally; deploys only via CI |
+
+## 7. Decisions
+
+Clarified on 2026-10-03:
+
+| Topic | Decision |
+|---|---|
+| MVP cut | Learner + admin + accounts (phases 0–3), web release |
+| Human gates | Two per slice: approve the failing tests, approve push/merge |
+| Issue tracker | GitHub Issues in the project repo; one issue per slice, a milestone per phase |
+| Login | Anonymous + email/password + magic link; OAuth after the MVP |
+| Claude in CI | None; review runs locally before each PR |
+| Parallelism | Sequential through phase 1, then up to 2 worktree sessions |
+| Repo | Private GitHub repo `quiz-learning-platform`; license before going public |
+
+Clarified on 2026-10-03 (second round):
+
+| Topic | Decision |
+|---|---|
+| Human gates | Gate 2 is push, PR and merge; the agent commits verified work on its own branch without asking |
+| Harness scope | Minimal in phase 0, grown when a slice first needs a piece (see ADR 0003 amendment) |
+| Harness home | In this repo's `.claude/`; parts that prove generic move to the personal Claude Code plugin after phase 1 |
+| Docs | ADRs and plans live in this repo under `docs/` |
+| Branch naming | `<issue-number>-<short-slug>`, documented in `CLAUDE.md` |
+| Walking skeleton | Phase 0 ends with a CI deploy of a minimal web build against the hosted Supabase project |
+
+Still open, decided during phase 0:
+
+- **Web hosting:** EAS Hosting, Cloudflare Pages or Netlify (all serve the
+  static export). Decided with the walking-skeleton deploy.
+- **Mutation testing scope:** default only `src/domain/`, to keep CI fast.
+
+The agentic workflow itself is recorded in
+[ADR 0003](../adr/0003-agentic-test-first-workflow.md).
