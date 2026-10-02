@@ -19,7 +19,25 @@ move procedures into `.claude/skills/`.
 
 ## Commands
 
-Not set up yet. Each issue that adds tooling adds its commands here.
+- `npm ci`: install exactly what the lockfile pins
+- `npx expo start --web`: dev server on the web (`npm start` for all platforms)
+- `npm test`: Jest; one file with `npx jest <path>`
+- `npm run lint`: ESLint with Prettier and the no-hard-coded-strings rule
+- `npm run typecheck`: `tsc --noEmit` in strict mode
+- `npx expo install <package>`: add dependencies with versions matching the Expo SDK
+- `npx expo-doctor`: check dependency and config problems
+
+## Layout
+
+- `src/app/`: Expo Router routes only; every file there becomes a screen,
+  so tests and helpers live elsewhere
+- `src/i18n/`: i18next setup and `locales/{de,en}.json`; `en` must have
+  every key `de` has, which the typecheck enforces
+- `tests/`: tests of the tooling itself (e.g. the lint rule)
+
+Expo changes with every SDK release: check the docs for the SDK version in
+`package.json` (`https://docs.expo.dev/versions/v<major>.0.0/`) rather than
+memory before using an Expo or React Native API.
 
 ## Workflow
 
