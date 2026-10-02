@@ -49,7 +49,8 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "check": "expo lint --quiet && tsc --noEmit --pretty false && jest --silent --reporters=summary"
+    "check": "expo lint --quiet && tsc --noEmit --pretty false && jest --silent --reporters=summary",
+    "db:types": "supabase gen types typescript --local > src/types/database.ts && prettier --write --log-level warn src/types/database.ts"
   },
   "jest": {
     "preset": "jest-expo",
