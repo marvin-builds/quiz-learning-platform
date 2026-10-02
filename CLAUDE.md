@@ -28,6 +28,12 @@ move procedures into `.claude/skills/`.
   problems and a summary); use it for verification runs
 - `npx expo install <package>`: add dependencies with versions matching the Expo SDK
 - `npx expo-doctor`: check dependency and config problems
+- `npx supabase start` / `stop`: local stack in Docker (CLI pinned in `package.json`)
+- `npx supabase migration new <name>`: new migration file
+- `npx supabase db reset && npx supabase test db`: rebuild the local database
+  from the migrations and run the pgTAP tests
+- `npm run db:types`: regenerate `src/types/database.ts` from the local
+  database; run it after every schema change
 
 ## Layout
 
@@ -36,6 +42,9 @@ move procedures into `.claude/skills/`.
 - `src/i18n/`: i18next setup and `locales/{de,en}.json`; `en` must have
   every key `de` has, which the typecheck enforces
 - `tests/`: tests of the tooling itself (e.g. the lint rule)
+- `supabase/migrations/`: SQL migrations; `supabase/tests/database/`: pgTAP
+  tests (`*.test.sql`), one file per table or function
+- `src/types/database.ts`: generated, never edit by hand
 
 Expo changes with every SDK release: check the docs for the SDK version in
 `package.json` (`https://docs.expo.dev/versions/v<major>.0.0/`) rather than
