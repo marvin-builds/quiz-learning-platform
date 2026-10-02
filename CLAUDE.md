@@ -45,6 +45,10 @@ move procedures into `.claude/skills/`.
 - `supabase/migrations/`: SQL migrations; `supabase/tests/database/`: pgTAP
   tests (`*.test.sql`), one file per table or function
 - `src/types/database.ts`: generated, never edit by hand
+- `.github/workflows/ci.yml`: CI on PRs and pushes to `main`; runs the same
+  commands as above (lint, typecheck, `jest --coverage`, `supabase start` +
+  `supabase test db`). Change it together with the local commands, never apart
+- `.nvmrc`: the Node major version, shared by local setup and CI
 
 Expo changes with every SDK release: check the docs for the SDK version in
 `package.json` (`https://docs.expo.dev/versions/v<major>.0.0/`) rather than
@@ -65,7 +69,7 @@ memory before using an Expo or React Native API.
 - **Caps:** about 10 attempts to get to green, at most 3 review-and-fix rounds.
   When a cap is hit, stop and write down what was tried and where it is stuck.
 - **Definition of done:** the acceptance criteria are covered by tests; lint,
-  typecheck and all tests are green (later: in CI too); no hard-coded UI
+  typecheck and all tests are green locally and in CI; no hard-coded UI
   strings; docs updated when a decision changed.
 
 ## Rules that must never break
