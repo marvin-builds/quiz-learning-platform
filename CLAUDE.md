@@ -83,7 +83,8 @@ memory before using an Expo or React Native API.
 - **Never edit an approved test to make it pass.** If a test looks wrong, stop
   and say why.
 - **Gate 2:** commit verified work on the slice branch without asking; push,
-  PR and merge only after my go-ahead.
+  PR and merge only after my go-ahead. Rebase onto a fresh `origin/main`
+  right before every push, and check the PR is mergeable after opening it.
 - **Caps:** about 10 attempts to get to green, at most 3 review-and-fix rounds.
   When a cap is hit, stop and write down what was tried and where it is stuck.
 - **Definition of done:** the acceptance criteria are covered by tests; lint,

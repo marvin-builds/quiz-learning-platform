@@ -95,6 +95,12 @@ same branch when a decision changed.
 and draft the PR description (it closes the issue). Push, open the PR and
 merge only after the human's go-ahead; then check that CI is green.
 
+Other sessions merge to `main` in parallel, so right before every push run
+`git fetch origin && git rebase origin/main`, then `npm run -s check` again
+if anything came in. After opening the PR, check
+`gh pr view <n> --json mergeable` (it may say `UNKNOWN` for a few seconds):
+`CONFLICTING` means rebase again, not wait for CI.
+
 When the PR is behind `main` ("head branch is not up to date"), rebase it;
 this rebase of the slice's own unmerged branch needs no extra go-ahead:
 
