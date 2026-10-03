@@ -78,6 +78,24 @@ export function isCommitted(dir, rel) {
   return spawnSync('git', ['cat-file', '-e', `HEAD:${rel}`], { cwd: dir }).status === 0;
 }
 
+/**
+ * True when the file on disk, which is what Jest and tsc read, differs in
+ * content from `HEAD`. Whitespace and the file mode don't count, and neither
+ * does the index: they change no test, so they must not excuse a red one.
+ */
+export function hasUncommittedChanges(dir, rel) {
+  const committed = spawnSync('git', ['show', `HEAD:${rel}`], { cwd: dir, encoding: 'utf8' });
+  if (committed.status !== 0) return false;
+  let current;
+  try {
+    current = fs.readFileSync(path.join(dir, rel), 'utf8');
+  } catch {
+    return false;
+  }
+  const content = (text) => text.replace(/\s+/g, '');
+  return content(committed.stdout) !== content(current);
+}
+
 export function bin(dir, name) {
   return path.join(dir, 'node_modules', '.bin', name);
 }

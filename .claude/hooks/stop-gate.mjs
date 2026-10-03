@@ -1,8 +1,9 @@
 // Stop / SubagentStop: the agent may not end its turn while approved tests
-// fail or production code has type errors. New, uncommitted tests may be red:
-// that is gate 1, where they wait for approval. After QUIZ_STOP_CAP blocked
-// stops in one turn the agent must write an escalation note instead of trying
-// again; a few stops later it is released regardless, so it never loops.
+// fail or production code has type errors. New tests, and committed tests with
+// uncommitted content changes, may be red: that is gate 1, where they wait for
+// approval. After QUIZ_STOP_CAP blocked stops in one turn the agent must write
+// an escalation note instead of trying again; a few stops later it is released
+// regardless, so it never loops.
 import fs from 'node:fs';
 import path from 'node:path';
 import {
@@ -10,6 +11,7 @@ import {
   bin,
   block,
   ensureStateDir,
+  hasUncommittedChanges,
   isCommitted,
   isTestFile,
   parseTscErrors,
@@ -92,9 +94,13 @@ function noteWrittenSince(time) {
   }
 }
 
-/** A failure counts unless it lives only in a new test that awaits approval. */
+/**
+ * A failure counts unless it lives only in a test that awaits approval: a new
+ * test, or a committed one with uncommitted changes (a re-spec the human
+ * unlocked).
+ */
 function blocking(rel) {
-  return !rel || !isTestFile(rel) || isCommitted(dir, rel);
+  return !rel || !isTestFile(rel) || (isCommitted(dir, rel) && !hasUncommittedChanges(dir, rel));
 }
 
 async function findFailures() {
