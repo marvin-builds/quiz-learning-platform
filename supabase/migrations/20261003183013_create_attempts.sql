@@ -67,29 +67,26 @@ set search_path = ''
 as $$
 declare
   question_count integer;
+  unscorable_count integer;
   new_attempt_id uuid;
 begin
-  if not private.is_quiz_visible(start_attempt.quiz_id)
-    or exists (
-      select 1
-      from public.questions q
-      cross join lateral (
-        select count(*) as n
-        from public.answers a
-        where a.question_id = q.id and a.is_correct
-      ) correct
-      where q.quiz_id = start_attempt.quiz_id
-        and (correct.n = 0 or (not q.multiple_correct and correct.n > 1))
-    )
-  then
+  if not private.is_quiz_visible(start_attempt.quiz_id) then
     raise exception 'not available';
   end if;
 
-  select count(*) into question_count
+  select
+    count(*),
+    count(*) filter (where correct.n = 0 or (not q.multiple_correct and correct.n > 1))
+  into question_count, unscorable_count
   from public.questions q
+  cross join lateral (
+    select count(*) as n
+    from public.answers a
+    where a.question_id = q.id and a.is_correct
+  ) correct
   where q.quiz_id = start_attempt.quiz_id;
 
-  if question_count = 0 then
+  if question_count = 0 or unscorable_count > 0 then
     raise exception 'not available';
   end if;
 
