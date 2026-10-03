@@ -265,6 +265,16 @@ it.
   it from the user's perspective, with technical details where useful, so I
   know what the run is about without opening the issue; it doesn't wait for
   an answer.
+- **Semi-auto sessions start in their worktree** (2026-10-03). Entering a
+  worktree outside `.claude/worktrees/` mid-session asks for approval every
+  time; no permission rule or hook answers that prompt, and moving the
+  worktrees would break GitKraken, which keeps them in
+  `quiz-learning-platform.worktrees/`. So `npm run -s slice` (from a
+  terminal) picks the issue with the skill's rule (branches and "Depends
+  on"; it shows "start it only …" conditions and asks), creates or reuses the
+  worktree, runs `npm ci` and starts the session inside it. The skill then
+  skips its worktree step. Invoking the skill in a running session still
+  works, with the prompt.
 
 ## Consequences
 

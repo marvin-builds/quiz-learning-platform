@@ -62,7 +62,8 @@
     "test:e2e": "playwright test",
     "check": "expo lint --quiet && tsc --noEmit --pretty false && jest --silent --reporters=summary && npm run -s test:timing -- --silent --reporters=summary",
     "db:types": "supabase gen types typescript --local > src/types/database.ts && prettier --write --log-level warn src/types/database.ts",
-    "test:mutation": "stryker run"
+    "test:mutation": "stryker run",
+    "slice": "node scripts/slice.mjs"
   },
   "jest": {
     "preset": "jest-expo",

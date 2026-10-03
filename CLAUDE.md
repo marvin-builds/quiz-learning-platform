@@ -32,6 +32,10 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `npm run -s check`: lint, typecheck, tests and timing tests with quiet output (only
   problems and a summary); use it for verification runs; no e2e tests
 - `npm run test:mutation`: Stryker on `src/domain/`; fails below 80 %
+- `npm run -s slice [-- <n>]`: from a terminal, pick the next issue (or take
+  `<n>`), create or reuse its worktree in `../quiz-learning-platform.worktrees/`,
+  run `npm ci` and start `claude "/semi-auto-workflow <n>"` inside it, so the
+  session never asks to switch worktrees; `-- --pick` only prints the pick
 - `npx expo install <package>`: add dependencies with versions matching the Expo SDK
 - `npx expo-doctor`: check dependency and config problems
 - `npx supabase start` / `stop`: local stack in Docker (CLI pinned in `package.json`)
@@ -100,7 +104,8 @@ memory before using an Expo or React Native API.
 
 For an issue, follow the `feature-slice` skill. When I invoke
 `semi-auto-workflow`, it runs one issue through that loop without stopping at
-gate 1 or before the push, and stops before the merge. What runs
+gate 1 or before the push, and stops before the merge; start it with
+`npm run -s slice` to skip the worktree-switch prompt. What runs
 automatically:
 
 - **After every edit** (`post-edit.mjs`): ESLint with `--fix` and the
