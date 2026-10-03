@@ -90,6 +90,18 @@ jobs:
           cache: npm
       - run: npm ci
       # Secrets go only to the steps that need them, never to npm install scripts.
+      # Runs before the config push: the hosted auth trusts small-quiz-poc.pages.dev,
+      # so stop unless that domain really belongs to our Pages project.
+      - name: Ensure the Cloudflare Pages project owns small-quiz-poc.pages.dev
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          wrangler="npx -y wrangler@4.147.0"
+          $wrangler pages project list --json | grep -q '"small-quiz-poc"' \
+            || $wrangler pages project create small-quiz-poc --production-branch main
+          $wrangler pages project list --json | grep -qF 'small-quiz-poc.pages.dev' \
+            || { echo "Pages project small-quiz-poc did not get small-quiz-poc.pages.dev"; exit 1; }
       - name: Migrate the hosted database and push its config
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -100,23 +112,19 @@ jobs:
           npx supabase config push --project-ref "$SUPABASE_PROJECT_REF" --yes
       # The job's EXPO_PUBLIC_* variables take precedence over the local values in .env.
       - run: npx expo export --platform web
-      - name: Deploy to Cloudflare Pages (the project is created on the first run)
+      - name: Deploy to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          wrangler="npx -y wrangler@4.147.0"
-          $wrangler pages project list --json | grep -q '"quiz-poc"' \
-            || $wrangler pages project create quiz-poc --production-branch main
-          $wrangler pages deploy dist --project-name quiz-poc --branch main
+        run: npx -y wrangler@4.147.0 pages deploy dist --project-name small-quiz-poc --branch main
       - name: Smoke test that this build is live and the hosted database answers
         run: |
           entry=$(grep -o '_expo/static/js/web/entry-[0-9a-f]*\.js' dist/index.html)
           for attempt in 1 2 3 4 5 6; do
-            curl -fsS https://quiz-poc.pages.dev/ | grep -qF "$entry" && break
-            [ "$attempt" = 6 ] && { echo "https://quiz-poc.pages.dev/ does not serve $entry"; exit 1; }
+            curl -fsS https://small-quiz-poc.pages.dev/ | grep -qF "$entry" && break
+            [ "$attempt" = 6 ] && { echo "https://small-quiz-poc.pages.dev/ does not serve $entry"; exit 1; }
             sleep 10
           done
-          curl -fsS "https://quiz-poc.pages.dev/$entry" | grep -qF "$EXPO_PUBLIC_SUPABASE_URL"
+          curl -fsS "https://small-quiz-poc.pages.dev/$entry" | grep -qF "$EXPO_PUBLIC_SUPABASE_URL"
           test "$(curl -fsS -X POST "$EXPO_PUBLIC_SUPABASE_URL/rest/v1/rpc/health_check" \
             -H "apikey: $EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" -H 'Content-Type: application/json')" = '"ok"'

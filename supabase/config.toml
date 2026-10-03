@@ -421,8 +421,8 @@ enabled = true
 project_id = "kiywcqhicsesgknlwjyy"
 
 [remotes.production.auth]
-site_url = "https://quiz-poc.pages.dev"
-additional_redirect_urls = ["https://quiz-poc.pages.dev"]
+site_url = "https://small-quiz-poc.pages.dev"
+additional_redirect_urls = ["https://small-quiz-poc.pages.dev"]
 
 [remotes.production.auth.email]
 enable_confirmations = true
@@ -435,8 +435,11 @@ otp_length = 8
 default_pool_size = 15
 max_client_conn = 200
 
+# Pushing analytics settings fails on the free plan (402, iceberg catalog),
+# so these must match hosted exactly.
 [remotes.production.storage.analytics]
 enabled = true
+max_namespaces = 10
 
 [remotes.production.auth.mfa.totp]
 enroll_enabled = true
