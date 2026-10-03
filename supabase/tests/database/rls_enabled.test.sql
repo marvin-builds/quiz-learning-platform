@@ -12,7 +12,7 @@
 -- (e.g. `private`), add it there. Supabase-managed schemas (auth, storage,
 -- realtime, ...) are out of scope.
 begin;
-select plan(9);
+select plan(11);
 
 -- The one schema list. Every check below builds on this view.
 create temporary view app_relations as
@@ -30,9 +30,10 @@ create temporary view tables_without_rls as
   where r.relkind in ('r', 'p')
     and not r.relrowsecurity;
 
--- Plain views only (relkind 'v'). Materialized views can't set
--- `security_invoker` and are left out; they need their own rule if the app
--- ever uses them. Postgres accepts true/on/1/yes (any case) for the option, so
+-- Plain views only (relkind 'v'). Materialized views can neither use RLS nor
+-- set `security_invoker`; the "no materialized views" assertion below is their
+-- rule, so adding one forces a deliberate decision and an edit here. Postgres
+-- accepts true/on/1/yes (any case) for the option, so
 -- the value is cast to boolean rather than compared as text.
 create temporary view views_without_security_invoker as
   select format('%I.%I', r.nspname, r.relname) collate "default" as view_name
@@ -72,6 +73,16 @@ select is_empty(
   'every view in public has security_invoker enabled'
 );
 
+select is_empty(
+  $$
+    select format('%I.%I', r.nspname, r.relname)
+    from pg_temp.app_relations r
+    where r.relkind = 'm'
+    order by 1
+  $$,
+  'no materialized views in the app schemas (they bypass RLS)'
+);
+
 -- Negative case: a table created without RLS is reported -------------------
 
 create table public.rls_enabled_probe (id int);
@@ -106,6 +117,25 @@ select is_empty(
   'the view check is clean again once the view without security_invoker is gone'
 );
 
+-- Negative case: a view with security_invoker = false is reported ----------
+
+create view public.rls_enabled_probe_false_view
+  with (security_invoker = false)
+  as select 1 as x;
+
+select results_eq(
+  $$ select view_name from pg_temp.views_without_security_invoker order by 1 $$,
+  $$ values ('public.rls_enabled_probe_false_view'::text) $$,
+  'a public view created with security_invoker = false is reported by the check'
+);
+
+drop view public.rls_enabled_probe_false_view;
+
+select is_empty(
+  $$ select view_name from pg_temp.views_without_security_invoker order by 1 $$,
+  'the view check is clean again once the security_invoker = false view is gone'
+);
+
 -- Positive case: a view with security_invoker is not reported --------------
 
 create view public.rls_enabled_probe_invoker_view
@@ -118,11 +148,6 @@ select is_empty(
 );
 
 drop view public.rls_enabled_probe_invoker_view;
-
-select is_empty(
-  $$ select view_name from pg_temp.views_without_security_invoker order by 1 $$,
-  'the view check is clean after the probe views are gone'
-);
 
 select * from finish();
 rollback;
