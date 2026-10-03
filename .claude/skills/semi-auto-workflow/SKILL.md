@@ -50,10 +50,27 @@ Follow `feature-slice` steps 1 to 6, with these differences:
 
 - **Spec:** an ambiguous criterion gets the most conservative reading; note
   it for the PR description instead of asking.
-- **Gate 1 doesn't stop.** Run the `test-writer`'s tests yourself and confirm
-  they fail for the right reason. Then read them before committing: once
-  committed they are locked, and only I can unlock them. Commit them on their
-  own (`Add failing tests for …`); the gate-1 table goes into the PR.
+- **Gate 1 doesn't stop, but the tests get the review I would give them.**
+  Once committed they are locked, and only I can unlock them, so review them
+  while they are still new, following `quality-review-loop`:
+  1. Run the `test-writer`'s tests yourself and confirm each fails for the
+     right reason (a missing table or function, not a typo or a broken
+     fixture).
+  2. Delegate a review of the uncommitted test files to the `reviewer`
+     agent, with the issue's acceptance criteria as the contract and this
+     lens: every criterion is covered; each policy has a positive and a
+     negative test per role (`anon`, learner, admin, plus an anonymous user
+     where the issue names one); a test can't pass for the wrong reason
+     (vacuous assertions, fixtures that hide the case); no test pins behavior
+     the issue doesn't ask for, unless it is listed as a design choice; the
+     tests can pass at all once implemented.
+  3. Triage every finding (accept, reject with a reason, defer). Fixes go
+     through the `test-writer` while the files are uncommitted; rerun them
+     and confirm they still fail for the right reason. One fix pass; if a
+     fresh review still finds a blocker, stop and ask me.
+  4. Commit the tests on their own (`Add failing tests for …`). The gate-1
+     table (file → behaviors), the design choices and the triaged findings
+     go into the PR.
 - **A test that looks wrong** still stops the run: explain why and ask me to
   unlock, as in `feature-slice` step 3.
 - **Review findings** that would need a change to a locked test become open

@@ -249,7 +249,8 @@ it.
 - **Semi-auto runs, one issue at a time** (2026-10-03). Invoking the
   `semi-auto-workflow` skill approves gate 1 and the push for one issue: the
   agent picks the next unblocked issue (its "Depends on" issues closed), runs
-  `feature-slice`, commits the tests after reading them itself, pushes, opens
+  `feature-slice`, commits the tests after the `reviewer` has checked them
+  against the acceptance criteria (one fix pass), pushes, opens
   the PR and watches CI. It stops before the merge, which stays mine, and
   cleans up once I say the PR is merged. Gate 1 moves into the PR: the tests,
   the design choices they pin down and the assumptions are listed there, and
