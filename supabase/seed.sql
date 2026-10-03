@@ -75,3 +75,17 @@ insert into public.answers (id, question_id, text, is_correct, sort_order) value
   ('40000000-0000-4000-8000-000000000021', '30000000-0000-4000-8000-000000000007', 'Ludwig van Beethoven', false, 1),
   ('40000000-0000-4000-8000-000000000022', '30000000-0000-4000-8000-000000000007', 'Wolfgang Amadeus Mozart', true, 2),
   ('40000000-0000-4000-8000-000000000023', '30000000-0000-4000-8000-000000000007', 'Johann Sebastian Bach', false, 3);
+
+-- Images (supabase/seed-images/, uploaded to the quiz-images bucket by
+-- `supabase start` and `db reset`). Named by random UUIDs, so a file name
+-- gives nothing away. Only in Chemie-Grundlagen: the e2e specs of Hauptstädte
+-- find its answers by their exact names, which an answer image would extend.
+update public.questions
+set image_path = '063fa988-b996-4b4e-908f-1118f445ae46.png',
+    image_alt = 'Ausschnitt aus dem Periodensystem mit den Edelgasen'
+where id = '30000000-0000-4000-8000-000000000004';
+
+update public.answers
+set image_path = '39c5ec8d-57d6-4ab5-8ff7-f32a80a0a25d.png',
+    image_alt = 'Mit Helium gefüllter Ballon'
+where id = '40000000-0000-4000-8000-000000000011';
