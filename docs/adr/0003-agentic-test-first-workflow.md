@@ -150,6 +150,15 @@ it.
   change a test's content. Such a change shows in the diff the reviewer and I
   read, so this is accepted for now; tying the exemption to the unlock is
   issue #30.
+- **PR branches are rebased, never merged with `main`.** Branch protection
+  wants a PR up to date before it merges. Bringing it up to date by merging
+  `main` into the branch (GitHub's REST update-branch does exactly that) put
+  "Merge branch 'main' into …" commits on `main` in #28 and #32, and `main` was
+  rewritten to remove them. A PR branch that is behind is rebased onto `main`
+  and force-pushed with lease; the agent may do that rebase without asking,
+  since the branch is its own and unmerged. CI fails a PR whose branch
+  contains a merge commit, in the required lint and test job, so a back-merge
+  can't reach `main` again. `main` keeps its PR merge commits.
 
 ## Consequences
 
