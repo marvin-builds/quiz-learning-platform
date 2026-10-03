@@ -218,7 +218,11 @@ it.
   and rejected: Claude Code doesn't document that `SessionEnd` runs when a
   terminal is closed or killed, nor a way for a hook to learn the session's
   process, so the lock would outlive exactly the sessions I had to quit.
-  Which worktree still has an open session is my call.
+  Instead, the status check reads the running sessions from
+  `claude agents --json` and marks an issue "session open" when one works
+  in its worktree. That list holds only live processes and shows each
+  session's `cwd`, so it needs no session names, which interactive sessions
+  don't show there anyway.
 
 ## Consequences
 

@@ -24,9 +24,9 @@ checked in this order (first match wins):
 | Uncommitted test files only                                                  | Gate 1: present the tests again                   |
 | Nothing yet                                                                  | 1, spec                                           |
 
-Whether another session is still open in that worktree can't be told from
-git (closing a terminal leaves no trace a hook can rely on); the human
-decides before you resume.
+Before resuming, check `claude agents --json`: it lists the running local
+sessions with their `cwd`. If one works inside that worktree, say so and let
+the human decide; two sessions in one worktree get in each other's way.
 
 ## 1. Spec
 
