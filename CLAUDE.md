@@ -47,7 +47,12 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `.github/workflows/ci.yml`: CI on PRs and pushes to `main`; runs the same
   commands as above (lint, typecheck, `jest --coverage` with an 80 % global
   threshold in `package.json`, `supabase start` +
-  `supabase test db`). Change it together with the local commands, never apart
+  `supabase test db`, a stale-types check). Change it together with the local
+  commands, never apart. On `main` it also migrates the hosted database,
+  pushes `supabase/config.toml` (hosted overrides in `[remotes.production]`)
+  and deploys the web export to Cloudflare Pages
+- `.env`: the local stack's public URL and key for the app; CI sets the
+  hosted values
 - `.nvmrc`: the Node major version, shared by local setup and CI
 - `.claude/`: the agent harness (see below); its hook scripts are tested in
   `tests/hooks/`, and `.claude/state/` holds local, ignored runtime state

@@ -261,7 +261,7 @@ Clarified on 2026-10-03:
 | Login | Anonymous + email/password + magic link; OAuth after the MVP |
 | Claude in CI | None; review runs locally before each PR |
 | Parallelism | Sequential through phase 1, then up to 2 worktree sessions |
-| Repo | Private GitHub repo `quiz-learning-platform`; license before going public |
+| Repo | Public GitHub repo `quiz-learning-platform` under the GNU AGPL v3 (decided at gate 1 of #7) |
 
 Clarified on 2026-10-03 (second round):
 
@@ -276,10 +276,16 @@ Clarified on 2026-10-03 (second round):
 | Scoring | Single choice: the correct answer ⇒ full points, else 0. Multiple choice: any wrong pick ⇒ 0, a correct subset ⇒ points × picked / total correct (decided at gate 1 of #6) |
 | Mutation testing scope | Only `src/domain/`, run locally with `npm run test:mutation` (break threshold 80 %); not in CI yet |
 
-Still open, decided during phase 0:
+Decided with the walking-skeleton deploy (#7):
 
-- **Web hosting:** EAS Hosting, Cloudflare Pages or Netlify (all serve the
-  static export). Decided with the walking-skeleton deploy.
+| Topic | Decision |
+|---|---|
+| Web hosting | Cloudflare Pages, project `quiz-poc` (`https://quiz-poc.pages.dev`); CI deploys the static web export (`expo export`, SPA output) with wrangler on every push to `main` |
+| Hosted Supabase | Project `kiywcqhicsesgknlwjyy` in Frankfurt; CI runs `supabase db push` on every push to `main`, never a local machine |
+| Hosted auth settings | Pushed by CI with `supabase config push` from `supabase/config.toml`; `[remotes.production]` overrides the local development values (site URL, email confirmations, email rate). PR runs show `supabase config diff` against the hosted project |
+| Hosted credentials | Only in GitHub secrets (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PUBLISHABLE_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`); the root `.env` holds only the local stack's public values |
+| Hosted dashboard settings | Created with "Automatically expose new tables" off and "Enable automatic RLS" on. Locally, a migration revokes the default privileges of `anon` and `authenticated` (and `execute` on new functions from `PUBLIC`), so a table without explicit grants is closed in both places |
+| Stale types | CI fails when `src/types/database.ts` differs from `npm run db:types` |
 
 The agentic workflow itself is recorded in
 [ADR 0003](../adr/0003-agentic-test-first-workflow.md).
