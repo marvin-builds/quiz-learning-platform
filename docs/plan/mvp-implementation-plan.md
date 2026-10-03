@@ -280,7 +280,7 @@ Decided with the walking-skeleton deploy (#7):
 
 | Topic | Decision |
 |---|---|
-| Web hosting | Cloudflare Pages, project `quiz-poc` (`https://quiz-poc.pages.dev`); CI deploys the static web export (`expo export`, SPA output) with wrangler on every push to `main` |
+| Web hosting | Cloudflare Pages, project `small-quiz-poc` (`https://small-quiz-poc.pages.dev`); CI deploys the static web export (`expo export`, SPA output) with wrangler on every push to `main` |
 | Hosted Supabase | Project `kiywcqhicsesgknlwjyy` in Frankfurt; CI runs `supabase db push` on every push to `main`, never a local machine |
 | Hosted auth settings | Pushed by CI with `supabase config push` from `supabase/config.toml`; `[remotes.production]` overrides the local development values (site URL, email confirmations, email rate). PR runs show `supabase config diff` against the hosted project |
 | Hosted credentials | Only in GitHub secrets (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PUBLISHABLE_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`); the root `.env` holds only the local stack's public values |
