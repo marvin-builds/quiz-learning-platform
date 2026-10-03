@@ -78,6 +78,11 @@ export function isCommitted(dir, rel) {
   return spawnSync('git', ['cat-file', '-e', `HEAD:${rel}`], { cwd: dir }).status === 0;
 }
 
+/** True when the working tree or the index differs from `HEAD` for this file. */
+export function hasUncommittedChanges(dir, rel) {
+  return spawnSync('git', ['diff', '--quiet', 'HEAD', '--', rel], { cwd: dir }).status !== 0;
+}
+
 export function bin(dir, name) {
   return path.join(dir, 'node_modules', '.bin', name);
 }
