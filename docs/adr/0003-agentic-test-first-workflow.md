@@ -126,12 +126,13 @@ it.
   protected-tests hook: it may only write test files, and changing an
   approved test still needs my unlock.
 - **I unlock from the chat** (issue #26). A message of mine that starts with
-  "unlock tests" (any case) lifts the lock for that turn, "unlock tests:
-  <paths>" only for those files; the main agent's Stop locks again. Creating
-  the marker in a separate terminal and deleting it later was two manual
-  steps outside the conversation. Only the start of a message counts:
-  `UserPromptSubmit` also fires on turns Claude Code starts itself, and text
-  quoted in an agent's report must not unlock.
+  "unlock tests" (any case) lifts the lock, "unlock tests: <paths>" only for
+  those files. Any other prompt, including turns Claude Code starts itself,
+  and a new session lock again. Stop doesn't: background agents keep working
+  after the turn ends, and a stop the Stop hook blocks must not lose the
+  unlock. Creating the marker in a separate terminal and deleting it later
+  was two manual steps outside the conversation. Only the start of a message
+  counts, because text quoted in an agent's report must not unlock.
 
 ## Consequences
 
