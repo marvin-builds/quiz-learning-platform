@@ -18,8 +18,20 @@ export async function readInput() {
   return JSON.parse(raw);
 }
 
+/**
+ * The work tree the session works in: the git top level of the event's cwd.
+ * CLAUDE_PROJECT_DIR stays the launch directory when a session moves into
+ * another worktree, so it is only the fallback, as is the process directory.
+ */
 export function projectDir(input) {
-  return process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd();
+  if (input.cwd) {
+    const top = spawnSync('git', ['rev-parse', '--show-toplevel'], {
+      cwd: input.cwd,
+      encoding: 'utf8',
+    });
+    if (top.status === 0 && top.stdout.trim()) return top.stdout.trim();
+  }
+  return process.env.CLAUDE_PROJECT_DIR || process.cwd();
 }
 
 /** The path relative to the project, or undefined when it lies outside. */
