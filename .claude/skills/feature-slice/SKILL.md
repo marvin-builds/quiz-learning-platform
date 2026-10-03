@@ -1,6 +1,6 @@
 ---
 name: feature-slice
-description: The full loop for one GitHub issue (a vertical slice) in this repo, from spec to failing tests, gate 1, green, refactor, verify, review and commit, up to gate 2. Use when starting or continuing work on an issue, or when asked which step comes next.
+description: The full loop for one GitHub issue (a vertical slice) in this repo, from spec to failing tests, gate 1, green, refactor, verify, review and commit, up to gate 2 and the cleanup after the merge. Use when starting or continuing work on an issue, or when asked which step comes next.
 ---
 
 # Feature slice
@@ -66,3 +66,27 @@ same branch when a decision changed.
 **Gate 2:** report the commits, the verification output and any open points,
 and draft the PR description (it closes the issue). Push, open the PR and
 merge only after the human's go-ahead; then check that CI is green.
+
+## 8. Clean up after the merge
+
+GitHub deletes the remote branch on merge. Remove the local branch and its
+worktree as soon as the PR is merged; this step is the go-ahead for it, but
+only when every check passes:
+
+1. `gh pr view <n> --json state,headRefOid` says `MERGED`.
+2. `git status --short` in the slice worktree is empty, and
+   `git rev-parse <branch>` equals `headRefOid`, so nothing local is lost.
+   Otherwise stop and ask.
+3. From the main checkout:
+
+   ```sh
+   git switch main && git pull --ff-only && git fetch --prune
+   git worktree remove ../quiz-learning-platform.worktrees/<branch>
+   git branch -D <branch>
+   ```
+
+   `-D`, because a squash merge leaves the branch unmerged in git's eyes;
+   step 2 already proved it is safe.
+
+A session running inside that worktree cannot run git in the main checkout.
+Then leave the commands from step 3 for the human to run in a normal terminal.
