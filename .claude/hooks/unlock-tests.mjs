@@ -20,8 +20,12 @@ const input = await readInput();
 const dir = projectDir(input);
 const marker = path.join(dir, UNLOCK_FILE);
 
+// Locks the session's work tree and the launch checkout, in case the session
+// moved between them since the unlock.
 function lock() {
-  fs.rmSync(marker, { force: true });
+  for (const root of new Set([dir, process.env.CLAUDE_PROJECT_DIR].filter(Boolean))) {
+    fs.rmSync(path.join(root, UNLOCK_FILE), { force: true });
+  }
 }
 
 function tell(additionalContext) {
@@ -29,11 +33,13 @@ function tell(additionalContext) {
 }
 
 function isExistingTest(rel) {
-  return (
-    Boolean(rel) &&
-    isTestFile(rel) &&
-    fs.statSync(path.join(dir, rel), { throwIfNoEntry: false })?.isFile()
-  );
+  if (!rel || !isTestFile(rel)) return false;
+  try {
+    return fs.statSync(path.join(dir, rel)).isFile();
+  } catch {
+    // Missing, too long, a NUL byte: not a test file either way.
+    return false;
+  }
 }
 
 if (input.hook_event_name === 'SessionStart') {
@@ -43,13 +49,13 @@ if (input.hook_event_name === 'SessionStart') {
   const firstLine = text.trimStart().split(/\r?\n/)[0];
   const match = firstLine.match(/^unlock tests\b(.*)$/i);
   const list = match?.[1].match(/^\s*:(.*)$/);
-  if (!match) {
-    lock();
-  } else if (!list) {
+  // Lock first, so an unlock that fails half way never leaves an older one.
+  lock();
+  if (match && !list) {
     ensureStateDir(dir);
     fs.writeFileSync(marker, '');
-    tell('Tests unlocked for this turn by the human: all approved tests.');
-  } else {
+    tell('Tests unlocked by the human until their next message: all approved tests.');
+  } else if (list) {
     const entries = list[1]
       .split(/\s+/)
       .map((entry) => entry.replace(/^[,;`]+|[,;`]+$/g, ''))
@@ -67,10 +73,11 @@ if (input.hook_event_name === 'SessionStart') {
     if (unlocked.length) {
       ensureStateDir(dir);
       fs.writeFileSync(marker, unlocked.map((rel) => `${rel}\n`).join(''));
-      tell(`Tests unlocked for this turn by the human: ${unlocked.join(', ')}.${ignoredNote}`);
-    } else {
-      lock();
-      if (ignored.length) tell(`Nothing unlocked, no tests were listed.${ignoredNote}`);
+      tell(
+        `Tests unlocked by the human until their next message: ${unlocked.join(', ')}.${ignoredNote}`,
+      );
+    } else if (ignored.length) {
+      tell(`Nothing unlocked, no tests were listed.${ignoredNote}`);
     }
   }
 }
