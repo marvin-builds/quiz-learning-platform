@@ -28,6 +28,20 @@ const git = (...args) => run('git', args);
 const gh = (...args) => JSON.parse(run('gh', args));
 
 const FIELDS = 'number,title,milestone,body';
+const FILLER = new Set([
+  'a',
+  'an',
+  'and',
+  'at',
+  'for',
+  'in',
+  'of',
+  'on',
+  'or',
+  'the',
+  'to',
+  'with',
+]);
 
 function slug(title) {
   const words = title
@@ -35,8 +49,10 @@ function slug(title) {
     .split(':')[0]
     .toLowerCase()
     .split(/[^a-z0-9]+/)
-    .filter(Boolean);
-  return words.slice(0, 4).join('-');
+    .filter(Boolean)
+    .slice(0, 4);
+  while (words.length > 1 && FILLER.has(words.at(-1))) words.pop();
+  return words.join('-');
 }
 
 function dependencies(issue) {
