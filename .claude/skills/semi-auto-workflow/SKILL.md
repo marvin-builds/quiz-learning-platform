@@ -18,7 +18,9 @@ a new invocation.
 With an issue number as argument, take that one, but check its dependencies
 first (below). Without one, run the session-start check from `CLAUDE.md` →
 Workflow, then take the first open issue (lowest open milestone, then lowest
-number) that:
+number) that meets the conditions below. `node scripts/slice.mjs --pick`
+applies the first two (branches, "Depends on") and prints its candidate;
+check the rest yourself. The issue:
 
 - has no `<n>-*` branch or worktree yet (in progress, maybe in another
   session);
@@ -44,6 +46,11 @@ Base it on the issue and the docs it links; it is a briefing, not the spec
 review (step 4).
 
 ## 2. Worktree
+
+If the session already runs in the issue's worktree, skip this step: `npm run
+-s slice` created or reused it, ran `npm ci` and started the session there,
+so it never has to switch worktrees (which asks every time for a path outside
+`.claude/worktrees/`).
 
 Create it per `working-in-worktrees`, without tracking `origin/main`, so a
 bare `git push` can never target `main`:
