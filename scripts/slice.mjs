@@ -166,7 +166,9 @@ async function main(args) {
   if (!fs.existsSync(path.join(dir, 'node_modules'))) {
     run('npm', ['ci'], { cwd: dir, stdio: 'inherit' });
   }
-  const session = spawnSync('claude', [`/semi-auto-workflow ${issue.number}`], {
+  // Named after the branch, so the terminal title and /resume show the issue.
+  const branch = run('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: dir });
+  const session = spawnSync('claude', ['-n', branch, `/semi-auto-workflow ${issue.number}`], {
     cwd: dir,
     stdio: 'inherit',
   });
