@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.83",
+        "--config",
+        ".claude/playwright-mcp.config.json",
+        "--browser",
+        "chromium",
+        "--headless",
+        "--isolated",
+        "--caps",
+        "network",
+        "--allowed-origins",
+        "http://localhost:*;http://127.0.0.1:*",
+        "--output-dir",
+        ".claude/state/playwright-mcp"
+      ]
+    }
+  }
+}
