@@ -65,6 +65,31 @@ jobs:
       - name: Fail when the generated database types are stale
         run: npm run db:types && git diff --exit-code src/types/database.ts
 
+  e2e:
+    name: E2E tests (web)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # The app needs auth, the REST API and the gateway; only tooling is left out.
+      - run: npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,mailpit,supavisor
+      - run: npx supabase db reset
+      - run: npx playwright install --with-deps chromium
+      # Builds the web export with the local stack's values from .env.
+      - run: npm run test:e2e
+      - name: Upload Playwright traces and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-test-results
+          path: test-results/
+          retention-days: 7
+
   hosted-config-diff:
     name: Hosted config diff (preview of what a merge pushes)
     # Fork PRs get no secrets.
@@ -85,7 +110,7 @@ jobs:
 
   deploy:
     name: Migrate hosted database and deploy web
-    needs: [app, db]
+    needs: [app, db, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20

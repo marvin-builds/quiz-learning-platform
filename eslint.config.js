@@ -79,6 +79,12 @@ module.exports = defineConfig([
     },
   },
   {
-    ignores: ['dist/*', '.expo/*', 'coverage/*'],
+    // @axe-core/playwright documents `import AxeBuilder from …`, which also
+    // matches a named export of the same class.
+    files: ['e2e/**/*.ts'],
+    rules: { 'import/no-named-as-default': 'off' },
+  },
+  {
+    ignores: ['dist/*', '.expo/*', 'coverage/*', 'test-results/*'],
   },
 ]);
