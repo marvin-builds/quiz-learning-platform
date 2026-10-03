@@ -112,6 +112,19 @@ it.
 - **The harness lives in this repo.** After phase 1, the parts that proved
   generic (hooks, slice skill, generic agents) move to my personal Claude Code
   plugin, configured per project. Project-specific rules stay here.
+- **Approved means committed** (issue #5). A test is approved once it is
+  committed, after gate 1. The protected-tests hook locks committed tests, and
+  the Stop hook lets new, uncommitted tests be red, so the agent can stop at
+  gate 1 without a separate "waiting for approval" switch the agent could flip
+  itself.
+- **The Stop hook checks the whole branch** (issue #5): Jest runs the tests
+  related to changes since `origin/main`, not just uncommitted ones
+  (`--onlyChanged`), because the agent commits during the slice and a
+  committed regression must still block. After the cap it demands an
+  escalation note, and releases a few stops later even without one.
+- **The test-writer is fenced by its own hook**, not by an exemption in the
+  protected-tests hook: it may only write test files, and changing an
+  approved test still needs my unlock.
 
 ## Consequences
 

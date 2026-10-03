@@ -6,9 +6,7 @@ Expo (React Native, TypeScript, Expo Router) for web, Android and iOS;
 Supabase (Postgres, RLS, Auth, Storage) as the backend. One developer, with
 Claude Code as the main implementer.
 
-This file is a seed. Issues #2–#4 add commands and layout as they create
-them; #5 completes it with the hooks and agents. Keep it under ~150 lines and
-move procedures into `.claude/skills/`.
+Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 
 ## Read first
 
@@ -49,6 +47,8 @@ move procedures into `.claude/skills/`.
   commands as above (lint, typecheck, `jest --coverage`, `supabase start` +
   `supabase test db`). Change it together with the local commands, never apart
 - `.nvmrc`: the Node major version, shared by local setup and CI
+- `.claude/`: the agent harness (see below); its hook scripts are tested in
+  `tests/hooks/`, and `.claude/state/` holds local, ignored runtime state
 
 Expo changes with every SDK release: check the docs for the SDK version in
 `package.json` (`https://docs.expo.dev/versions/v<major>.0.0/`) rather than
@@ -71,6 +71,25 @@ memory before using an Expo or React Native API.
 - **Definition of done:** the acceptance criteria are covered by tests; lint,
   typecheck and all tests are green locally and in CI; no hard-coded UI
   strings; docs updated when a decision changed.
+
+## Harness
+
+For an issue, follow the `feature-slice` skill. What runs automatically:
+
+- **After every edit** (`post-edit.mjs`): ESLint with `--fix` and the
+  incremental typecheck for code, Prettier for other files,
+  `supabase db reset` + `supabase test db` for migrations. Problems come back
+  in the same turn; fix them before moving on.
+- **Approved tests are locked** (`protect-tests.mjs`): a test committed in
+  `HEAD` can't be edited. Only I unlock them, by creating
+  `.claude/state/tests-unlocked`; never create, touch or mention that file in
+  a command. Edit tests with Edit/Write only, never with shell commands.
+- **Stop gate** (`stop-gate.mjs`): the turn can't end while committed tests
+  related to the branch's changes, or the typecheck of non-test code, are red.
+  New, uncommitted tests may be red (gate 1). After 10 blocked stops, write
+  `.claude/state/escalation.md` and stop.
+- **Agents:** `test-writer` writes the failing tests and can only write test
+  files; `reviewer` reviews the branch diff read-only.
 
 ## Rules that must never break
 
