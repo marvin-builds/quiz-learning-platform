@@ -58,6 +58,21 @@ export function isTestFile(rel) {
   return TEST_PATTERNS.some((pattern) => pattern.test(rel));
 }
 
+/**
+ * Whether the human unlocked this test: no marker means locked, an empty
+ * marker unlocks every test, otherwise only the paths it lists.
+ */
+export function isUnlocked(dir, rel) {
+  let content;
+  try {
+    content = fs.readFileSync(path.join(dir, UNLOCK_FILE), 'utf8');
+  } catch {
+    return false;
+  }
+  const paths = content.split(/\s+/).filter(Boolean);
+  return paths.length === 0 || paths.includes(rel);
+}
+
 /** Committed tests count as approved: they passed gate 1. */
 export function isCommitted(dir, rel) {
   return spawnSync('git', ['cat-file', '-e', `HEAD:${rel}`], { cwd: dir }).status === 0;
