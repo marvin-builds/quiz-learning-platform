@@ -145,11 +145,21 @@ it.
   new test, so the agent can stop for my approval of a re-spec before it
   implements. The whole file is exempt until committed, so the changed tests
   are committed before any code changes. Once committed, the file is guarded
-  as before. The exemption follows the git state, not the unlock: the
-  protected-tests hook locks Edit and Write, but a shell command could still
-  change a test's content. Such a change shows in the diff the reviewer and I
-  read, so this is accepted for now; tying the exemption to the unlock is
-  issue #30.
+  as before.
+- **Only an unlocked edit excuses a changed approved test** (issue #30). The
+  protected-tests hook records each Edit or Write it allows on an unlocked
+  committed test in `.claude/state/unlocked-edits`, and the Stop hook excuses
+  a changed committed test only if it is listed there. The record outlives the
+  unlock, so a re-spec stays excused at gate 1 until it is committed; the Stop
+  hook drops an entry once the file matches `HEAD` again. A test changed any
+  other way, for example by a shell command, blocks while red. The agent may
+  not write the record, through Edit/Write or a shell command naming it.
+- **Docs-only branches skip the Stop hook's checks** (issue #30). When every
+  file changed since `origin/main`, committed, uncommitted or untracked, is
+  Markdown or lies under `docs/` or `.github/`, Jest and tsc can't turn red,
+  so they don't run, and a worktree without `node_modules` isn't held up. It
+  is an allowlist: any other file, including JSON and config, runs the checks
+  as before, and so does a branch without an `origin/main` to compare to.
 - **PR branches are rebased, never merged with `main`.** Branch protection
   wants a PR up to date before it merges. Bringing it up to date by merging
   `main` into the branch (GitHub's REST update-branch does exactly that) put
