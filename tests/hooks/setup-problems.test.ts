@@ -33,6 +33,9 @@ describe('hooks in a checkout without node_modules', () => {
   }
 
   it('stop gate reports a setup problem naming the directory', () => {
+    // A branch without code changes skips the checks, so change some code.
+    fixture.write('src/sum.js', 'module.exports = (a, b) => b + a;\n');
+
     const result = fixture.runHook(
       'stop-gate.mjs',
       { hook_event_name: 'Stop', stop_hook_active: false },

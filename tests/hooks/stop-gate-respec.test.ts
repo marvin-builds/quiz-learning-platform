@@ -1,15 +1,18 @@
 /**
  * @jest-environment node
  */
+import fs from 'node:fs';
 import { Fixture, writeTypeScriptProject } from './fixture';
 
 jest.setTimeout(60_000);
 
 const HOOK = 'stop-gate.mjs';
 const CAP = { QUIZ_STOP_CAP: '2' };
+const UNLOCK_FILE = '.claude/state/tests-unlocked';
 
-// A committed test with uncommitted changes is a re-spec the human unlocked:
-// like a new test at gate 1, it may be red until the human approves it.
+// A committed test with uncommitted changes is a re-spec the human unlocked,
+// provided protect-tests recorded the change as an unlocked edit: like a new
+// test at gate 1, it may then be red until the human approves it.
 describe('stop-gate hook with a committed test that has uncommitted changes', () => {
   let fixture: Fixture;
 
@@ -34,9 +37,26 @@ describe('stop-gate hook with a committed test that has uncommitted changes', ()
     return fixture.runHook(HOOK, { hook_event_name: 'Stop', stop_hook_active: false }, CAP);
   }
 
+  /**
+   * Changes a committed test as the agent does after the human's unlock: the
+   * protect-tests hook allows the Edit and records it, then the tool writes the
+   * file. The human's next message locks again, so the marker is gone at the stop.
+   */
+  function unlockedEdit(relative: string, content: string): void {
+    fixture.write(UNLOCK_FILE, '');
+    const result = fixture.runHook('protect-tests.mjs', {
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Edit',
+      tool_input: { file_path: fixture.path(relative), old_string: 'a', new_string: 'b' },
+    });
+    expect(result.output?.hookSpecificOutput?.permissionDecision).not.toBe('deny');
+    fixture.write(relative, content);
+    fs.rmSync(fixture.path(UNLOCK_FILE));
+  }
+
   /** Changes the approved sum test so that it fails against the unchanged code. */
   function respecCommittedTest(): void {
-    fixture.write(
+    unlockedEdit(
       'src/sum.test.js',
       "const sum = require('./sum');\ntest('adds three', () => expect(sum(1, 2, 3)).toBe(6));\n",
     );
@@ -80,7 +100,7 @@ describe('stop-gate hook with a committed test that has uncommitted changes', ()
     fixture.markAsOriginMain();
     expect(stop().output?.decision).toBeUndefined();
 
-    fixture.write(
+    unlockedEdit(
       'src/score-types.test.ts',
       "import { score } from './score';\nexport const points: string = score();\n",
     );
