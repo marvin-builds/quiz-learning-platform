@@ -30,6 +30,19 @@ number) that:
 If none qualifies, stop and report a table of issue → what it waits for. Do
 not start a blocked issue.
 
+Once the issue is picked, give me a short summary of it before the worktree,
+then carry on without waiting for an answer:
+
+- **For the user:** what changes from the perspective of the people who use
+  the app (anonymous player, learner, admin): what they can do or see
+  afterwards that they couldn't before, and how it feels in use.
+- **Technical details,** where they help to follow the run: the tables,
+  functions, policies or screens it adds or changes, what it builds on and
+  which issues it unblocks.
+
+Base it on the issue and the docs it links; it is a briefing, not the spec
+review (step 4).
+
 ## 2. Worktree
 
 Create it per `working-in-worktrees`, without tracking `origin/main`, so a

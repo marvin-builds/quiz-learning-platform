@@ -261,7 +261,10 @@ it.
   want, and the PR lists them all. #46 ran this way first, on an approval I
   wrote out in the prompt; the skill saves repeating it. Unlike the autopilot
   (#17), it covers one issue per invocation and never merges, so it needs no
-  phase 1 review first.
+  phase 1 review first. Right after picking the issue, the agent summarizes
+  it from the user's perspective, with technical details where useful, so I
+  know what the run is about without opening the issue; it doesn't wait for
+  an answer.
 
 ## Consequences
 
