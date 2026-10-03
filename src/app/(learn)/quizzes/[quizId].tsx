@@ -227,7 +227,7 @@ function QuestionView({
       </Text>
       {question.image_path ? (
         <View className="mb-3">
-          <QuizImage path={question.image_path} alt={question.image_alt} className="h-48" />
+          <QuizImage path={question.image_path} alt={question.image_alt} className="h-48 w-full" />
         </View>
       ) : null}
       {multiple && (
@@ -263,8 +263,8 @@ function QuestionView({
                 }`}
               />
               <View className="flex-1 gap-2">
-                <QuizImage path={answer.image_path} alt={answer.image_alt} className="h-24" />
                 <Text className="text-base text-gray-900">{answer.text}</Text>
+                <QuizImage path={answer.image_path} alt={answer.image_alt} className="h-24 w-24" />
               </View>
             </Pressable>
           );

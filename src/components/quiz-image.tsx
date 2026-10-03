@@ -19,9 +19,11 @@ export function QuizImage({
   alt: string | null;
   className: string;
 }) {
-  const [failed, setFailed] = useState(false);
+  // The path that failed, not a flag: the player reuses this component for
+  // the next question's image, which deserves its own try.
+  const [failedPath, setFailedPath] = useState<string | null>(null);
   if (!path || !alt) return null;
-  if (failed) return <Text className="text-base italic text-gray-600">{alt}</Text>;
+  if (failedPath === path) return <Text className="text-base italic text-gray-600">{alt}</Text>;
   return (
     <Image
       source={{ uri: quizImageUrl(path) }}
@@ -32,8 +34,8 @@ export function QuizImage({
       // element with `accessible`; react-native-web ignores it.
       accessible
       resizeMode="contain"
-      onError={() => setFailed(true)}
-      className={`w-full ${className}`}
+      onError={() => setFailedPath(path)}
+      className={className}
     />
   );
 }
