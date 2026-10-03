@@ -42,7 +42,10 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `npx supabase start` / `stop`: local stack in Docker (CLI pinned in `package.json`)
 - `npx supabase migration new <name>`: new migration file
 - `npx supabase db reset && npx supabase test db`: rebuild the local database
-  from the migrations and run the pgTAP tests
+  from the migrations and run the pgTAP tests; `start` and `reset` also create
+  the `quiz-images` bucket and upload `supabase/seed-images/` (only with
+  Storage running). Never run `supabase seed buckets --linked`: it would
+  upload the seed images to the hosted project
 - `npm run db:types`: regenerate `src/types/database.ts` from the local
   database; run it after every schema change
 
