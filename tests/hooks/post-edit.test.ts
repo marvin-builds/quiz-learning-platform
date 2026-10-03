@@ -1,8 +1,7 @@
 /**
  * @jest-environment node
  */
-import { Fixture, REPO_ROOT, runHook, writeTypeScriptProject } from './fixture';
-import path from 'node:path';
+import { Fixture, writeTypeScriptProject } from './fixture';
 
 jest.setTimeout(60_000);
 
@@ -103,17 +102,5 @@ describe('post-edit hook (PostToolUse)', () => {
     expect(result.status).toBe(0);
     expect(result.output).toBeUndefined();
     expect(fixture.supabaseCalls()).toEqual([]);
-  });
-});
-
-describe('post-edit hook on this repo', () => {
-  it('takes under 5 seconds for a source file once the typecheck cache is warm', () => {
-    const file = path.join(REPO_ROOT, 'src', 'app', 'index.tsx');
-    runHook(HOOK, edited(file), REPO_ROOT);
-
-    const result = runHook(HOOK, edited(file), REPO_ROOT);
-
-    expect(result.output).toBeUndefined();
-    expect(result.durationMs).toBeLessThan(5_000);
   });
 });

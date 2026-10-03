@@ -45,6 +45,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test -- --ci --coverage
+      # Duration budgets run alone, after the parallel suite whose load makes them flaky.
+      - run: npm run test:timing -- --ci
 
   db:
     name: Database tests
