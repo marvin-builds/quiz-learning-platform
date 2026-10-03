@@ -197,6 +197,17 @@ it.
   test takes the fastest of three warm runs: load slows some runs, a slower
   hook slows all of them. The budget stays absolute: a budget relative to a
   baseline would still measure the load it is meant to ignore.
+- **Tests time out after 60 seconds** (issue #41). The first render in a test
+  file loads React Native components lazily, and with a cold transform cache
+  Babel compiles them inside the test's time. A change to the `jest` config
+  makes the cached transforms stale, and CI always starts cold. The failure
+  in #23 came from the first run after such a change, on a loaded machine.
+  Machine load alone, with a warm cache, kept the render under 1 s. One cold
+  suite took 4.9 s for the first render, four in parallel 25 to 33 s, against
+  Jest's default of 5 s. `testTimeout` in `package.json` is 60 s for every
+  test, so future screens are covered too. A test that really hangs takes up
+  to a minute to fail, so a few hanging tests can push the Stop hook past its
+  300 s limit.
 
 ## Consequences
 
