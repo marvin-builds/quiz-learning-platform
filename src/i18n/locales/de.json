@@ -19,5 +19,26 @@
     "retry": "Erneut versuchen",
     "notFound": "Diese Kategorie gibt es nicht.",
     "backToCategories": "Zurück zu den Kategorien"
+  },
+  "quiz": {
+    "pageTitle": "Quiz",
+    "loading": "Quiz wird geladen …",
+    "error": "Das Quiz konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "notFound": "Dieses Quiz gibt es nicht.",
+    "backToCategories": "Zurück zu den Kategorien",
+    "questionCount_one": "{{count}} Frage",
+    "questionCount_other": "{{count}} Fragen",
+    "noQuestions": "Dieses Quiz hat noch keine Fragen.",
+    "start": "Starten",
+    "unavailable": "Dieses Quiz kann gerade nicht gespielt werden.",
+    "startError": "Das Quiz konnte nicht gestartet werden.",
+    "questionsLoading": "Fragen werden geladen …",
+    "questionsError": "Die Fragen konnten nicht geladen werden.",
+    "progress": "Frage {{current}} von {{total}}",
+    "multipleHint": "Wähle alle richtigen Antworten aus.",
+    "submit": "Antworten",
+    "submitError": "Die Antwort konnte nicht gesendet werden.",
+    "finished": "Quiz beendet. Danke fürs Mitspielen!"
   }
 }
