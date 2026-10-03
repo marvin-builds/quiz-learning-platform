@@ -120,11 +120,14 @@ For an issue, follow the `feature-slice` skill. What runs automatically:
   `.github/` skips the checks. After 10 blocked stops, write
   `.claude/state/escalation.md` and stop.
 - **Agents:** `test-writer` writes the failing tests and can only write test
-  files; `reviewer` reviews the branch diff read-only.
+  files; `reviewer` reviews the branch diff read-only; `ui-verifier` checks
+  the running web app through the Playwright MCP server (`.mcp.json`; setup
+  in `feature-slice` step 5). The `e2e-flow` skill covers e2e specs.
 - **Which checkout:** the hooks check the git work tree of the session's
   working directory (a worktree after `EnterWorktree`), falling back to
   `CLAUDE_PROJECT_DIR`. The hook scripts themselves load from the main
-  checkout, so keep it on an up-to-date `main`. A tool that can't start
+  checkout, so keep it on an up-to-date `main`. The MCP server runs where the
+  session started. A tool that can't start
   (no `node_modules`) is reported as a setup problem: run `npm ci` there.
 
 ## Rules that must never break

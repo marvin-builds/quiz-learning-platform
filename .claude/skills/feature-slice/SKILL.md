@@ -78,8 +78,19 @@ Run `/simplify` on the change. Tests stay green, and nothing new is added.
 
 `npm run -s check`, plus `npx supabase db reset && npx supabase test db` if
 the slice touches the database, plus `npm run db:types` after schema changes.
-Look at UI changes in the running app (`npx expo start --web`) at phone and
-desktop width.
+For UI changes, start the app in the background on a port no other worktree
+uses (`npx expo start --web --port <port>`) and delegate to the `ui-verifier`
+agent with the URL and the issue's acceptance criteria: it checks phone and
+desktop width in the browser and saves screenshots under
+`.claude/state/ui-verifier/`. Fix what it finds before the review, then stop
+the server. New or changed e2e specs follow the `e2e-flow` skill.
+
+The Playwright MCP server (`.mcp.json`) needs approving once when Claude Code
+asks, and its own browser, separate from the e2e tests' one:
+`npx -y @playwright/mcp@0.0.83 install-browser chrome-for-testing` (the
+version pinned in `.mcp.json`). It runs from the directory the session
+started in and writes screenshots there, so start the session in the
+slice's worktree; after `EnterWorktree` they land in the main checkout.
 
 ## 6. Review
 
