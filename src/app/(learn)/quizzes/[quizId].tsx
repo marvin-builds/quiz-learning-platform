@@ -24,7 +24,7 @@ export default function QuizScreen() {
 
   return (
     <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="px-4 py-8">
-      <PageTitle title={quiz.data?.title ?? t('categories.title')} />
+      <PageTitle title={quiz.data?.title ?? t('quiz.pageTitle')} />
       <View className="mx-auto w-full max-w-2xl">
         <QuizBody quiz={quiz} />
       </View>
@@ -160,7 +160,12 @@ function Player({ quizId, attemptId }: { quizId: string; attemptId: string }) {
       </Text>
       <QuestionView question={question} picks={picks} disabled={submit.busy} onPick={pick} />
       {submit.isError ? (
-        <ErrorState message={t('quiz.submitError')} retryLabel={t('quiz.retry')} onRetry={send} />
+        <ErrorState
+          message={t('quiz.submitError')}
+          retryLabel={t('quiz.retry')}
+          onRetry={send}
+          retryDisabled={picks.length === 0 || submit.busy}
+        />
       ) : (
         <Button
           label={t('quiz.submit')}
@@ -178,6 +183,21 @@ function togglePick(picks: string[], answerId: string, multiple: boolean): strin
   return picks.includes(answerId) ? picks.filter((id) => id !== answerId) : [...picks, answerId];
 }
 
+/**
+ * On web, Pressable presses on Space only for buttons; radios and checkboxes
+ * are picked with Space too. onKeyDown exists only in react-native-web's
+ * Pressable, so it is spread in rather than typed as a prop.
+ */
+function pickOnSpace(pick: () => void) {
+  return {
+    onKeyDown: (event: { key?: string; preventDefault?: () => void }) => {
+      if (event.key !== ' ') return;
+      event.preventDefault?.();
+      pick();
+    },
+  };
+}
+
 function QuestionView({
   question,
   picks,
@@ -191,15 +211,30 @@ function QuestionView({
 }) {
   const { t } = useTranslation();
   const labelId = `question-${question.id}`;
+  const hintId = `hint-${question.id}`;
   const multiple = question.multiple_correct;
 
   return (
     <View className="mb-6">
-      <Text nativeID={labelId} className="mb-2 text-xl font-semibold text-gray-900">
+      <Text
+        role="heading"
+        aria-level={2}
+        nativeID={labelId}
+        className="mb-2 text-xl font-semibold text-gray-900"
+      >
         {question.text}
       </Text>
-      {multiple && <Text className="mb-2 text-base text-gray-600">{t('quiz.multipleHint')}</Text>}
-      <View role={multiple ? 'group' : 'radiogroup'} aria-labelledby={labelId} className="gap-3">
+      {multiple && (
+        <Text nativeID={hintId} className="mb-2 text-base text-gray-600">
+          {t('quiz.multipleHint')}
+        </Text>
+      )}
+      <View
+        role={multiple ? 'group' : 'radiogroup'}
+        aria-labelledby={labelId}
+        aria-describedby={multiple ? hintId : undefined}
+        className="gap-3"
+      >
         {question.answers.map((answer) => {
           const checked = picks.includes(answer.id);
           return (
@@ -209,6 +244,9 @@ function QuestionView({
               aria-checked={checked}
               disabled={disabled}
               onPress={() => onPick(answer.id)}
+              {...pickOnSpace(() => {
+                if (!disabled) onPick(answer.id);
+              })}
               className={`flex-row items-center rounded-xl border bg-white p-4 hover:bg-gray-50 ${
                 checked ? 'border-blue-700' : 'border-gray-200'
               }`}
@@ -236,7 +274,13 @@ function useGuardedMutation<TData, TVariables = void>(
   options: Pick<UseMutationOptions<TData, Error, TVariables>, 'mutationFn' | 'onSuccess'>,
 ) {
   const [pressed, setPressed] = useState(false);
-  const mutation = useMutation({ ...options, onSettled: () => setPressed(false) });
+  // 'always': offline, the request fails and shows its error with retry,
+  // instead of pausing silently until the connection is back.
+  const mutation = useMutation({
+    ...options,
+    networkMode: 'always',
+    onSettled: () => setPressed(false),
+  });
   const busy = pressed || mutation.isPending;
   return {
     ...mutation,

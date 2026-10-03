@@ -21,6 +21,7 @@
     "backToCategories": "Back to the categories"
   },
   "quiz": {
+    "pageTitle": "Quiz",
     "loading": "Loading the quiz …",
     "error": "The quiz could not be loaded.",
     "retry": "Try again",

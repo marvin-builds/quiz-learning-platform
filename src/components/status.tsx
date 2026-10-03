@@ -37,15 +37,17 @@ export function ErrorState({
   message,
   retryLabel,
   onRetry,
+  retryDisabled = false,
 }: {
   message: string;
   retryLabel: string;
   onRetry: () => void;
+  retryDisabled?: boolean;
 }) {
   return (
     <View className="items-center py-6">
       <Text className="mb-4 text-center text-base text-red-700">{message}</Text>
-      <Button label={retryLabel} onPress={onRetry} />
+      <Button label={retryLabel} disabled={retryDisabled} onPress={onRetry} />
     </View>
   );
 }

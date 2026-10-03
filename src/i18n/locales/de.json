@@ -21,6 +21,7 @@
     "backToCategories": "Zurück zu den Kategorien"
   },
   "quiz": {
+    "pageTitle": "Quiz",
     "loading": "Quiz wird geladen …",
     "error": "Das Quiz konnte nicht geladen werden.",
     "retry": "Erneut versuchen",
