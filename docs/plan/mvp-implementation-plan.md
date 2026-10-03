@@ -187,6 +187,7 @@ needs it.
 4. Quiz player: single and multiple choice, images
 5. Answer feedback with explanation, result screen
 6. Anonymous sign-in and `attempts` storage
+7. Security review of the learner surface (see "Security reviews" below)
 
 **E2E flow A:** an anonymous user opens a category, plays a quiz, sees
 explanations and the score.
@@ -200,6 +201,7 @@ explanations and the score.
 4. Answers with single/multiple correct, validation (at least one correct)
 5. Image upload to Storage with policies
 6. Reordering and learner preview
+7. Security review of the admin surface (see "Security reviews" below)
 
 **E2E flow B:** an admin logs in, creates a category and a quiz with an image,
 publishes it, and a learner sees it. A learner trying admin routes or writes is
@@ -221,8 +223,26 @@ still in their history.
 - Web deploy (static export of the Expo web build; host to be chosen)
 - Hosted Supabase project in Frankfurt, migrations applied by CI, DPA signed
 - Impressum, privacy policy, minimal error monitoring (e.g. Sentry)
-- Security pass: `/security-review` over the full RLS and Storage setup, plus
-  a manual read of every policy
+- Pre-release security audit (see "Security reviews" below)
+
+### Security reviews
+
+Each slice is already checked by its pgTAP tests and the `reviewer`. On top of
+that, a dedicated security review closes a phase when it adds an attack
+surface, so a problem is found before the next phase builds on it, not at
+launch:
+
+- **End of phase 1, learner surface:** content RLS, `check_answer`, solution
+  leaks, unpublished content, abuse of anonymous sign-in.
+- **End of phase 2, admin surface:** privilege escalation to admin, writes
+  without the admin role, Storage policies.
+- **Before the MVP release, everything:** account flows from phase 3, the
+  hosted configuration and Supabase's security advisors, secrets in the web
+  bundle, security headers of the deployed site, open dependency alerts.
+
+Each review is an issue: `/security-review` plus a manual pass and a human
+read of every policy, findings listed in the issue, each fixed test first or
+given its own issue. No high or critical finding is open at release.
 
 ## 6. Guardrails and risks
 
@@ -230,7 +250,7 @@ still in their history.
 |---|---|
 | Agent "fixes" tests instead of code | Human-approved tests, PreToolUse block, reviewer checks the test diff |
 | Weak tests that pass anything | Property tests + mutation testing on domain logic, negative RLS tests mandatory |
-| RLS mistake leaks answers or allows writes | pgTAP per role, reviewer focus, security review before launch; human reads every policy |
+| RLS mistake leaks answers or allows writes | pgTAP per role, reviewer focus, security reviews at the end of phases 1 and 2 and before launch; human reads every policy |
 | Endless fix loops, wasted tokens | Iteration caps, escalation note, slices kept small |
 | Flaky e2e tests eroding trust | Reset DB per run, no sleeps (Playwright auto-waits), flaky test = bug ticket |
 | Context drift in long sessions | One slice per session, state in the issue and in commits, not in chat |
@@ -257,6 +277,7 @@ Clarified on 2026-10-03 (second round):
 | Human gates | Gate 2 is push, PR and merge; the agent commits verified work on its own branch without asking |
 | Harness scope | Minimal in phase 0, grown when a slice first needs a piece (see ADR 0003 amendment) |
 | Harness home | In this repo's `.claude/`; parts that prove generic move to the personal Claude Code plugin after phase 1 |
+| Security reviews | One per phase that adds an attack surface (end of phases 1 and 2) plus a full audit before the release, each as its own issue |
 | Docs | ADRs and plans live in this repo under `docs/` |
 | Branch naming | `<issue-number>-<short-slug>`, documented in `CLAUDE.md` |
 | Walking skeleton | Phase 0 ends with a CI deploy of a minimal web build against the hosted Supabase project |
