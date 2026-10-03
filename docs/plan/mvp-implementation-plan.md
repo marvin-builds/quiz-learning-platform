@@ -299,7 +299,7 @@ Decided with the walking-skeleton deploy (#7):
 | Web hosting | Cloudflare Pages, project `small-quiz-poc` (`https://small-quiz-poc.pages.dev`); CI deploys the static web export (`expo export`, SPA output) with wrangler on every push to `main` |
 | Hosted Supabase | Project `kiywcqhicsesgknlwjyy` in Frankfurt; CI runs `supabase db push` on every push to `main`, never a local machine |
 | Hosted auth settings | Pushed by CI with `supabase config push` from `supabase/config.toml`; `[remotes.production]` overrides the local development values (site URL, email confirmations, email rate). PR runs show `supabase config diff` against the hosted project |
-| Hosted credentials | Only in GitHub secrets (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PUBLISHABLE_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`); the root `.env` holds only the local stack's public values |
+| Hosted credentials | Only in GitHub secrets (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PUBLISHABLE_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `EXPO_TOKEN`); the root `.env` holds only the local stack's public values |
 | Hosted dashboard settings | Created with "Automatically expose new tables" off and "Enable automatic RLS" on. Locally, a migration revokes the default privileges of `anon` and `authenticated` (and `execute` on new functions in any schema from `PUBLIC`), so a table or function without explicit grants is closed in both places; helper functions used in RLS policies need an explicit `grant execute` |
 | RLS helpers | Visibility checks used by policies (e.g. `private.is_quiz_visible(uuid)`) are `security definer` functions with `search_path = ''` in schema `private`, which the API doesn't expose; `anon` and `authenticated` get `usage` on the schema and `execute` on each helper. `private` holds functions only, never tables. Solution columns are hidden by column grants, not policies |
 | Stale types | CI fails when `src/types/database.ts` differs from `npm run db:types` |
@@ -314,6 +314,7 @@ Decided while planning phase 1 (2026-10-03):
 | Images | A public-read Storage bucket `quiz-images`; uploads come with phase 2. Every image has a required alt text. `supabase/config.toml` declares it for the local stack, which uploads the seed images; a migration creates it on the hosted project, since `config push` doesn't create buckets. No storage policies yet, so nobody can write or list it |
 | Admins in phase 1 | See and do what learners do; the admin read and write paths come with phase 2 |
 | Hosted content | `seed.sql` runs only locally, so the hosted site shows the empty state until admins create content in phase 2 |
+| Android smoke build | The preview APK is built by hand with a `workflow_dispatch` job that runs `eas build --local` on the GitHub runner (#67): it uses no EAS free-tier build credits, and the hosted publishable key stays a GitHub secret of the `production` environment instead of moving to expo.dev or the dev machine. Package id `io.github.marvinmai.quiz`. The per-phase checklist targets the preview APK; see [mobile smoke test](../mobile-smoke-test.md) |
 | Issues | Created for phase 1 only; phases 2 and 3 get theirs after the phase 1 review in ADR 0003 |
 
 The agentic workflow itself is recorded in

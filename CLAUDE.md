@@ -39,6 +39,8 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
   branch; `-- --pick` only prints the pick
 - `npx expo install <package>`: add dependencies with versions matching the Expo SDK
 - `npx expo-doctor`: check dependency and config problems
+- `gh workflow run android-preview.yml --ref main`: build the Android preview
+  APK by hand; dev client and checklist: [mobile smoke test](docs/mobile-smoke-test.md)
 - `npx supabase start` / `stop`: local stack in Docker (CLI pinned in `package.json`)
 - `npx supabase migration new <name>`: new migration file
 - `npx supabase db reset && npx supabase test db`: rebuild the local database
@@ -67,6 +69,8 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
   commands, never apart. On `main` it also migrates the hosted database,
   pushes `supabase/config.toml` (hosted overrides in `[remotes.production]`)
   and deploys the web export to Cloudflare Pages
+- `.github/workflows/android-preview.yml`: the manual Android preview APK
+  build (`workflow_dispatch` only); `eas.json` holds the build profiles
 - `.github/dependabot.yml`: daily GitHub Actions updates and npm security
   updates only; bump Expo and React Native with `npx expo install --fix`
 - `.env`: the local stack's public URL and key for the app; CI sets the
