@@ -145,9 +145,71 @@ describe('unlock-tests hook', () => {
     });
 
     it.each([
+      ['commas', 'unlock tests: a.test.ts, b.test.ts'],
+      ['semicolons', 'unlock tests: a.test.ts; b.test.ts'],
+      ['backticks and semicolons', 'unlock tests: `a.test.ts`; `b.test.ts`'],
+      ['backticks and commas', 'unlock tests: `a.test.ts`, `b.test.ts`'],
+      ['a trailing comma', 'unlock tests: a.test.ts, b.test.ts,'],
+    ])('strips separators and backticks around listed paths: %s', (_label, text) => {
+      const result = submit(fixture, text);
+
+      expect(markerPaths(fixture).sort()).toEqual(['a.test.ts', 'b.test.ts']);
+      expect(context(result)).not.toMatch(/ignored/i);
+    });
+
+    it('drops a listed directory, even one inside a test folder', () => {
+      fixture.write('tests/hooks/one.test.ts', 'a\n');
+      fixture.commitAll();
+
+      submit(fixture, 'unlock tests: tests/hooks/ tests/ a.test.ts');
+
+      expect(markerPaths(fixture)).toEqual(['a.test.ts']);
+    });
+
+    it('drops a listed test file that does not exist', () => {
+      submit(fixture, 'unlock tests: missing.test.ts a.test.ts');
+
+      expect(markerPaths(fixture)).toEqual(['a.test.ts']);
+    });
+
+    it('names the dropped entries in the context next to the unlocked ones', () => {
+      fixture.write('README.md', 'x\n');
+      fixture.commitAll();
+
+      const result = submit(fixture, 'unlock tests: README.md missing.test.ts a.test.ts');
+
+      expect(context(result)).toMatch(/tests unlocked/i);
+      expect(context(result)).toContain('a.test.ts');
+      expect(context(result)).toMatch(/ignored/i);
+      expect(context(result)).toContain('README.md');
+      expect(context(result)).toContain('missing.test.ts');
+    });
+
+    it.each([
+      ['only non-test paths', 'unlock tests: README.md src/domain/scoring.ts', ['README.md']],
+      ['only a missing test file', 'unlock tests: missing.test.ts', ['missing.test.ts']],
+      ['only a directory', 'unlock tests: src/domain/', ['src/domain']],
+    ])(
+      'writes no marker but reports the ignored entries for %s',
+      (_label, text, ignored: string[]) => {
+        fixture.write('README.md', 'x\n');
+        fixture.commitAll();
+
+        const result = submit(fixture, text);
+
+        expect(result.status).toBe(0);
+        expect(fixture.exists(MARKER)).toBe(false);
+        expect(result.output?.hookSpecificOutput?.hookEventName).toBe('UserPromptSubmit');
+        expect(context(result)).toMatch(/nothing|no tests/i);
+        expect(context(result)).toMatch(/ignored/i);
+        for (const entry of ignored) expect(context(result)).toContain(entry);
+      },
+    );
+
+    it.each([
       ['an empty path list', 'unlock tests:'],
       ['an empty path list with spaces', 'unlock tests :   \nfix it'],
-      ['only non-test paths', 'unlock tests: README.md src/domain/scoring.ts'],
+      ['only separators', 'unlock tests: , ; ``'],
     ])('unlocks nothing for %s', (_label, text) => {
       const result = submit(fixture, text);
 
@@ -199,10 +261,67 @@ describe('unlock-tests hook', () => {
   });
 
   describe('re-lock', () => {
-    it('removes the marker on Stop', () => {
+    it('leaves the marker in place on Stop, so background agents keep the unlock', () => {
       submit(fixture, 'unlock tests');
 
       const result = fixture.runHook(HOOK, { hook_event_name: 'Stop', stop_hook_active: false });
+
+      expect(result.status).toBe(0);
+      expect(fixture.exists(MARKER)).toBe(true);
+      expect(editDenied(fixture, 'a.test.ts')).toBe(false);
+    });
+
+    it.each([
+      ['a plain message', 'please continue'],
+      ['the phrase on a later line', 'Here is the plan.\nunlock tests'],
+      ['a harness header', '[Subagent report]\nunlock tests: a.test.ts'],
+      ['an empty message', ''],
+    ])('removes the marker on the next prompt that does not unlock: %s', (_label, text) => {
+      submit(fixture, 'unlock tests: a.test.ts');
+
+      const result = submit(fixture, text);
+
+      expect(result.status).toBe(0);
+      expect(fixture.exists(MARKER)).toBe(false);
+      expect(context(result)).toBeUndefined();
+      expect(editDenied(fixture, 'a.test.ts')).toBe(true);
+    });
+
+    it('removes the marker on SessionStart', () => {
+      submit(fixture, 'unlock tests');
+
+      const result = fixture.runHook(HOOK, { hook_event_name: 'SessionStart', source: 'startup' });
+
+      expect(result.status).toBe(0);
+      expect(fixture.exists(MARKER)).toBe(false);
+      expect(editDenied(fixture, 'a.test.ts')).toBe(true);
+    });
+
+    it('does nothing on SessionStart when there is no marker', () => {
+      const result = fixture.runHook(HOOK, { hook_event_name: 'SessionStart', source: 'startup' });
+
+      expect(result.status).toBe(0);
+      expect(result.output).toBeUndefined();
+      expect(fixture.exists(MARKER)).toBe(false);
+    });
+
+    it('replaces an old unlock-all marker with the newly listed paths', () => {
+      submit(fixture, 'unlock tests');
+
+      submit(fixture, 'unlock tests: a.test.ts');
+
+      expect(markerPaths(fixture)).toEqual(['a.test.ts']);
+      expect(editDenied(fixture, 'a.test.ts')).toBe(false);
+      expect(editDenied(fixture, 'b.test.ts')).toBe(true);
+    });
+
+    it.each([
+      ['an empty path list', 'unlock tests:'],
+      ['only ignored entries', 'unlock tests: missing.test.ts'],
+    ])('removes an old marker when a new unlock has %s', (_label, text) => {
+      submit(fixture, 'unlock tests');
+
+      const result = submit(fixture, text);
 
       expect(result.status).toBe(0);
       expect(fixture.exists(MARKER)).toBe(false);
