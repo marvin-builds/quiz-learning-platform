@@ -105,7 +105,8 @@ For an issue, follow the `feature-slice` skill. What runs automatically:
   New tests, and committed test files changed through Edit/Write while
   unlocked (recorded in `.claude/state/unlocked-edits`, exempt as a whole file
   until committed), may be red (gate 1); a test changed any other way blocks.
-  Never write that record. A branch that changes only Markdown, `docs/` or
+  Never write that file or name it in a shell command (the hook denies
+  any command mentioning it). A branch that changes only Markdown, `docs/` or
   `.github/` skips the checks. After 10 blocked stops, write
   `.claude/state/escalation.md` and stop.
 - **Agents:** `test-writer` writes the failing tests and can only write test

@@ -156,10 +156,25 @@ it.
   not write the record, through Edit/Write or a shell command naming it.
 - **Docs-only branches skip the Stop hook's checks** (issue #30). When every
   file changed since `origin/main`, committed, uncommitted or untracked, is
-  Markdown or lies under `docs/` or `.github/`, Jest and tsc can't turn red,
-  so they don't run, and a worktree without `node_modules` isn't held up. It
-  is an allowlist: any other file, including JSON and config, runs the checks
-  as before, and so does a branch without an `origin/main` to compare to.
+  Markdown or lies under `docs/` or `.github/`, the change isn't expected to
+  affect Jest or tsc, so they don't run, and a worktree without
+  `node_modules` isn't held up. CI still runs everything. It is an allowlist:
+  any other file, including JSON and config, runs the checks as before, and
+  so does a branch without an `origin/main` to compare to.
+- **Known harness gaps are accepted, not chased** (issue #30). The review of
+  #30 found gaps that only an agent deliberately breaking the rules, or files
+  the repo doesn't have, would expose: the record of unlocked edits is pruned
+  only at a stop, so a shell change in the same turn, after the re-spec was
+  committed or after an allowed Edit that never ran, is still excused; the
+  record can be forged by obfuscating its name in a shell command, through
+  symlinked paths or on a case-insensitive file system (as the unlock marker
+  can); concurrent hooks can lose an entry, which only blocks wrongly; and a
+  code file under `docs/` or `.github/` would skip the local checks. My diff
+  review, the reviewer agent and CI catch all of them. Rule: a harness
+  finding that needs deliberate evasion, or that diff review or CI already
+  catch, is recorded here as accepted risk rather than fixed, unless it bites
+  in practice. The #26, #29 and #30 follow-ups showed that each review finds
+  a narrower edge, while the product waits.
 - **PR branches are rebased, never merged with `main`.** Branch protection
   wants a PR up to date before it merges. Bringing it up to date by merging
   `main` into the branch (GitHub's REST update-branch does exactly that) put

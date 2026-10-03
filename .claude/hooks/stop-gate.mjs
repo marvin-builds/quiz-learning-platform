@@ -3,9 +3,10 @@
 // agent changed while the human had them unlocked (recorded by
 // protect-tests.mjs), may be red: that is gate 1, where they wait for
 // approval. A branch that changes only docs or GitHub config skips the checks,
-// since it can't turn them red. After QUIZ_STOP_CAP blocked stops in one turn the agent must write
-// an escalation note instead of trying again; a few stops later it is released
-// regardless, so it never loops.
+// since such changes aren't expected to affect them; CI runs everything. After
+// QUIZ_STOP_CAP blocked stops in one turn the agent must write an escalation
+// note instead of trying again; a few stops later it is released regardless,
+// so it never loops.
 import fs from 'node:fs';
 import path from 'node:path';
 import {
