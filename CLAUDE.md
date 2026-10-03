@@ -51,7 +51,7 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
   commands, never apart. On `main` it also migrates the hosted database,
   pushes `supabase/config.toml` (hosted overrides in `[remotes.production]`)
   and deploys the web export to Cloudflare Pages
-- `.github/dependabot.yml`: weekly GitHub Actions updates and npm security
+- `.github/dependabot.yml`: daily GitHub Actions updates and npm security
   updates only; bump Expo and React Native with `npx expo install --fix`
 - `.env`: the local stack's public URL and key for the app; CI sets the
   hosted values
@@ -65,6 +65,8 @@ memory before using an Expo or React Native API.
 
 ## Workflow
 
+- **Session start:** list the open Dependabot PRs and the next issue (lowest
+  open milestone, then lowest number), then let me decide what to work on.
 - **One issue = one slice = one branch** named `<issue-number>-<short-slug>`
   (e.g. `2-expo-app-skeleton`), branched from an up-to-date `main`.
 - **Tests first.** Turn the issue's acceptance criteria into failing tests and

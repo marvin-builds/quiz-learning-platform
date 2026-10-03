@@ -159,6 +159,10 @@ it.
   since the branch is its own and unmerged. CI fails a PR whose branch
   contains a merge commit, in the required lint and test job, so a back-merge
   can't reach `main` again. `main` keeps its PR merge commits.
+- **A session starts with a status check.** The agent lists the open
+  Dependabot PRs and the next issue, and I decide what to work on. Security
+  PRs would otherwise wait unseen, and choosing the next piece of work stays
+  mine.
 
 ## Consequences
 
