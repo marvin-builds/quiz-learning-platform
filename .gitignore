@@ -49,3 +49,6 @@ coverage/
 # Stryker mutation testing output
 /reports/mutation/
 /.stryker-tmp/
+
+# Playwright output
+/test-results/

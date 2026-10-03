@@ -25,8 +25,12 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
   so run one with `npm run test:timing -- <path>`
 - `npm run lint`: ESLint with Prettier and the no-hard-coded-strings rule
 - `npm run typecheck`: `tsc --noEmit` in strict mode
+- `npm run test:e2e`: Playwright and axe in Chromium (phone and desktop) against
+  the static web export; needs the local stack running and reset first
+  (`npx supabase start && npx supabase db reset`). One-time setup:
+  `npx playwright install chromium`. `check` does not run it
 - `npm run -s check`: lint, typecheck, tests and timing tests with quiet output (only
-  problems and a summary); use it for verification runs
+  problems and a summary); use it for verification runs; no e2e tests
 - `npm run test:mutation`: Stryker on `src/domain/`; fails below 80 %
 - `npx expo install <package>`: add dependencies with versions matching the Expo SDK
 - `npx expo-doctor`: check dependency and config problems
@@ -50,7 +54,8 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `.github/workflows/ci.yml`: CI on PRs and pushes to `main`; runs the same
   commands as above (lint, typecheck, `jest --coverage` with an 80 % global
   threshold in `package.json`, the timing tests, `supabase start` +
-  `supabase test db`, a stale-types check). Change it together with the local
+  `supabase test db`, a stale-types check, `supabase db reset` +
+  `npm run test:e2e`). Change it together with the local
   commands, never apart. On `main` it also migrates the hosted database,
   pushes `supabase/config.toml` (hosted overrides in `[remotes.production]`)
   and deploys the web export to Cloudflare Pages
