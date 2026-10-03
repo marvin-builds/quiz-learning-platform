@@ -311,7 +311,7 @@ Decided while planning phase 1 (2026-10-03):
 | Answer checking | Server-authoritative ([ADR 0002 amendment](../adr/0002-supabase-backend.md#amendment-2026-10-03-answers-are-recorded-before-they-are-checked)): `start_attempt(quiz_id)` creates an attempt; `submit_answer(attempt_id, question_id, answer_ids[])` stores the first submission per question, scores it in SQL, then returns correctness, the correct answer ids, the explanation and the points. Replaying a quiz in a new attempt is an accepted gap |
 | Scoring | One point per question, rounded to 2 decimals per question; the attempt's score is the sum of the stored points. `src/domain/scoring.ts` stays as the property-tested reference the SQL cases mirror |
 | Anonymous session | Browsing works as `anon` without a session; starting a quiz signs in anonymously if there is no session yet. Locally the anonymous sign-in limit is raised for E2E runs; hosted keeps 30 per hour per IP |
-| Images | A public-read Storage bucket `quiz-images`; uploads come with phase 2. Every image has a required alt text |
+| Images | A public-read Storage bucket `quiz-images`; uploads come with phase 2. Every image has a required alt text. `supabase/config.toml` declares it for the local stack, which uploads the seed images; a migration creates it on the hosted project, since `config push` doesn't create buckets. No storage policies yet, so nobody can write or list it |
 | Admins in phase 1 | See and do what learners do; the admin read and write paths come with phase 2 |
 | Hosted content | `seed.sql` runs only locally, so the hosted site shows the empty state until admins create content in phase 2 |
 | Issues | Created for phase 1 only; phases 2 and 3 get theirs after the phase 1 review in ADR 0003 |
