@@ -24,6 +24,7 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `npm run typecheck`: `tsc --noEmit` in strict mode
 - `npm run -s check`: lint, typecheck and tests with quiet output (only
   problems and a summary); use it for verification runs
+- `npm run test:mutation`: Stryker on `src/domain/`; fails below 80 %
 - `npx expo install <package>`: add dependencies with versions matching the Expo SDK
 - `npx expo-doctor`: check dependency and config problems
 - `npx supabase start` / `stop`: local stack in Docker (CLI pinned in `package.json`)

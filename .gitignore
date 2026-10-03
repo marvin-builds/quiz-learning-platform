@@ -45,3 +45,7 @@ coverage/
 
 # Claude Code harness state (unlock flag, stop counters, caches)
 .claude/state/
+
+# Stryker mutation testing output
+/reports/mutation/
+/.stryker-tmp/
