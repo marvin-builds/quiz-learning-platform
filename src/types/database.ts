@@ -23,6 +23,74 @@ export type Database = {
   };
   public: {
     Tables: {
+      answers: {
+        Row: {
+          created_at: string;
+          id: string;
+          image_alt: string | null;
+          image_path: string | null;
+          is_correct: boolean;
+          question_id: string;
+          sort_order: number;
+          text: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          image_alt?: string | null;
+          image_path?: string | null;
+          is_correct?: boolean;
+          question_id: string;
+          sort_order: number;
+          text: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          image_alt?: string | null;
+          image_path?: string | null;
+          is_correct?: boolean;
+          question_id?: string;
+          sort_order?: number;
+          text?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'answers_question_id_fkey';
+            columns: ['question_id'];
+            isOneToOne: false;
+            referencedRelation: 'questions';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      categories: {
+        Row: {
+          created_at: string;
+          description: string | null;
+          id: string;
+          name: string;
+          published: boolean;
+          sort_order: number;
+        };
+        Insert: {
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          name: string;
+          published?: boolean;
+          sort_order: number;
+        };
+        Update: {
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          name?: string;
+          published?: boolean;
+          sort_order?: number;
+        };
+        Relationships: [];
+      };
       profiles: {
         Row: {
           display_name: string | null;
@@ -40,6 +108,88 @@ export type Database = {
           role?: Database['public']['Enums']['user_role'];
         };
         Relationships: [];
+      };
+      questions: {
+        Row: {
+          created_at: string;
+          explanation: string | null;
+          id: string;
+          image_alt: string | null;
+          image_path: string | null;
+          multiple_correct: boolean;
+          quiz_id: string;
+          sort_order: number;
+          text: string;
+        };
+        Insert: {
+          created_at?: string;
+          explanation?: string | null;
+          id?: string;
+          image_alt?: string | null;
+          image_path?: string | null;
+          multiple_correct?: boolean;
+          quiz_id: string;
+          sort_order: number;
+          text: string;
+        };
+        Update: {
+          created_at?: string;
+          explanation?: string | null;
+          id?: string;
+          image_alt?: string | null;
+          image_path?: string | null;
+          multiple_correct?: boolean;
+          quiz_id?: string;
+          sort_order?: number;
+          text?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'questions_quiz_id_fkey';
+            columns: ['quiz_id'];
+            isOneToOne: false;
+            referencedRelation: 'quizzes';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      quizzes: {
+        Row: {
+          category_id: string;
+          created_at: string;
+          description: string | null;
+          id: string;
+          published: boolean;
+          sort_order: number;
+          title: string;
+        };
+        Insert: {
+          category_id: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          published?: boolean;
+          sort_order: number;
+          title: string;
+        };
+        Update: {
+          category_id?: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          published?: boolean;
+          sort_order?: number;
+          title?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'quizzes_category_id_fkey';
+            columns: ['category_id'];
+            isOneToOne: false;
+            referencedRelation: 'categories';
+            referencedColumns: ['id'];
+          },
+        ];
       };
     };
     Views: {
