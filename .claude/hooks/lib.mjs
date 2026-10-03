@@ -7,6 +7,9 @@ import path from 'node:path';
 
 export const STATE_DIR = '.claude/state';
 export const UNLOCK_FILE = `${STATE_DIR}/tests-unlocked`;
+// Committed tests the agent changed through Edit/Write while the human had
+// them unlocked, one path per line: the only re-specs the stop gate excuses.
+export const UNLOCKED_EDITS_FILE = `${STATE_DIR}/unlocked-edits`;
 
 // Feedback longer than this is cut, so a flood of errors doesn't fill the
 // agent's context; the first errors are the ones to fix anyway.
@@ -71,6 +74,24 @@ export function isUnlocked(dir, rel) {
   }
   const paths = content.split(/\s+/).filter(Boolean);
   return paths.length === 0 || paths.includes(rel);
+}
+
+export function readUnlockedEdits(dir) {
+  try {
+    return fs.readFileSync(path.join(dir, UNLOCKED_EDITS_FILE), 'utf8').split('\n').filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+export function writeUnlockedEdits(dir, paths) {
+  const file = path.join(dir, UNLOCKED_EDITS_FILE);
+  if (paths.length === 0) {
+    fs.rmSync(file, { force: true });
+  } else {
+    ensureStateDir(dir);
+    fs.writeFileSync(file, paths.map((rel) => `${rel}\n`).join(''));
+  }
 }
 
 /** Committed tests count as approved: they passed gate 1. */

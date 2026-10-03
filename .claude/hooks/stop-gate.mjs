@@ -1,7 +1,9 @@
 // Stop / SubagentStop: the agent may not end its turn while approved tests
-// fail or production code has type errors. New tests, and committed tests with
-// uncommitted content changes, may be red: that is gate 1, where they wait for
-// approval. After QUIZ_STOP_CAP blocked stops in one turn the agent must write
+// fail or production code has type errors. New tests, and committed tests the
+// agent changed while the human had them unlocked (recorded by
+// protect-tests.mjs), may be red: that is gate 1, where they wait for
+// approval. A branch that changes only docs or GitHub config skips the checks,
+// since it can't turn them red. After QUIZ_STOP_CAP blocked stops in one turn the agent must write
 // an escalation note instead of trying again; a few stops later it is released
 // regardless, so it never loops.
 import fs from 'node:fs';
@@ -17,10 +19,12 @@ import {
   parseTscErrors,
   projectDir,
   readInput,
+  readUnlockedEdits,
   relativeToProject,
   respond,
   run,
   tscArgs,
+  writeUnlockedEdits,
 } from './lib.mjs';
 
 // Agents that leave red tests behind by design: the test-writer at gate 1,
@@ -30,9 +34,15 @@ const CAP = Number(process.env.QUIZ_STOP_CAP ?? 10);
 // Stops past the cap without a note before the agent is released anyway.
 const GRACE = 3;
 const ESCALATION_NOTE = `${STATE_DIR}/escalation.md`;
+// Changes that can't affect Jest or tsc. An allowlist, so that an unforeseen
+// file type runs the checks rather than skips them.
+const NO_CHECKS_NEEDED = [/\.md$/, /^docs\//, /^\.github\//];
 
 const input = await readInput();
 const dir = projectDir(input);
+// A recorded re-spec ends once the file matches HEAD again (approved or reverted).
+const unlockedEdits = readUnlockedEdits(dir).filter((rel) => hasUncommittedChanges(dir, rel));
+writeUnlockedEdits(dir, unlockedEdits);
 
 if (!MAY_STOP_RED.has(input.agent_type)) {
   ensureStateDir(dir);
@@ -96,15 +106,16 @@ function noteWrittenSince(time) {
 
 /**
  * A failure counts unless it lives only in a test that awaits approval: a new
- * test, or a committed one with uncommitted changes (a re-spec the human
- * unlocked).
+ * test, or a committed one with a recorded unlocked edit (a re-spec).
  */
 function blocking(rel) {
-  return !rel || !isTestFile(rel) || (isCommitted(dir, rel) && !hasUncommittedChanges(dir, rel));
+  return !rel || !isTestFile(rel) || (isCommitted(dir, rel) && !unlockedEdits.includes(rel));
 }
 
 async function findFailures() {
-  const [tests, types] = await Promise.all([runTests(), runTypecheck()]);
+  const base = await changeBase();
+  if (base && (await changedFiles(base)).every(noChecksNeeded)) return [];
+  const [tests, types] = await Promise.all([runTests(base), runTypecheck()]);
   return [...tests, ...types];
 }
 
@@ -113,8 +124,22 @@ async function changeBase() {
   return base.code === 0 ? base.output.trim() : undefined;
 }
 
-async function runTests() {
-  const base = await changeBase();
+/** Files changed since the base: committed, uncommitted and untracked ones. */
+async function changedFiles(base) {
+  const [tracked, untracked] = await Promise.all([
+    run('git', ['diff', '--name-only', '--no-renames', '-z', base], dir),
+    run('git', ['ls-files', '--others', '--exclude-standard', '-z'], dir),
+  ]);
+  // A failed git call can't prove the change harmless: count it as code.
+  if (tracked.code !== 0 || untracked.code !== 0) return [undefined];
+  return `${tracked.output}${untracked.output}`.split('\0').filter(Boolean);
+}
+
+function noChecksNeeded(rel) {
+  return rel !== undefined && NO_CHECKS_NEEDED.some((pattern) => pattern.test(rel));
+}
+
+async function runTests(base) {
   const report = path.join(dir, STATE_DIR, 'jest-report.json');
   fs.rmSync(report, { force: true });
   const result = await run(
