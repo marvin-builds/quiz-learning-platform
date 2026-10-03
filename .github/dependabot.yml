@@ -1,0 +1,16 @@
+# Dependabot keeps the CI actions current and raises npm security fixes.
+# npm version-update PRs are disabled (limit 0): Expo and React Native
+# versions must match the SDK, so bump them with `npx expo install --fix`.
+# Security updates are enabled in the repository settings.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
