@@ -64,6 +64,86 @@ export type Database = {
           },
         ];
       };
+      attempt_answers: {
+        Row: {
+          answered_at: string;
+          attempt_id: string;
+          is_correct: boolean;
+          points: number;
+          question_id: string;
+          selected_answer_ids: string[];
+        };
+        Insert: {
+          answered_at?: string;
+          attempt_id: string;
+          is_correct: boolean;
+          points: number;
+          question_id: string;
+          selected_answer_ids: string[];
+        };
+        Update: {
+          answered_at?: string;
+          attempt_id?: string;
+          is_correct?: boolean;
+          points?: number;
+          question_id?: string;
+          selected_answer_ids?: string[];
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'attempt_answers_attempt_id_fkey';
+            columns: ['attempt_id'];
+            isOneToOne: false;
+            referencedRelation: 'attempts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'attempt_answers_question_id_fkey';
+            columns: ['question_id'];
+            isOneToOne: false;
+            referencedRelation: 'questions';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      attempts: {
+        Row: {
+          finished_at: string | null;
+          id: string;
+          max_score: number;
+          quiz_id: string | null;
+          score: number;
+          started_at: string;
+          user_id: string;
+        };
+        Insert: {
+          finished_at?: string | null;
+          id?: string;
+          max_score: number;
+          quiz_id?: string | null;
+          score?: number;
+          started_at?: string;
+          user_id: string;
+        };
+        Update: {
+          finished_at?: string | null;
+          id?: string;
+          max_score?: number;
+          quiz_id?: string | null;
+          score?: number;
+          started_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'attempts_quiz_id_fkey';
+            columns: ['quiz_id'];
+            isOneToOne: false;
+            referencedRelation: 'quizzes';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       categories: {
         Row: {
           created_at: string;
@@ -197,6 +277,7 @@ export type Database = {
     };
     Functions: {
       health_check: { Args: Record<PropertyKey, never>; Returns: string };
+      start_attempt: { Args: { quiz_id: string }; Returns: string };
     };
     Enums: {
       user_role: 'learner' | 'admin';
