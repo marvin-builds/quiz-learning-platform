@@ -278,6 +278,15 @@ export type Database = {
     Functions: {
       health_check: { Args: Record<PropertyKey, never>; Returns: string };
       start_attempt: { Args: { quiz_id: string }; Returns: string };
+      submit_answer: {
+        Args: { answer_ids: string[]; attempt_id: string; question_id: string };
+        Returns: {
+          correct_answer_ids: string[];
+          explanation: string;
+          is_correct: boolean;
+          points: number;
+        }[];
+      };
     };
     Enums: {
       user_role: 'learner' | 'admin';
