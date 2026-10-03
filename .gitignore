@@ -42,3 +42,6 @@ yarn-error.*
 
 # Jest coverage reports
 coverage/
+
+# Claude Code harness state (unlock flag, stop counters, caches)
+.claude/state/
