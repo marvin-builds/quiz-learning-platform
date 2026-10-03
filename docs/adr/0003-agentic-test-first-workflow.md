@@ -188,6 +188,25 @@ it.
   push and checks that the new PR is mergeable: PR #43 was pushed onto a
   `main` that two other PRs had changed meanwhile, and its conflict only
   showed on GitHub.
+- **The agent looks at the app in a browser** (issue #49). Jest and the e2e
+  specs prove behavior but not how a screen looks at phone width, so UI
+  slices also get a `ui-verifier` pass in the verify step: an agent that
+  drives the running web app through the Playwright MCP server and reports
+  against the acceptance criteria with screenshots. Its allowlist of tools
+  leaves out the shell, Edit/Write and the browser tools that run arbitrary
+  code, upload files, handle storage state or rewrite requests. It is not
+  fully read-only: screenshots and snapshots take a `filename` that may name
+  any file in the workspace, and clicks can change local data. Keeping
+  filenames under `.claude/state/` is an instruction, accepted as a known gap
+  under the rule above, since an overwrite shows in the diff and the
+  protected tests' content is checked by the Stop hook and CI. A hook on the
+  MCP tools can close it if it bites. The server is pinned to an exact
+  version and limited to `localhost` and `127.0.0.1` origins, which keeps it
+  on the local stack but is not a security boundary (Playwright doesn't
+  apply it to redirects). Screenshots go to the ignored `.claude/state/`.
+  The `e2e-flow` skill holds the rules for e2e specs: role and translated
+  text selectors, no sleeps, a reset database per run, axe on every screen,
+  and reading traces.
 - **A session starts with a status check.** The agent lists the open
   Dependabot PRs and the next issue, and I decide what to work on. Security
   PRs would otherwise wait unseen, and choosing the next piece of work stays
