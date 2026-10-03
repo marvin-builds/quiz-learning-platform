@@ -176,7 +176,7 @@ refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
 enable_signup = true
 # Allow/disallow anonymous sign-ins to your project.
-enable_anonymous_sign_ins = false
+enable_anonymous_sign_ins = true
 # Allow/disallow testing manual linking of accounts
 enable_manual_linking = false
 # Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
@@ -201,7 +201,8 @@ email_sent = 2
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
 # Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
-anonymous_users = 30
+# Raised locally so E2E runs don't hit it; hosted keeps 30 (see remotes.production).
+anonymous_users = 1000
 # Number of sessions that can be refreshed in a 5 minute interval per IP address.
 token_refresh = 150
 # Number of sign up and sign-in requests that can be made in a 5 minute interval per IP address (excludes anonymous users).
@@ -423,6 +424,10 @@ project_id = "kiywcqhicsesgknlwjyy"
 [remotes.production.auth]
 site_url = "https://small-quiz-poc.pages.dev"
 additional_redirect_urls = ["https://small-quiz-poc.pages.dev"]
+
+# Anonymous sign-ins are on everywhere, but hosted keeps the default limit.
+[remotes.production.auth.rate_limit]
+anonymous_users = 30
 
 [remotes.production.auth.email]
 enable_confirmations = true
