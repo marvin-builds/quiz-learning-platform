@@ -78,9 +78,25 @@ export function isCommitted(dir, rel) {
   return spawnSync('git', ['cat-file', '-e', `HEAD:${rel}`], { cwd: dir }).status === 0;
 }
 
-/** True when the working tree or the index differs from `HEAD` for this file. */
+/**
+ * True when the working tree or the index changes this file's content against
+ * `HEAD`. Whitespace, blank lines and the file mode don't count: they change
+ * no test, so they must not excuse a red one.
+ */
 export function hasUncommittedChanges(dir, rel) {
-  return spawnSync('git', ['diff', '--quiet', 'HEAD', '--', rel], { cwd: dir }).status !== 0;
+  const result = spawnSync(
+    'git',
+    ['diff', 'HEAD', '-w', '--ignore-blank-lines', '--numstat', '--', `:(literal)${rel}`],
+    { cwd: dir, encoding: 'utf8' },
+  );
+  // numstat prints "added<TAB>deleted<TAB>path", "-" for binary files.
+  return result.stdout
+    .split('\n')
+    .filter(Boolean)
+    .some((line) => {
+      const [added, deleted] = line.split('\t');
+      return added !== '0' || deleted !== '0';
+    });
 }
 
 export function bin(dir, name) {

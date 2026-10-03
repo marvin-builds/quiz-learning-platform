@@ -1,8 +1,9 @@
 // Stop / SubagentStop: the agent may not end its turn while approved tests
 // fail or production code has type errors. New tests, and committed tests with
-// uncommitted changes, may be red: that is gate 1, where they wait for approval. After QUIZ_STOP_CAP blocked
-// stops in one turn the agent must write an escalation note instead of trying
-// again; a few stops later it is released regardless, so it never loops.
+// uncommitted content changes, may be red: that is gate 1, where they wait for
+// approval. After QUIZ_STOP_CAP blocked stops in one turn the agent must write
+// an escalation note instead of trying again; a few stops later it is released
+// regardless, so it never loops.
 import fs from 'node:fs';
 import path from 'node:path';
 import {
