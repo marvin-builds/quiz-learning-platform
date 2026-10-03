@@ -427,8 +427,17 @@ additional_redirect_urls = ["https://quiz-poc.pages.dev"]
 [remotes.production.auth.email]
 enable_confirmations = true
 max_frequency = "1m0s"
+otp_length = 8
 
-# Keep the hosted default: TOTP MFA available.
+# Keep the hosted defaults: pooler sized for the instance, analytics buckets on,
+# TOTP MFA available.
+[remotes.production.db.pooler]
+default_pool_size = 15
+max_client_conn = 200
+
+[remotes.production.storage.analytics]
+enabled = true
+
 [remotes.production.auth.mfa.totp]
 enroll_enabled = true
 verify_enabled = true
