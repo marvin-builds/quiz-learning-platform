@@ -27,6 +27,16 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Full history, so the merge-commit check below can see the base branch.
+          fetch-depth: 0
+      # PR branches are brought up to date by rebasing onto main, never by
+      # merging main into them; this required job blocks such a PR from merging.
+      - name: Fail when the PR branch contains merge commits (rebase onto main instead)
+        if: github.event_name == 'pull_request'
+        run: |
+          merges=$(git log --merges --oneline origin/${{ github.base_ref }}..${{ github.event.pull_request.head.sha }})
+          if [ -n "$merges" ]; then echo "$merges"; exit 1; fi
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc

@@ -71,6 +71,19 @@ same branch when a decision changed.
 and draft the PR description (it closes the issue). Push, open the PR and
 merge only after the human's go-ahead; then check that CI is green.
 
+When the PR is behind `main` ("head branch is not up to date"), rebase it;
+this rebase of the slice's own unmerged branch needs no extra go-ahead:
+
+```sh
+git fetch origin && git rebase origin/main && git push --force-with-lease
+```
+
+Or on the server: the GraphQL `updatePullRequestBranch` mutation with
+`updateMethod: REBASE`. Never merge `main` into the branch, and never use the
+REST `pulls/<n>/update-branch` or GitHub's "Update branch" merge button: both
+create a merge commit, and CI fails a PR that contains one. If the rebase
+conflicts, stop and ask. Wait for CI again before merging.
+
 ## 8. Clean up after the merge
 
 GitHub deletes the remote branch on merge. Remove the local branch and its
