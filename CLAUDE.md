@@ -34,8 +34,9 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `npm run test:mutation`: Stryker on `src/domain/`; fails below 80 %
 - `npm run -s slice [-- <n>]`: from a terminal, pick the next issue (or take
   `<n>`), create or reuse its worktree in `../quiz-learning-platform.worktrees/`,
-  run `npm ci` and start `claude "/semi-auto-workflow <n>"` inside it, so the
-  session never asks to switch worktrees; `-- --pick` only prints the pick
+  run `npm ci` and start `claude -n <branch> "/semi-auto-workflow <n>"` inside
+  it, so the session never asks to switch worktrees and is named after the
+  branch; `-- --pick` only prints the pick
 - `npx expo install <package>`: add dependencies with versions matching the Expo SDK
 - `npx expo-doctor`: check dependency and config problems
 - `npx supabase start` / `stop`: local stack in Docker (CLI pinned in `package.json`)

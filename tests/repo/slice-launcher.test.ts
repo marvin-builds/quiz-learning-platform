@@ -153,7 +153,11 @@ describe('slice launcher', () => {
     expect(() => box.git(worktree, 'rev-parse', '--abbrev-ref', '@{upstream}')).toThrow();
     expect(box.calls('npm')).toEqual([{ tool: 'npm', cwd: worktree, args: ['ci'] }]);
     expect(box.calls('claude')).toEqual([
-      { tool: 'claude', cwd: worktree, args: ['/semi-auto-workflow 7'] },
+      {
+        tool: 'claude',
+        cwd: worktree,
+        args: ['-n', '7-quiz-player', '/semi-auto-workflow 7'],
+      },
     ]);
   });
 
@@ -191,7 +195,11 @@ describe('slice launcher', () => {
     const worktree = path.join(box.worktrees, '10-admin-editor');
     expect(box.git(worktree, 'rev-parse', '--abbrev-ref', 'HEAD')).toBe('10-admin-editor');
     expect(box.calls('claude')).toEqual([
-      { tool: 'claude', cwd: worktree, args: ['/semi-auto-workflow 10'] },
+      {
+        tool: 'claude',
+        cwd: worktree,
+        args: ['-n', '10-admin-editor', '/semi-auto-workflow 10'],
+      },
     ]);
   });
 
@@ -206,7 +214,11 @@ describe('slice launcher', () => {
     expect(box.git(box.app, 'worktree', 'list').split('\n')).toHaveLength(2);
     expect(box.calls('npm')).toEqual([]);
     expect(box.calls('claude')).toEqual([
-      { tool: 'claude', cwd: worktree, args: ['/semi-auto-workflow 4'] },
+      {
+        tool: 'claude',
+        cwd: worktree,
+        args: ['-n', '4-anonymous-attempts', '/semi-auto-workflow 4'],
+      },
     ]);
   });
 
