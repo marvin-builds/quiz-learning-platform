@@ -116,7 +116,8 @@ it.
   committed, after gate 1. The protected-tests hook locks committed tests, and
   the Stop hook lets new, uncommitted tests be red, so the agent can stop at
   gate 1 without a separate "waiting for approval" switch the agent could flip
-  itself.
+  itself. Issue #29 widens "new" to committed tests with uncommitted content
+  changes (see below).
 - **The Stop hook checks the whole branch** (issue #5): Jest runs the tests
   related to changes since `origin/main`, not just uncommitted ones
   (`--onlyChanged`), because the agent commits during the slice and a
@@ -138,11 +139,16 @@ it.
   approved tests while it exists. Accepted, since one session works per
   worktree.
 - **A changed approved test is gate 1 again** (issue #29). The Stop hook lets
-  a committed test with uncommitted changes (working tree or index differs
-  from `HEAD`) be red, like a new test, so the agent can stop for my approval
-  of a re-spec before it implements. Once committed, the test is guarded as
-  before. This stays safe because the agent can only change a committed test
-  after I unlocked it.
+  a committed test file with uncommitted content changes (working tree or
+  index differs from `HEAD`, ignoring whitespace and file mode) be red, like a
+  new test, so the agent can stop for my approval of a re-spec before it
+  implements. The whole file is exempt until committed, so the changed tests
+  are committed before any code changes. Once committed, the file is guarded
+  as before. The exemption follows the git state, not the unlock: the
+  protected-tests hook locks Edit and Write, but a shell command could still
+  change a test's content. Such a change shows in the diff the reviewer and I
+  read, so this is accepted for now; tying the exemption to the unlock is a
+  follow-up.
 
 ## Consequences
 
