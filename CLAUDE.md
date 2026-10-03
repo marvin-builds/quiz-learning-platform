@@ -95,7 +95,8 @@ For an issue, follow the `feature-slice` skill. What runs automatically:
   tests with Edit/Write only, never with shell commands.
 - **Stop gate** (`stop-gate.mjs`): the turn can't end while committed tests
   related to the branch's changes, or the typecheck of non-test code, are red.
-  New, uncommitted tests may be red (gate 1). After 10 blocked stops, write
+  New tests, and committed tests with uncommitted changes (an unlocked
+  re-spec), may be red (gate 1). After 10 blocked stops, write
   `.claude/state/escalation.md` and stop.
 - **Agents:** `test-writer` writes the failing tests and can only write test
   files; `reviewer` reviews the branch diff read-only.

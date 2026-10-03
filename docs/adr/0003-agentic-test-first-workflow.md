@@ -137,6 +137,12 @@ it.
   checkout, not per session: another session in the same checkout could edit
   approved tests while it exists. Accepted, since one session works per
   worktree.
+- **A changed approved test is gate 1 again** (issue #29). The Stop hook lets
+  a committed test with uncommitted changes (working tree or index differs
+  from `HEAD`) be red, like a new test, so the agent can stop for my approval
+  of a re-spec before it implements. Once committed, the test is guarded as
+  before. This stays safe because the agent can only change a committed test
+  after I unlocked it.
 
 ## Consequences
 
