@@ -1,4 +1,5 @@
 # The same checks as on the dev machine, so "green locally" means "green in CI".
+# On main, the hosted project and the web host are updated from here only.
 name: CI
 
 on:
@@ -11,7 +12,13 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Never cancel a run on main halfway through migrations or a deploy.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Not a credential: the ref is part of the public Supabase URL. It must match
+  # [remotes.production] in supabase/config.toml.
+  SUPABASE_PROJECT_REF: kiywcqhicsesgknlwjyy
 
 jobs:
   app:
@@ -40,6 +47,60 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Services the pgTAP tests don't need are left out to save startup time.
-      - run: npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,mailpit,realtime,storage-api,postgres-meta,supavisor
+      # Services the pgTAP tests and type generation don't need are left out to save startup time.
+      - run: npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,mailpit,realtime,storage-api,supavisor
       - run: npx supabase test db
+      - name: Fail when the generated database types are stale
+        run: npm run db:types && git diff --exit-code src/types/database.ts
+
+  hosted-config-diff:
+    name: Hosted config diff (preview of what a merge pushes)
+    # Fork PRs get no secrets.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx supabase config diff --project-ref "$SUPABASE_PROJECT_REF"
+
+  deploy:
+    name: Migrate hosted database and deploy web
+    needs: [app, db]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      EXPO_PUBLIC_SUPABASE_URL: https://kiywcqhicsesgknlwjyy.supabase.co
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
+      - run: npx supabase db push --yes
+      - run: npx supabase config push --project-ref "$SUPABASE_PROJECT_REF" --yes
+      # The environment variables above take precedence over the local values in .env.
+      - run: npx expo export --platform web
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name quiz-poc --branch main
+      - name: Smoke test the deployed page and the hosted database
+        run: |
+          curl -fsS https://quiz-poc.pages.dev/ | grep -q '<div id="root">'
+          test "$(curl -fsS -X POST "$EXPO_PUBLIC_SUPABASE_URL/rest/v1/rpc/health_check" \
+            -H "apikey: $EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" -H 'Content-Type: application/json')" = '"ok"'
