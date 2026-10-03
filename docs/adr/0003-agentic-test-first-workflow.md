@@ -139,16 +139,17 @@ it.
   approved tests while it exists. Accepted, since one session works per
   worktree.
 - **A changed approved test is gate 1 again** (issue #29). The Stop hook lets
-  a committed test file with uncommitted content changes (working tree or
-  index differs from `HEAD`, ignoring whitespace and file mode) be red, like a
+  a committed test file with uncommitted content changes (the file on disk,
+  which Jest and tsc read, differs from `HEAD`, ignoring whitespace, file mode
+  and the index) be red, like a
   new test, so the agent can stop for my approval of a re-spec before it
   implements. The whole file is exempt until committed, so the changed tests
   are committed before any code changes. Once committed, the file is guarded
   as before. The exemption follows the git state, not the unlock: the
   protected-tests hook locks Edit and Write, but a shell command could still
   change a test's content. Such a change shows in the diff the reviewer and I
-  read, so this is accepted for now; tying the exemption to the unlock is a
-  follow-up.
+  read, so this is accepted for now; tying the exemption to the unlock is
+  issue #30.
 
 ## Consequences
 
