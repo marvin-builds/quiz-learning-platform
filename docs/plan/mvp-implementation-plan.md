@@ -18,8 +18,9 @@ repeated here.
 - UI in German and English (i18n from day one).
 
 **Not in the MVP:** store release (phase 4), Realtime, desktop, multilingual
-content, offline. Android and iOS are smoke-tested in an Expo dev build
-throughout, so mobile doesn't drift, but they aren't released.
+content, offline. Android is smoke-tested once per phase in an installable
+preview APK, so mobile doesn't drift, but it isn't released; iOS needs its own
+decision (#68).
 
 **MVP is done when** the three end-to-end flows in section 5 pass in CI against
 a fresh local Supabase stack, the pgTAP security suite is green, and the web
@@ -146,7 +147,7 @@ stuck (systematic debugging), instead of guessing further.
 | Database, RLS, `start_attempt`/`submit_answer`, scoring in SQL | pgTAP | Every policy has a positive **and** a negative test per role (anon, learner, admin) | Reviewer checks each new table has RLS on |
 | Components | Jest + React Native Testing Library | Rendering, states (loading/empty/error), i18n keys | — |
 | End-to-end | Playwright on the web build | The real flows in section 5, against a reset local stack with seed data | axe accessibility scan; screenshots as artifacts |
-| Mobile | Expo dev build, manual smoke | Nothing broke on Android/iOS | Once per phase, not per slice |
+| Mobile | Android preview APK, manual smoke ([checklist](../mobile-smoke-test.md)); iOS: #68 | Nothing broke on Android | Once per phase, not per slice |
 
 Test data comes from `supabase/seed.sql` plus small typed factories, so every
 run starts from a known state.

@@ -36,13 +36,15 @@ the hosted key never leaves GitHub's secrets. Start it from `main` (the
 
 ```sh
 gh workflow run android-preview.yml --ref main
-gh run watch
-gh run download --name quiz-preview-apk
+sleep 5 # until the run exists
+run=$(gh run list --workflow android-preview.yml --limit 1 --json databaseId -q '.[0].databaseId')
+gh run watch "$run" --exit-status
+gh run download "$run" --name quiz-preview-apk
 adb install -r quiz-preview.apk
 ```
 
 The workflow fails when the APK's bundle doesn't contain the hosted URL or
-still contains the local stack's `http://127.0.0.1:54321`.
+still contains the local stack's URL or key.
 
 Until admins create content in phase 2, the hosted backend has no quizzes
 (plan § 7 "Hosted content"), so the APK shows the empty state and the steps
@@ -105,4 +107,5 @@ phase's issue.
 - [ ] Play a quiz to the end, answering every question.
 - [ ] See the result with the score.
 - [ ] Switch the language: set the phone's system language to English (or
-      German) and reopen the app; the texts follow.
+      German), force-stop or swipe away the app and reopen it; the texts
+      follow.
