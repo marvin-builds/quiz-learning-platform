@@ -273,12 +273,13 @@ Clarified on 2026-10-03 (second round):
 | Docs | ADRs and plans live in this repo under `docs/` |
 | Branch naming | `<issue-number>-<short-slug>`, documented in `CLAUDE.md` |
 | Walking skeleton | Phase 0 ends with a CI deploy of a minimal web build against the hosted Supabase project |
+| Scoring | Single choice: the correct answer ⇒ full points, else 0. Multiple choice: any wrong pick ⇒ 0, a correct subset ⇒ points × picked / total correct (decided at gate 1 of #6) |
+| Mutation testing scope | Only `src/domain/`, run locally with `npm run test:mutation` (break threshold 80 %); not in CI yet |
 
 Still open, decided during phase 0:
 
 - **Web hosting:** EAS Hosting, Cloudflare Pages or Netlify (all serve the
   static export). Decided with the walking-skeleton deploy.
-- **Mutation testing scope:** default only `src/domain/`, to keep CI fast.
 
 The agentic workflow itself is recorded in
 [ADR 0003](../adr/0003-agentic-test-first-workflow.md).
