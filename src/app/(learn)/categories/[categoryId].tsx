@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { type Href, Link, useLocalSearchParams } from 'expo-router';
+import { Link, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -70,8 +70,7 @@ function CategoryContent({ category }: { category: Category }) {
       ) : (
         <View className="gap-3">
           {category.quizzes.map((quiz) => (
-            // TODO(#51): drop the cast once the quiz screen exists for typed routes.
-            <Link key={quiz.id} href={`/quizzes/${quiz.id}` as Href} asChild>
+            <Link key={quiz.id} href={`/quizzes/${quiz.id}`} asChild>
               <ListCard title={quiz.title} description={quiz.description} />
             </Link>
           ))}

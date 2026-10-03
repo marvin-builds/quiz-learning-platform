@@ -29,3 +29,43 @@ export async function fetchCategoryWithQuizzes(categoryId: string) {
   if (error) throw error;
   return data;
 }
+
+/**
+ * The quiz with its number of questions, or null when it doesn't exist or is
+ * hidden. The questions themselves are read once an attempt has started.
+ */
+export async function fetchQuiz(quizId: string) {
+  if (!UUID.test(quizId)) return null;
+
+  // Only ids: a count-only embed needs a select on the whole row, which the
+  // column grants on questions refuse.
+  const { data, error } = await supabase
+    .from('quizzes')
+    .select('id, title, description, questions(id)')
+    .eq('id', quizId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const { questions, ...quiz } = data;
+  return { ...quiz, questionCount: questions.length };
+}
+
+/**
+ * The quiz's questions with their answers, in play order. Explicit columns:
+ * the solutions (`is_correct`, `explanation`) are only revealed by
+ * submit_answer.
+ */
+export async function fetchQuizQuestions(quizId: string) {
+  const { data, error } = await supabase
+    .from('questions')
+    .select(
+      'id, text, image_path, image_alt, multiple_correct, sort_order, answers(id, text, image_path, image_alt, sort_order)',
+    )
+    .eq('quiz_id', quizId)
+    .order('sort_order', { ascending: true })
+    .order('id', { ascending: true })
+    .order('sort_order', { referencedTable: 'answers', ascending: true })
+    .order('id', { referencedTable: 'answers', ascending: true });
+  if (error) throw error;
+  return data;
+}
