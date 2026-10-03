@@ -28,8 +28,8 @@ if (input.tool_name === 'Bash') {
   } else if (rel && isTestFile(rel) && !isUnlocked(dir, rel) && isCommitted(dir, rel)) {
     deny(
       `${rel} is an approved test (committed in HEAD) and must not be changed to get green. ` +
-        `If the test itself is wrong, stop and explain why; the human can create ` +
-        `${UNLOCK_FILE} to allow the change.`,
+        `If the test itself is wrong, stop, explain why and ask the human to start ` +
+        `a message with "unlock tests: ${rel}".`,
     );
   }
 }
