@@ -7,6 +7,8 @@ import { PageTitle } from '@/components/page-title';
 import { ErrorState, ListCard, StatusMessage } from '@/components/status';
 import { fetchCategoryWithQuizzes } from '@/lib/content';
 
+type Category = NonNullable<Awaited<ReturnType<typeof fetchCategoryWithQuizzes>>>;
+
 export default function CategoryScreen() {
   const { t } = useTranslation();
   const { categoryId } = useLocalSearchParams<{ categoryId: string }>();
@@ -28,39 +30,53 @@ export default function CategoryScreen() {
             onRetry={() => category.refetch()}
           />
         ) : category.data === null ? (
-          <View className="items-center">
-            <StatusMessage text={t('category.notFound')} />
-            <Link href="/" asChild>
-              <Pressable>
-                <Text className="text-base font-semibold text-blue-700 underline">
-                  {t('category.backToCategories')}
-                </Text>
-              </Pressable>
-            </Link>
-          </View>
+          <NotFound />
         ) : (
-          <>
-            <Text role="heading" className="mb-2 text-2xl font-bold text-gray-900">
-              {category.data.name}
-            </Text>
-            {category.data.description ? (
-              <Text className="mb-6 text-base text-gray-600">{category.data.description}</Text>
-            ) : null}
-            {category.data.quizzes.length === 0 ? (
-              <StatusMessage text={t('category.empty')} />
-            ) : (
-              <View className="gap-3">
-                {category.data.quizzes.map((quiz) => (
-                  // The quiz screen arrives with item 7, so typed routes don't know it yet.
-                  <Link key={quiz.id} href={`/quizzes/${quiz.id}` as Href} asChild>
-                    <ListCard title={quiz.title} description={quiz.description} />
-                  </Link>
-                ))}
-              </View>
-            )}
-          </>
+          <CategoryContent category={category.data} />
         )}
       </View>
     </ScrollView>
+  );
+}
+
+function NotFound() {
+  const { t } = useTranslation();
+  return (
+    <View className="items-center">
+      <StatusMessage text={t('category.notFound')} />
+      <Link href="/" asChild>
+        <Pressable>
+          <Text className="text-base font-semibold text-blue-700 underline">
+            {t('category.backToCategories')}
+          </Text>
+        </Pressable>
+      </Link>
+    </View>
+  );
+}
+
+function CategoryContent({ category }: { category: Category }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Text role="heading" className="mb-2 text-2xl font-bold text-gray-900">
+        {category.name}
+      </Text>
+      {category.description ? (
+        <Text className="mb-6 text-base text-gray-600">{category.description}</Text>
+      ) : null}
+      {category.quizzes.length === 0 ? (
+        <StatusMessage text={t('category.empty')} />
+      ) : (
+        <View className="gap-3">
+          {category.quizzes.map((quiz) => (
+            // TODO(#51): drop the cast once the quiz screen exists for typed routes.
+            <Link key={quiz.id} href={`/quizzes/${quiz.id}` as Href} asChild>
+              <ListCard title={quiz.title} description={quiz.description} />
+            </Link>
+          ))}
+        </View>
+      )}
+    </>
   );
 }

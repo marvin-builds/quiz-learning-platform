@@ -6,11 +6,7 @@ import { supabase } from '@/lib/supabase';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export type CategorySummary = { id: string; name: string; description: string | null };
-export type QuizSummary = { id: string; title: string; description: string | null };
-export type CategoryWithQuizzes = CategorySummary & { quizzes: QuizSummary[] };
-
-export async function fetchCategories(): Promise<CategorySummary[]> {
+export async function fetchCategories() {
   const { data, error } = await supabase
     .from('categories')
     .select('id, name, description')
@@ -20,22 +16,16 @@ export async function fetchCategories(): Promise<CategorySummary[]> {
 }
 
 /** The category with its quizzes, or null when it doesn't exist or is hidden. */
-export async function fetchCategoryWithQuizzes(
-  categoryId: string,
-): Promise<CategoryWithQuizzes | null> {
-  // Postgres would reject a malformed id; it can't name a category either way.
+export async function fetchCategoryWithQuizzes(categoryId: string) {
+  // A malformed id can't name a category, so it needn't reach Postgres.
   if (!UUID.test(categoryId)) return null;
 
-  const [category, quizzes] = await Promise.all([
-    supabase.from('categories').select('id, name, description').eq('id', categoryId).maybeSingle(),
-    supabase
-      .from('quizzes')
-      .select('id, title, description')
-      .eq('category_id', categoryId)
-      .order('sort_order', { ascending: true }),
-  ]);
-  if (category.error) throw category.error;
-  if (quizzes.error) throw quizzes.error;
-  if (!category.data) return null;
-  return { ...category.data, quizzes: quizzes.data };
+  const { data, error } = await supabase
+    .from('categories')
+    .select('id, name, description, quizzes(id, title, description)')
+    .eq('id', categoryId)
+    .order('sort_order', { referencedTable: 'quizzes', ascending: true })
+    .maybeSingle();
+  if (error) throw error;
+  return data;
 }

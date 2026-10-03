@@ -7,7 +7,10 @@ import { useState } from 'react';
 
 export default function RootLayout() {
   // One client per app instance, created once rather than on every render.
-  const [queryClient] = useState(() => new QueryClient());
+  // Content changes rarely, so a minute without refetching on every visit.
+  const [queryClient] = useState(
+    () => new QueryClient({ defaultOptions: { queries: { staleTime: 60_000 } } }),
+  );
 
   return (
     <QueryClientProvider client={queryClient}>
