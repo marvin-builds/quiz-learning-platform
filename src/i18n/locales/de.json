@@ -1,11 +1,23 @@
 {
   "home": {
     "title": "Willkommen beim Quiz",
-    "subtitle": "Hier entsteht deine Lernplattform.",
     "dbStatus": {
-      "loading": "Verbindung zur Datenbank wird geprüft …",
-      "ok": "Datenbank erreichbar",
-      "error": "Datenbank nicht erreichbar"
+      "loading": "Verbindung zur Datenbank wird geprüft …"
     }
+  },
+  "categories": {
+    "title": "Kategorien",
+    "loading": "Kategorien werden geladen …",
+    "empty": "Noch keine Kategorien.",
+    "error": "Die Kategorien konnten nicht geladen werden.",
+    "retry": "Erneut versuchen"
+  },
+  "category": {
+    "loading": "Quizze werden geladen …",
+    "empty": "In dieser Kategorie gibt es noch keine Quizze.",
+    "error": "Die Quizze konnten nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "notFound": "Diese Kategorie gibt es nicht.",
+    "backToCategories": "Zurück zu den Kategorien"
   }
 }
