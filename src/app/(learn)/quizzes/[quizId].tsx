@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { PageTitle } from '@/components/page-title';
+import { QuizImage } from '@/components/quiz-image';
 import { Button, ErrorState, NotFoundState, StatusMessage } from '@/components/status';
 import { fetchQuiz, fetchQuizQuestions } from '@/lib/content';
 import { ensureSession } from '@/lib/session';
@@ -224,6 +225,11 @@ function QuestionView({
       >
         {question.text}
       </Text>
+      {question.image_path && question.image_alt ? (
+        <View className="mb-3">
+          <QuizImage path={question.image_path} alt={question.image_alt} className="h-48" />
+        </View>
+      ) : null}
       {multiple && (
         <Text nativeID={hintId} className="mb-2 text-base text-gray-600">
           {t('quiz.multipleHint')}
@@ -256,7 +262,12 @@ function QuestionView({
                   checked ? 'border-blue-700 bg-blue-700' : 'border-gray-400 bg-white'
                 }`}
               />
-              <Text className="flex-1 text-base text-gray-900">{answer.text}</Text>
+              <View className="flex-1 gap-2">
+                {answer.image_path && answer.image_alt ? (
+                  <QuizImage path={answer.image_path} alt={answer.image_alt} className="h-24" />
+                ) : null}
+                <Text className="text-base text-gray-900">{answer.text}</Text>
+              </View>
             </Pressable>
           );
         })}
