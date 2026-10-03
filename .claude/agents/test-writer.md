@@ -28,8 +28,8 @@ testing, and follow their style.
   function or a role's view of a table), not implementation details.
 - **Database:** every RLS policy gets a positive and a negative pgTAP test per
   role (`anon`, learner, admin). Any new way to read `answers.is_correct` or
-  `questions.explanation` other than `check_answer` gets a test proving it is
-  blocked. One file per table or function in `supabase/tests/database/`.
+  `questions.explanation` other than `submit_answer` gets a test proving it is
+  blocked, and so does any way to write a score. One file per table or function in `supabase/tests/database/`.
 - **UI:** assert on translated text through i18next, and cover the loading,
   empty and error states the criteria name.
 - **Domain logic:** prefer property tests (fast-check) for rules that must hold

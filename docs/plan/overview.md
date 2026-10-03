@@ -51,19 +51,25 @@ Supabase: Postgres + row-level security · Auth · Storage (images) · Realtime 
 - `profiles`: id (→ auth.users), display_name, role (`learner` | `admin`)
 - `categories`: name, description, sort_order, published
 - `quizzes`: category_id, title, description, sort_order, published
-- `questions`: quiz_id, text, image_path, multiple_correct, explanation, sort_order
-- `answers`: question_id, text, image_path, is_correct, sort_order
-- `attempts` / `attempt_answers`: user_id, quiz_id, selected answers, score, timestamps
+- `questions`: quiz_id, text, image_path, image_alt, multiple_correct, explanation, sort_order
+- `answers`: question_id, text, image_path, image_alt, is_correct, sort_order
+- `attempts`: user_id, quiz_id, started_at, finished_at, score, max_score
+- `attempt_answers`: attempt_id, question_id, selected answer ids, is_correct, points, answered_at
 
 **Access rules (row-level security):**
 
 - Learners can read published content, except `answers.is_correct` and
   `questions.explanation`. Those are only exposed through the
-  `check_answer(question_id, answer_ids[])` SQL function (`security definer`),
-  which returns whether the answer is correct, plus the explanation. Learners
-  can't see the solutions in advance, and no extra server code is needed.
+  `submit_answer(attempt_id, question_id, answer_ids[])` SQL function
+  (`security definer`). It stores the first answer per question of an
+  attempt, scores it, and only then returns whether it was correct, the
+  correct answers, the explanation and the points. Learners can't see the
+  solutions in advance or fake a score, and no extra server code is needed
+  (see the [ADR 0002 amendment](../adr/0002-supabase-backend.md#amendment-2026-10-03-answers-are-recorded-before-they-are-checked)).
 - Admins have full write access.
-- Users can only read and write their own attempts.
+- Users can only read their own attempts. Attempts are created by
+  `start_attempt(quiz_id)` and filled by `submit_answer`, never written
+  directly.
 
 **Anonymous play:** uses Supabase anonymous sign-in. When the learner
 registers, the identity is linked to a real account and their progress is kept.
@@ -93,7 +99,7 @@ Playwright for web end-to-end flows. Tests come first.
 1. **Learner MVP on web (about 3 weeks):**
    - Category and quiz browsing
    - Quiz player with single and multiple choice
-   - `check_answer`, explanation and result screen
+   - Server-recorded answers (`submit_answer`), explanation and result screen
    - Anonymous sign-in
 2. **Admin editor (about 3 weeks):**
    - Admin-guarded routes
