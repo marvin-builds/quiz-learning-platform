@@ -123,6 +123,7 @@ async function runTests() {
     dir,
   );
   if (result.code === 0) return [];
+  if (result.setup) return [result.output];
   if (!fs.existsSync(report)) return [`Jest did not run:\n${result.output.trim()}`];
 
   const { testResults } = JSON.parse(fs.readFileSync(report, 'utf8'));
@@ -138,6 +139,7 @@ async function runTypecheck() {
   const result = await run(bin(dir, 'tsc'), tscArgs(dir), dir);
   // TS18003 means there are no TypeScript files yet: nothing to check.
   if (result.code === 0 || result.output.includes('error TS18003')) return [];
+  if (result.setup) return [result.output];
   const errors = parseTscErrors(result.output);
   if (errors.length === 0) return [`TypeScript failed:\n${result.output.trim()}`];
   const blockingErrors = errors.filter(({ file }) =>
