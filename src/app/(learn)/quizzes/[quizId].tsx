@@ -225,7 +225,7 @@ function QuestionView({
       >
         {question.text}
       </Text>
-      {question.image_path && question.image_alt ? (
+      {question.image_path ? (
         <View className="mb-3">
           <QuizImage path={question.image_path} alt={question.image_alt} className="h-48" />
         </View>
@@ -263,9 +263,7 @@ function QuestionView({
                 }`}
               />
               <View className="flex-1 gap-2">
-                {answer.image_path && answer.image_alt ? (
-                  <QuizImage path={answer.image_path} alt={answer.image_alt} className="h-24" />
-                ) : null}
+                <QuizImage path={answer.image_path} alt={answer.image_alt} className="h-24" />
                 <Text className="text-base text-gray-900">{answer.text}</Text>
               </View>
             </Pressable>
