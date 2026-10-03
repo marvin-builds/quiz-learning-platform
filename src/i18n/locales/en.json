@@ -1,11 +1,23 @@
 {
   "home": {
     "title": "Welcome to the quiz",
-    "subtitle": "Your learning platform is on its way.",
     "dbStatus": {
-      "loading": "Checking the database connection …",
-      "ok": "Database reachable",
-      "error": "Database not reachable"
+      "loading": "Checking the database connection …"
     }
+  },
+  "categories": {
+    "title": "Categories",
+    "loading": "Loading categories …",
+    "empty": "No categories yet.",
+    "error": "The categories could not be loaded.",
+    "retry": "Try again"
+  },
+  "category": {
+    "loading": "Loading quizzes …",
+    "empty": "This category has no quizzes yet.",
+    "error": "The quizzes could not be loaded.",
+    "retry": "Try again",
+    "notFound": "This category does not exist.",
+    "backToCategories": "Back to the categories"
   }
 }
