@@ -183,7 +183,11 @@ it.
   and force-pushed with lease; the agent may do that rebase without asking,
   since the branch is its own and unmerged. CI fails a PR whose branch
   contains a merge commit, in the required lint and test job, so a back-merge
-  can't reach `main` again. `main` keeps its PR merge commits.
+  can't reach `main` again. `main` keeps its PR merge commits. Since slices
+  now run in parallel sessions, the agent also rebases right before every
+  push and checks that the new PR is mergeable: PR #43 was pushed onto a
+  `main` that two other PRs had changed meanwhile, and its conflict only
+  showed on GitHub.
 - **A session starts with a status check.** The agent lists the open
   Dependabot PRs and the next issue, and I decide what to work on. Security
   PRs would otherwise wait unseen, and choosing the next piece of work stays
@@ -208,6 +212,21 @@ it.
   test, so future screens are covered too. A test that really hangs takes up
   to a minute to fail, so a few hanging tests can push the Stop hook past its
   300 s limit.
+- **In-progress issues come from git, not from a marker.** The status check
+  also lists the issues that already have a `<n>-*` branch or worktree, with
+  the step each is at, and the next issue skips them. So a new session
+  neither proposes an issue that is being worked on nor hides one I want to
+  resume. A label, assignee or status file would need upkeep at both ends of
+  a slice and go stale when a session dies; the branch is the work itself.
+  A session lock was considered to tell an open session from a paused one,
+  and rejected: Claude Code doesn't document that `SessionEnd` runs when a
+  terminal is closed or killed, nor a way for a hook to learn the session's
+  process, so the lock would outlive exactly the sessions I had to quit.
+  Instead, the status check reads the running sessions from
+  `claude agents --json` and marks an issue "session open" when one works
+  in its worktree. That list holds only live processes and shows each
+  session's `cwd`, so it needs no session names, which interactive sessions
+  don't show there anyway.
 
 ## Consequences
 

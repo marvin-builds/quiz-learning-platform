@@ -9,6 +9,25 @@ One issue = one slice = one branch `<issue-number>-<short-slug>` in its own
 worktree, branched from an up-to-date `origin/main`. The hooks in
 `.claude/settings.json` run the inner loop; this skill is the outer one.
 
+## Resume
+
+An issue with a `<n>-*` branch or worktree is in progress: enter its
+worktree instead of creating a new one. The step comes from git and GitHub,
+checked in this order (first match wins):
+
+| Signal                                                                       | Step                                              |
+| ---------------------------------------------------------------------------- | ------------------------------------------------- |
+| `.claude/state/escalation.md` exists                                         | Stuck: summarise it and wait                      |
+| Merged PR for the branch (`gh pr list --head <branch> --state all`)          | 8, clean up                                       |
+| Open PR for the branch                                                       | 7, gate 2 / CI                                    |
+| Commits beyond `origin/main` (a slice starts with `Add failing tests for …`) | 3 to 7, by what the commits and `git status` show |
+| Uncommitted test files only                                                  | Gate 1: present the tests again                   |
+| Nothing yet                                                                  | 1, spec                                           |
+
+Before resuming, check `claude agents --json`: it lists the running local
+sessions with their `cwd`. If one works inside that worktree, say so and let
+the human decide; two sessions in one worktree get in each other's way.
+
 ## 1. Spec
 
 Read the issue (`gh issue view <n>`) and the docs it links. If an acceptance
@@ -75,6 +94,12 @@ same branch when a decision changed.
 **Gate 2:** report the commits, the verification output and any open points,
 and draft the PR description (it closes the issue). Push, open the PR and
 merge only after the human's go-ahead; then check that CI is green.
+
+Other sessions merge to `main` in parallel, so right before every push run
+`git fetch origin && git rebase origin/main`, then `npm run -s check` again
+if anything came in. After opening the PR, check
+`gh pr view <n> --json mergeable` (it may say `UNKNOWN` for a few seconds):
+`CONFLICTING` means rebase again, not wait for CI.
 
 When the PR is behind `main` ("head branch is not up to date"), rebase it;
 this rebase of the slice's own unmerged branch needs no extra go-ahead:
