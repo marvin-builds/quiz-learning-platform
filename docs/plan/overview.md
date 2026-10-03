@@ -1,15 +1,3 @@
----
-type: Index
-title: Quiz Learning Platform — Project Plan
-description: "Free open learning platform with categorised multiple-choice quizzes; Expo + Supabase; planning status 2026-10-02."
-tags:
-  - project
-  - plan
-  - quiz-learning-platform
-timestamp: 2026-10-02
-created: 2026-10-02
----
-
 # Quiz Learning Platform: project plan
 
 Planning status: 2026-10-02. This is an early plan, and planning continues in

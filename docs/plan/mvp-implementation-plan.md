@@ -1,16 +1,3 @@
----
-type: Plan
-title: Quiz Learning Platform — MVP implementation plan
-description: "High-level MVP build plan: vertical slices, test-first agentic workflow with Claude Code, automatic test and fix loops, human checkpoints."
-tags:
-  - project
-  - plan
-  - quiz-learning-platform
-  - agentic-coding
-timestamp: 2026-10-02
-created: 2026-10-02
----
-
 # MVP implementation plan
 
 Builds on the [overview](overview.md), [ADR 0001](../adr/0001-expo-react-native-client.md),
