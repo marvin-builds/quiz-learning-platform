@@ -20,9 +20,12 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `npm ci`: install exactly what the lockfile pins
 - `npx expo start --web`: dev server on the web (`npm start` for all platforms)
 - `npm test`: Jest; one file with `npx jest <path>`
+- `npm run test:timing`: duration budgets (`*.timing.test.ts`), run alone
+  and serially because parallel load makes them flaky; `npm test` skips them,
+  so run one with `npm run test:timing -- <path>`
 - `npm run lint`: ESLint with Prettier and the no-hard-coded-strings rule
 - `npm run typecheck`: `tsc --noEmit` in strict mode
-- `npm run -s check`: lint, typecheck and tests with quiet output (only
+- `npm run -s check`: lint, typecheck, tests and timing tests with quiet output (only
   problems and a summary); use it for verification runs
 - `npm run test:mutation`: Stryker on `src/domain/`; fails below 80 %
 - `npx expo install <package>`: add dependencies with versions matching the Expo SDK
@@ -46,7 +49,7 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `src/types/database.ts`: generated, never edit by hand
 - `.github/workflows/ci.yml`: CI on PRs and pushes to `main`; runs the same
   commands as above (lint, typecheck, `jest --coverage` with an 80 % global
-  threshold in `package.json`, `supabase start` +
+  threshold in `package.json`, the timing tests, `supabase start` +
   `supabase test db`, a stale-types check). Change it together with the local
   commands, never apart. On `main` it also migrates the hosted database,
   pushes `supabase/config.toml` (hosted overrides in `[remotes.production]`)

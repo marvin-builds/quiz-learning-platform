@@ -163,6 +163,15 @@ it.
   Dependabot PRs and the next issue, and I decide what to work on. Security
   PRs would otherwise wait unseen, and choosing the next piece of work stays
   mine.
+- **Timing tests run alone** (issue #23). A test that guards a duration
+  budget, such as the warm post-edit hook run under 5 seconds, failed every
+  second or third run next to the parallel Jest suite. Such tests live in
+  `*.timing.test.ts`, which `npm test` and the Stop hook skip; `npm run
+  test:timing` runs them serially after the suite, in `npm run -s check` and
+  as a separate CI step. Other sessions can still load the machine, so the
+  test takes the fastest of three warm runs: load slows some runs, a slower
+  hook slows all of them. The budget stays absolute: a budget relative to a
+  baseline would still measure the load it is meant to ignore.
 
 ## Consequences
 
