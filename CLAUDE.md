@@ -44,7 +44,8 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
   tests (`*.test.sql`), one file per table or function
 - `src/types/database.ts`: generated, never edit by hand
 - `.github/workflows/ci.yml`: CI on PRs and pushes to `main`; runs the same
-  commands as above (lint, typecheck, `jest --coverage`, `supabase start` +
+  commands as above (lint, typecheck, `jest --coverage` with an 80 % global
+  threshold in `package.json`, `supabase start` +
   `supabase test db`). Change it together with the local commands, never apart
 - `.nvmrc`: the Node major version, shared by local setup and CI
 - `.claude/`: the agent harness (see below); its hook scripts are tested in
