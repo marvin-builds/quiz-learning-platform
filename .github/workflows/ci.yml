@@ -100,11 +100,15 @@ jobs:
           npx supabase config push --project-ref "$SUPABASE_PROJECT_REF" --yes
       # The job's EXPO_PUBLIC_* variables take precedence over the local values in .env.
       - run: npx expo export --platform web
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name quiz-poc --branch main
+      - name: Deploy to Cloudflare Pages (the project is created on the first run)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          wrangler="npx -y wrangler@4.147.0"
+          $wrangler pages project list --json | grep -q '"quiz-poc"' \
+            || $wrangler pages project create quiz-poc --production-branch main
+          $wrangler pages deploy dist --project-name quiz-poc --branch main
       - name: Smoke test that this build is live and the hosted database answers
         run: |
           entry=$(grep -o '_expo/static/js/web/entry-[0-9a-f]*\.js' dist/index.html)
