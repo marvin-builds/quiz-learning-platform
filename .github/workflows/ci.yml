@@ -59,8 +59,6 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -68,7 +66,10 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # Secrets go only to the steps that need them, never to npm install scripts.
       - run: npx supabase config diff --project-ref "$SUPABASE_PROJECT_REF"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
   deploy:
     name: Migrate hosted database and deploy web
@@ -76,10 +77,9 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Holds the deploy secrets; restricted to main in the repository settings.
     environment: production
     env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       EXPO_PUBLIC_SUPABASE_URL: https://kiywcqhicsesgknlwjyy.supabase.co
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
     steps:
@@ -89,18 +89,30 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
-      - run: npx supabase db push --yes
-      - run: npx supabase config push --project-ref "$SUPABASE_PROJECT_REF" --yes
-      # The environment variables above take precedence over the local values in .env.
+      # Secrets go only to the steps that need them, never to npm install scripts.
+      - name: Migrate the hosted database and push its config
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          npx supabase db push --yes
+          npx supabase config push --project-ref "$SUPABASE_PROJECT_REF" --yes
+      # The job's EXPO_PUBLIC_* variables take precedence over the local values in .env.
       - run: npx expo export --platform web
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name quiz-poc --branch main
-      - name: Smoke test the deployed page and the hosted database
+      - name: Smoke test that this build is live and the hosted database answers
         run: |
-          curl -fsS https://quiz-poc.pages.dev/ | grep -q '<div id="root">'
+          entry=$(grep -o '_expo/static/js/web/entry-[0-9a-f]*\.js' dist/index.html)
+          for attempt in 1 2 3 4 5 6; do
+            curl -fsS https://quiz-poc.pages.dev/ | grep -qF "$entry" && break
+            [ "$attempt" = 6 ] && { echo "https://quiz-poc.pages.dev/ does not serve $entry"; exit 1; }
+            sleep 10
+          done
+          curl -fsS "https://quiz-poc.pages.dev/$entry" | grep -qF "$EXPO_PUBLIC_SUPABASE_URL"
           test "$(curl -fsS -X POST "$EXPO_PUBLIC_SUPABASE_URL/rest/v1/rpc/health_check" \
             -H "apikey: $EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" -H 'Content-Type: application/json')" = '"ok"'

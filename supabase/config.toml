@@ -427,3 +427,8 @@ additional_redirect_urls = ["https://quiz-poc.pages.dev"]
 [remotes.production.auth.email]
 enable_confirmations = true
 max_frequency = "1m0s"
+
+# Keep the hosted default: TOTP MFA available.
+[remotes.production.auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
