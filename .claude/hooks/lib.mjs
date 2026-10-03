@@ -79,24 +79,21 @@ export function isCommitted(dir, rel) {
 }
 
 /**
- * True when the working tree or the index changes this file's content against
- * `HEAD`. Whitespace, blank lines and the file mode don't count: they change
- * no test, so they must not excuse a red one.
+ * True when the file on disk, which is what Jest and tsc read, differs in
+ * content from `HEAD`. Whitespace and the file mode don't count, and neither
+ * does the index: they change no test, so they must not excuse a red one.
  */
 export function hasUncommittedChanges(dir, rel) {
-  const result = spawnSync(
-    'git',
-    ['diff', 'HEAD', '-w', '--ignore-blank-lines', '--numstat', '--', `:(literal)${rel}`],
-    { cwd: dir, encoding: 'utf8' },
-  );
-  // numstat prints "added<TAB>deleted<TAB>path", "-" for binary files.
-  return result.stdout
-    .split('\n')
-    .filter(Boolean)
-    .some((line) => {
-      const [added, deleted] = line.split('\t');
-      return added !== '0' || deleted !== '0';
-    });
+  const committed = spawnSync('git', ['show', `HEAD:${rel}`], { cwd: dir, encoding: 'utf8' });
+  if (committed.status !== 0) return false;
+  let current;
+  try {
+    current = fs.readFileSync(path.join(dir, rel), 'utf8');
+  } catch {
+    return false;
+  }
+  const content = (text) => text.replace(/\s+/g, '');
+  return content(committed.stdout) !== content(current);
 }
 
 export function bin(dir, name) {
