@@ -102,9 +102,12 @@ For an issue, follow the `feature-slice` skill. What runs automatically:
   tests with Edit/Write only, never with shell commands.
 - **Stop gate** (`stop-gate.mjs`): the turn can't end while committed tests
   related to the branch's changes, or the typecheck of non-test code, are red.
-  New tests, and committed test files with uncommitted content changes (an
-  unlocked re-spec, exempt as a whole file until committed), may be red
-  (gate 1). After 10 blocked stops, write
+  New tests, and committed test files changed through Edit/Write while
+  unlocked (recorded in `.claude/state/unlocked-edits`, exempt as a whole file
+  until committed), may be red (gate 1); a test changed any other way blocks.
+  Never write that file or name it in a shell command (the hook denies
+  any command mentioning it). A branch that changes only Markdown, `docs/` or
+  `.github/` skips the checks. After 10 blocked stops, write
   `.claude/state/escalation.md` and stop.
 - **Agents:** `test-writer` writes the failing tests and can only write test
   files; `reviewer` reviews the branch diff read-only.

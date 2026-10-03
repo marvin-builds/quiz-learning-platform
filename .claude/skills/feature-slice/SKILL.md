@@ -38,9 +38,14 @@ If a test looks wrong, do not work around it: stop and explain. Only the human
 can unlock tests, by starting a message with "unlock tests" (or
 "unlock tests: <paths>"); ask them to, naming the files. The unlock lasts
 until their next other message: changes to approved tests go through the
-`test-writer` agent before then. Changed approved tests are gate 1 again: the
-stop gate lets the whole file be red while uncommitted, so stop and let the
-human approve them, then commit them on their own before changing the code.
+`test-writer` agent before then, with Edit/Write only: the protect-tests hook
+records those edits, and the stop gate excuses a changed approved test only
+when it is recorded. Changed approved tests are gate 1 again: the stop gate
+lets a recorded file be red while uncommitted, so stop and let the human
+approve them, then commit them on their own before changing the code.
+
+A branch that changes only Markdown, `docs/` or `.github/` passes the stop
+gate without running Jest or tsc.
 
 Cap: about 10 attempts. When the stop gate asks for an escalation note, write
 `.claude/state/escalation.md` (what you tried, what you observed, where you
