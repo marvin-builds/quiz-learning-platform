@@ -91,6 +91,11 @@ For an issue, follow the `feature-slice` skill. What runs automatically:
   `.claude/state/escalation.md` and stop.
 - **Agents:** `test-writer` writes the failing tests and can only write test
   files; `reviewer` reviews the branch diff read-only.
+- **Which checkout:** the hooks check the git work tree of the session's
+  working directory (a worktree after `EnterWorktree`), falling back to
+  `CLAUDE_PROJECT_DIR`. The hook scripts themselves load from the main
+  checkout, so keep it on an up-to-date `main`. A tool that can't start
+  (no `node_modules`) is reported as a setup problem: run `npm ci` there.
 
 ## Rules that must never break
 

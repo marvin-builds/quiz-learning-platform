@@ -8,6 +8,7 @@ import {
   block,
   editedPath,
   ensureStateDir,
+  failure,
   projectDir,
   readInput,
   relativeToProject,
@@ -38,8 +39,8 @@ async function checkCode() {
   }
   const [lint, types] = await Promise.all(checks);
   const problems = [];
-  if (lint.code !== 0) problems.push(`ESLint:\n${lint.output.trim()}`);
-  if (types && types.code !== 0) problems.push(`TypeScript:\n${types.output.trim()}`);
+  if (lint.code !== 0) problems.push(failure('ESLint', lint));
+  if (types && types.code !== 0) problems.push(failure('TypeScript', types));
   return problems;
 }
 
@@ -49,16 +50,17 @@ async function format() {
     ['--write', '--ignore-unknown', '--log-level', 'warn', rel],
     dir,
   );
-  return result.code === 0 ? [] : [`Prettier:\n${result.output.trim()}`];
+  return result.code === 0 ? [] : [failure('Prettier', result)];
 }
 
 async function checkMigration() {
   const reset = await run(bin(dir, 'supabase'), ['db', 'reset'], dir);
+  if (reset.setup) return [reset.output];
   if (reset.code !== 0) {
     return [
       `supabase db reset failed (is the stack running? npx supabase start):\n${reset.output.trim()}`,
     ];
   }
   const tests = await run(bin(dir, 'supabase'), ['test', 'db'], dir);
-  return tests.code === 0 ? [] : [`pgTAP (supabase test db):\n${tests.output.trim()}`];
+  return tests.code === 0 ? [] : [failure('pgTAP (supabase test db)', tests)];
 }

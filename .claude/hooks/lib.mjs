@@ -18,8 +18,20 @@ export async function readInput() {
   return JSON.parse(raw);
 }
 
+/**
+ * The work tree the session works in: the git top level of the event's cwd.
+ * CLAUDE_PROJECT_DIR stays the launch directory when a session moves into
+ * another worktree, so it is only the fallback, as is the process directory.
+ */
 export function projectDir(input) {
-  return process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd();
+  if (input.cwd) {
+    const top = spawnSync('git', ['rev-parse', '--show-toplevel'], {
+      cwd: input.cwd,
+      encoding: 'utf8',
+    });
+    if (top.status === 0 && top.stdout.trim()) return top.stdout.trim();
+  }
+  return process.env.CLAUDE_PROJECT_DIR || process.cwd();
 }
 
 /** The path relative to the project, or undefined when it lies outside. */
@@ -55,16 +67,33 @@ export function bin(dir, name) {
   return path.join(dir, 'node_modules', '.bin', name);
 }
 
-/** Runs a command and resolves with its exit code and combined output. */
+/**
+ * Runs a command and resolves with its exit code and combined output. A
+ * command that can't be started resolves with `setup: true` and a message
+ * that names the directory, since that is not a test or type failure.
+ */
 export function run(command, args, cwd) {
   return new Promise((resolve) => {
     const child = spawn(command, args, { cwd, env: { ...process.env, FORCE_COLOR: '0' } });
     let output = '';
     child.stdout.on('data', (data) => (output += data));
     child.stderr.on('data', (data) => (output += data));
-    child.on('error', (error) => resolve({ code: 1, output: String(error) }));
+    child.on('error', (error) =>
+      resolve({
+        code: 1,
+        setup: true,
+        output:
+          `Setup problem: ${path.basename(command)} could not be started in ${cwd} ` +
+          `(${error.message}). Run npm ci there.`,
+      }),
+    );
     child.on('close', (code) => resolve({ code, output }));
   });
+}
+
+/** A failed run as feedback: setup problems as they are, others under a label. */
+export function failure(label, result) {
+  return result.setup ? result.output : `${label}:\n${result.output.trim()}`;
 }
 
 export function truncate(text) {

@@ -22,9 +22,10 @@ export type HookResult = {
 export class Fixture {
   readonly dir: string;
 
-  constructor() {
+  /** Without `nodeModules`, the repo stands for a checkout where `npm ci` never ran. */
+  constructor({ nodeModules = true }: { nodeModules?: boolean } = {}) {
     this.dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'hook-fixture-')));
-    this.linkNodeModules();
+    if (nodeModules) this.linkNodeModules();
     this.git('init', '-q', '-b', 'main');
     this.git('config', 'user.email', 'fixture@example.com');
     this.git('config', 'user.name', 'Fixture');
@@ -124,12 +125,33 @@ export function runHook(
   projectDir: string,
   env: Record<string, string> = {},
 ): HookResult {
+  const cwd = typeof input.cwd === 'string' ? input.cwd : projectDir;
+  return runHookInSession(script, input, { cwd, launchDir: projectDir, env });
+}
+
+/**
+ * Runs a hook as Claude Code does after a session moved into another work
+ * tree: the event's `cwd` is where the session works, while the process and
+ * CLAUDE_PROJECT_DIR stay at the directory the session was launched from.
+ * `cwd: undefined` leaves the field out of the event.
+ */
+export function runHookInSession(
+  script: string,
+  input: Record<string, unknown>,
+  {
+    cwd,
+    launchDir,
+    env = {},
+  }: { cwd: string | undefined; launchDir: string; env?: Record<string, string> },
+): HookResult {
   const started = Date.now();
+  const event: Record<string, unknown> = { session_id: 'test-session', ...input };
+  if (cwd !== undefined) event.cwd = cwd;
   const result = spawnSync('node', [path.join(REPO_ROOT, '.claude', 'hooks', script)], {
-    cwd: projectDir,
-    input: JSON.stringify({ session_id: 'test-session', cwd: projectDir, ...input }),
+    cwd: launchDir,
+    input: JSON.stringify(event),
     encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDir, ...env },
+    env: { ...process.env, CLAUDE_PROJECT_DIR: launchDir, ...env },
   });
   // Every hook reports through JSON on exit code 0, so any other exit is a
   // crash, and a crash must not pass as "the hook allowed it".
