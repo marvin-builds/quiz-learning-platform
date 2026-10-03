@@ -67,7 +67,8 @@ create index answers_question_id_idx on public.answers (question_id);
 -- rls_enabled.test.sql on purpose. The helpers run as security definer, so
 -- the policies of a child table don't depend on the caller's rights on its
 -- parents. New functions here are closed by the default-privileges migration
--- until granted below.
+-- until granted below. Parameters are qualified with the function name, so a
+-- column of the same name added later can't shadow them.
 
 create schema private;
 grant usage on schema private to anon, authenticated;
@@ -80,7 +81,7 @@ security definer
 set search_path = ''
 as $$
   select coalesce(
-    (select c.published from public.categories c where c.id = category_id),
+    (select c.published from public.categories c where c.id = is_category_visible.category_id),
     false
   );
 $$;
@@ -96,7 +97,7 @@ as $$
     select 1
     from public.quizzes z
     join public.categories c on c.id = z.category_id
-    where z.id = quiz_id and z.published and c.published
+    where z.id = is_quiz_visible.quiz_id and z.published and c.published
   );
 $$;
 
@@ -112,7 +113,7 @@ as $$
     from public.questions q
     join public.quizzes z on z.id = q.quiz_id
     join public.categories c on c.id = z.category_id
-    where q.id = question_id and z.published and c.published
+    where q.id = is_question_visible.question_id and z.published and c.published
   );
 $$;
 
