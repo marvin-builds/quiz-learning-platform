@@ -25,7 +25,6 @@ declare
   correct_ids uuid[];
   picked_ids uuid[];
   new_points numeric(6, 2);
-  inserted_count integer;
   stored public.attempt_answers%rowtype;
 begin
   -- 1. The caller's attempt, which still has its quiz, and a question of
@@ -92,33 +91,34 @@ begin
       new_points := 1;
     end if;
 
-    -- A concurrent first submission may have won since step 2: store
-    -- nothing then, and return the winner's row.
+    -- Defensive: the attempt lock already serializes submit_answer calls,
+    -- but a writer that bypasses it must not cause a unique violation. If
+    -- one won, store nothing and return its row.
     insert into public.attempt_answers (attempt_id, question_id, selected_answer_ids, is_correct, points)
-    values (attempt.id, question.id, picked_ids, new_points = 1, new_points)
-    on conflict (attempt_id, question_id) do nothing;
+    values (
+      attempt.id, question.id, picked_ids,
+      picked_ids <@ correct_ids and cardinality(picked_ids) = cardinality(correct_ids),
+      new_points
+    )
+    on conflict (attempt_id, question_id) do nothing
+    returning * into stored;
 
-    get diagnostics inserted_count = row_count;
-
-    if inserted_count = 1 then
+    if found then
       update public.attempts a
       set
         score = totals.score,
-        finished_at = case
-          when a.finished_at is null and totals.answered >= a.max_score then now()
-          else a.finished_at
-        end
+        finished_at = coalesce(a.finished_at, case when totals.answered >= a.max_score then now() end)
       from (
-        select coalesce(sum(aa.points), 0) as score, count(*) as answered
+        select sum(aa.points) as score, count(*) as answered
         from public.attempt_answers aa
         where aa.attempt_id = attempt.id
       ) totals
       where a.id = attempt.id;
+    else
+      select aa.* into stored
+      from public.attempt_answers aa
+      where aa.attempt_id = attempt.id and aa.question_id = question.id;
     end if;
-
-    select aa.* into stored
-    from public.attempt_answers aa
-    where aa.attempt_id = attempt.id and aa.question_id = question.id;
   end if;
 
   return query select stored.is_correct, stored.points, correct_ids, question.explanation;
