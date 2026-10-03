@@ -132,7 +132,11 @@ it.
   after the turn ends, and a stop the Stop hook blocks must not lose the
   unlock. Creating the marker in a separate terminal and deleting it later
   was two manual steps outside the conversation. Only the start of a message
-  counts, because text quoted in an agent's report must not unlock.
+  counts, because text quoted in an agent's report must not unlock. A
+  compaction doesn't lock again (it can happen mid-turn). The marker is per
+  checkout, not per session: another session in the same checkout could edit
+  approved tests while it exists. Accepted, since one session works per
+  worktree.
 
 ## Consequences
 

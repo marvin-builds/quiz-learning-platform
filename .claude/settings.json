@@ -68,6 +68,7 @@
     ],
     "SessionStart": [
       {
+        "matcher": "startup|resume|clear",
         "hooks": [
           {
             "type": "command",
