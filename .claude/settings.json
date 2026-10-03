@@ -5,14 +5,29 @@
       "Bash(npm test:*)",
       "Bash(npm run lint:*)",
       "Bash(npm run typecheck:*)",
+      "Bash(npm run db:types)",
       "Bash(npx jest:*)",
+      "Bash(npx tsc --noEmit:*)",
       "Bash(npx expo-doctor:*)",
       "Bash(npx prettier --check:*)",
+      "Bash(npx supabase start)",
+      "Bash(npx supabase stop)",
+      "Bash(npx supabase status)",
+      "Bash(npx supabase db reset)",
+      "Bash(npx supabase test db)",
+      "Bash(npx supabase db reset && npx supabase test db)",
+      "Bash(npx supabase migration new:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
       "Bash(gh issue view:*)",
       "Bash(gh pr view:*)"
+    ],
+    "deny": [
+      "Bash(npx supabase link:*)",
+      "Bash(npx supabase db push:*)",
+      "Bash(supabase link:*)",
+      "Bash(supabase db push:*)"
     ]
   },
   "hooks": {
