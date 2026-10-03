@@ -1,6 +1,11 @@
 {
   "home": {
     "title": "Willkommen beim Quiz",
-    "subtitle": "Hier entsteht deine Lernplattform."
+    "subtitle": "Hier entsteht deine Lernplattform.",
+    "dbStatus": {
+      "loading": "Verbindung zur Datenbank wird geprüft …",
+      "ok": "Datenbank erreichbar",
+      "error": "Datenbank nicht erreichbar"
+    }
   }
 }

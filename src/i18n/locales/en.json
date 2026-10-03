@@ -1,6 +1,11 @@
 {
   "home": {
     "title": "Welcome to the quiz",
-    "subtitle": "Your learning platform is on its way."
+    "subtitle": "Your learning platform is on its way.",
+    "dbStatus": {
+      "loading": "Checking the database connection …",
+      "ok": "Database reachable",
+      "error": "Database not reachable"
+    }
   }
 }
