@@ -8,4 +8,6 @@ alter default privileges in schema public revoke all on functions from anon, aut
 
 -- Postgres grants execute on every new function to PUBLIC; without this,
 -- anon and authenticated could still call new functions through PUBLIC.
+-- This one applies in every schema: helpers used in RLS policies or column
+-- defaults (e.g. a future private.is_admin()) need an explicit grant.
 alter default privileges revoke execute on functions from public;

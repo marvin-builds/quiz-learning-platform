@@ -284,7 +284,7 @@ Decided with the walking-skeleton deploy (#7):
 | Hosted Supabase | Project `kiywcqhicsesgknlwjyy` in Frankfurt; CI runs `supabase db push` on every push to `main`, never a local machine |
 | Hosted auth settings | Pushed by CI with `supabase config push` from `supabase/config.toml`; `[remotes.production]` overrides the local development values (site URL, email confirmations, email rate). PR runs show `supabase config diff` against the hosted project |
 | Hosted credentials | Only in GitHub secrets (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PUBLISHABLE_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`); the root `.env` holds only the local stack's public values |
-| Hosted dashboard settings | Created with "Automatically expose new tables" off and "Enable automatic RLS" on. Locally, a migration revokes the default privileges of `anon` and `authenticated` (and `execute` on new functions from `PUBLIC`), so a table without explicit grants is closed in both places |
+| Hosted dashboard settings | Created with "Automatically expose new tables" off and "Enable automatic RLS" on. Locally, a migration revokes the default privileges of `anon` and `authenticated` (and `execute` on new functions in any schema from `PUBLIC`), so a table or function without explicit grants is closed in both places; helper functions used in RLS policies need an explicit `grant execute` |
 | Stale types | CI fails when `src/types/database.ts` differs from `npm run db:types` |
 
 The agentic workflow itself is recorded in
