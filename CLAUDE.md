@@ -68,8 +68,11 @@ memory before using an Expo or React Native API.
 
 ## Workflow
 
-- **Session start:** list the open Dependabot PRs and the next issue (lowest
-  open milestone, then lowest number), then let me decide what to work on.
+- **Session start:** list the open Dependabot PRs, the issues in progress
+  (a `<n>-*` branch or worktree exists; give each its step, see
+  `feature-slice` → Resume) and the next issue without one (lowest open
+  milestone, then lowest number), then let me decide what to work on. Git
+  can't tell whether another session is still open in a worktree; I decide.
 - **One issue = one slice = one branch** named `<issue-number>-<short-slug>`
   (e.g. `2-expo-app-skeleton`), branched from an up-to-date `main`.
 - **Tests first.** Turn the issue's acceptance criteria into failing tests and

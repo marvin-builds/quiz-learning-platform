@@ -208,6 +208,17 @@ it.
   test, so future screens are covered too. A test that really hangs takes up
   to a minute to fail, so a few hanging tests can push the Stop hook past its
   300 s limit.
+- **In-progress issues come from git, not from a marker.** The status check
+  also lists the issues that already have a `<n>-*` branch or worktree, with
+  the step each is at, and the next issue skips them. So a new session
+  neither proposes an issue that is being worked on nor hides one I want to
+  resume. A label, assignee or status file would need upkeep at both ends of
+  a slice and go stale when a session dies; the branch is the work itself.
+  A session lock was considered to tell an open session from a paused one,
+  and rejected: Claude Code doesn't document that `SessionEnd` runs when a
+  terminal is closed or killed, nor a way for a hook to learn the session's
+  process, so the lock would outlive exactly the sessions I had to quit.
+  Which worktree still has an open session is my call.
 
 ## Consequences
 
