@@ -23,7 +23,7 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
-    "plugins": ["expo-router", "expo-localization"],
+    "plugins": ["expo-router", "expo-localization", "expo-sqlite"],
     "experiments": {
       "typedRoutes": true
     }
