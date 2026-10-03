@@ -125,6 +125,13 @@ it.
 - **The test-writer is fenced by its own hook**, not by an exemption in the
   protected-tests hook: it may only write test files, and changing an
   approved test still needs my unlock.
+- **I unlock from the chat** (issue #26). A message of mine that starts with
+  "unlock tests" (any case) lifts the lock for that turn, "unlock tests:
+  <paths>" only for those files; the main agent's Stop locks again. Creating
+  the marker in a separate terminal and deleting it later was two manual
+  steps outside the conversation. Only the start of a message counts:
+  `UserPromptSubmit` also fires on turns Claude Code starts itself, and text
+  quoted in an agent's report must not unlock.
 
 ## Consequences
 

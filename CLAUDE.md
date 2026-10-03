@@ -88,9 +88,11 @@ For an issue, follow the `feature-slice` skill. What runs automatically:
   `supabase db reset` + `supabase test db` for migrations. Problems come back
   in the same turn; fix them before moving on.
 - **Approved tests are locked** (`protect-tests.mjs`): a test committed in
-  `HEAD` can't be edited. Only I unlock them, by creating
-  `.claude/state/tests-unlocked`; never create, touch or mention that file in
-  a command. Edit tests with Edit/Write only, never with shell commands.
+  `HEAD` can't be edited. Only I unlock them: a message of mine starting with
+  "unlock tests" (or "unlock tests: <paths>") makes `unlock-tests.mjs` create
+  `.claude/state/tests-unlocked` for that turn; the main agent's Stop removes
+  it. Never create, touch or mention that file in a command. Edit tests with
+  Edit/Write only, never with shell commands.
 - **Stop gate** (`stop-gate.mjs`): the turn can't end while committed tests
   related to the branch's changes, or the typecheck of non-test code, are red.
   New, uncommitted tests may be red (gate 1). After 10 blocked stops, write
