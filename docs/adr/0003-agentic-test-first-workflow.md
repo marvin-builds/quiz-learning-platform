@@ -246,6 +246,22 @@ it.
   in its worktree. That list holds only live processes and shows each
   session's `cwd`, so it needs no session names, which interactive sessions
   don't show there anyway.
+- **Semi-auto runs, one issue at a time** (2026-10-03). Invoking the
+  `semi-auto-workflow` skill approves gate 1 and the push for one issue: the
+  agent picks the next unblocked issue (its "Depends on" issues closed), runs
+  `feature-slice`, pushes, opens the PR and watches CI. It stops before the
+  merge, which stays mine, and cleans up once I say the PR is merged. What I
+  checked at gate 1 moves to two reviews by the `reviewer` agent: the spec
+  against the use case, the plan and the ADRs before any test is written,
+  then the tests against that spec before they are committed (one fix pass
+  each). A conflict with the goal or the plan, a remaining blocker, or a test
+  that looks wrong after commit still stops the run. Every judgment call goes
+  into a decision log with its confidence; the final report starts with the
+  uncertain ones, so I can check that the slice goes in the direction I
+  want, and the PR lists them all. #46 ran this way first, on an approval I
+  wrote out in the prompt; the skill saves repeating it. Unlike the autopilot
+  (#17), it covers one issue per invocation and never merges, so it needs no
+  phase 1 review first.
 
 ## Consequences
 
