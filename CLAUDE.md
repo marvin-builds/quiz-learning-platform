@@ -51,7 +51,7 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
   commands, never apart. On `main` it also migrates the hosted database,
   pushes `supabase/config.toml` (hosted overrides in `[remotes.production]`)
   and deploys the web export to Cloudflare Pages
-- `.github/dependabot.yml`: weekly GitHub Actions updates and npm security
+- `.github/dependabot.yml`: daily GitHub Actions updates and npm security
   updates only; bump Expo and React Native with `npx expo install --fix`
 - `.env`: the local stack's public URL and key for the app; CI sets the
   hosted values
