@@ -27,15 +27,18 @@ jobs:
           distribution: temurin
           java-version: '17'
       - run: npm ci
-      # Secrets go only to the step that needs them, never to npm install scripts.
+      # Secrets go only to this step, not to the outer npm ci (the local build
+      # reinstalls dependencies with them in its env, which --local can't avoid).
       # The preview profile in eas.json sets the hosted URL; the committed .env holds
-      # the local stack's 127.0.0.1, so it must not be loaded.
+      # the local stack's values, so it must not be loaded.
       - name: Build the APK
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
           EXPO_NO_DOTENV: '1'
         run: |
+          # An empty key would build an APK that fails on start.
+          test -n "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" || { echo "SUPABASE_PUBLISHABLE_KEY is not set"; exit 1; }
           npx -y eas-cli@24.10.0 build --local -p android --profile preview \
             --non-interactive --output quiz-preview.apk
       - name: Check that the APK talks to the hosted backend, not the local stack
@@ -43,8 +46,12 @@ jobs:
           url=$(node -p "require('./eas.json').build.preview.env.EXPO_PUBLIC_SUPABASE_URL")
           unzip -p quiz-preview.apk assets/index.android.bundle > bundle
           grep -aqF "$url" bundle || { echo "The APK's bundle lacks $url"; exit 1; }
-          # The local stack's URL from .env; a bare 127.0.0.1 is also in library code.
-          if grep -aqF http://127.0.0.1:54321 bundle; then echo "The APK's bundle points at the local stack"; exit 1; fi
+          # The local stack's URL and key from .env; a bare 127.0.0.1 is also in library code.
+          local_key=$(sed -n 's/^EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=//p' .env)
+          test -n "$local_key" || { echo ".env has no local publishable key"; exit 1; }
+          if grep -aqF http://127.0.0.1:54321 bundle || grep -aqF "$local_key" bundle; then
+            echo "The APK's bundle points at the local stack"; exit 1
+          fi
       - uses: actions/upload-artifact@v7
         with:
           name: quiz-preview-apk
