@@ -98,7 +98,10 @@ memory before using an Expo or React Native API.
 
 ## Harness
 
-For an issue, follow the `feature-slice` skill. What runs automatically:
+For an issue, follow the `feature-slice` skill. When I invoke
+`semi-auto-workflow`, it runs one issue through that loop without stopping at
+gate 1 or before the push, and stops before the merge. What runs
+automatically:
 
 - **After every edit** (`post-edit.mjs`): ESLint with `--fix` and the
   incremental typecheck for code, Prettier for other files,
