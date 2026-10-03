@@ -35,8 +35,10 @@ edit; fix them as they come. The stop gate won't let the turn end while
 approved tests or the typecheck are red.
 
 If a test looks wrong, do not work around it: stop and explain. Only the human
-can unlock tests (`.claude/state/tests-unlocked`); after an unlock, changes to
-approved tests go through the `test-writer` agent.
+can unlock tests, by starting a message with "unlock tests" (or
+"unlock tests: <paths>"); ask them to, naming the files. The unlock lasts
+until their next other message: changes to approved tests go through the
+`test-writer` agent before then.
 
 Cap: about 10 attempts. When the stop gate asks for an escalation note, write
 `.claude/state/escalation.md` (what you tried, what you observed, where you

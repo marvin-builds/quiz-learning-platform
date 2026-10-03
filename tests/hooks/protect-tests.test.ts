@@ -42,9 +42,10 @@ describe('protect-tests hook (PreToolUse)', () => {
 
     expect(result.status).toBe(0);
     expect(denied(result)).toBe(true);
-    expect(result.output?.hookSpecificOutput?.permissionDecisionReason).toContain(
-      '.claude/state/tests-unlocked',
-    );
+    const reason = result.output?.hookSpecificOutput?.permissionDecisionReason;
+    expect(reason).toContain(`unlock tests: ${testFile}`);
+    expect(reason).toMatch(/ask the human/i);
+    expect(reason).not.toContain('.claude/state/tests-unlocked');
   });
 
   it.each(['Write', 'MultiEdit'])('blocks %s on a committed test as well', (toolName) => {

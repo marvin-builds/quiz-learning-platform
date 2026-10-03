@@ -125,6 +125,18 @@ it.
 - **The test-writer is fenced by its own hook**, not by an exemption in the
   protected-tests hook: it may only write test files, and changing an
   approved test still needs my unlock.
+- **I unlock from the chat** (issue #26). A message of mine that starts with
+  "unlock tests" (any case) lifts the lock, "unlock tests: <paths>" only for
+  those files. Any other prompt, including turns Claude Code starts itself,
+  and a new session lock again. Stop doesn't: background agents keep working
+  after the turn ends, and a stop the Stop hook blocks must not lose the
+  unlock. Creating the marker in a separate terminal and deleting it later
+  was two manual steps outside the conversation. Only the start of a message
+  counts, because text quoted in an agent's report must not unlock. A
+  compaction doesn't lock again (it can happen mid-turn). The marker is per
+  checkout, not per session: another session in the same checkout could edit
+  approved tests while it exists. Accepted, since one session works per
+  worktree.
 
 ## Consequences
 
