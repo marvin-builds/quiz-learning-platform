@@ -67,6 +67,28 @@ migrations in git. The rules are:
 - **Answer checking** is a `security definer` SQL function, `check_answer`.
   Learners never read `is_correct` or `explanation` directly.
 
+### Amendment (2026-10-03): answers are recorded before they are checked
+
+A stateless `check_answer(question_id, answer_ids[])` can be called before
+answering, so it would reveal the solution in advance, and a score computed
+by the client can be faked. Planning phase 1, I chose a server-authoritative
+flow instead, like an endpoint of a classic backend:
+
+- `start_attempt(quiz_id)` creates an attempt for the signed-in (possibly
+  anonymous) user.
+- `submit_answer(attempt_id, question_id, answer_ids[])` stores the first
+  submission per question, scores it in SQL, and only then returns
+  correctness, the correct answer ids, the explanation and the points. A
+  repeated call returns the stored result.
+- Learners have no write access to attempts or scores. The attempt's score is
+  the sum of its stored points.
+
+Accepted gap: a learner can play a quiz once to learn the answers and then
+start a new attempt. A later rule (e.g. only the first attempt counts for a
+leaderboard) can close it. The scoring rules now live in SQL. The TypeScript
+version in `src/domain/scoring.ts` stays as the property-tested reference
+that the SQL cases mirror.
+
 ## Consequences
 
 **Positive:**

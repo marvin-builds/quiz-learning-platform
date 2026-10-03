@@ -127,8 +127,10 @@ For an issue, follow the `feature-slice` skill. What runs automatically:
 - **Every table has RLS enabled.** Every policy gets a positive and a negative
   pgTAP test per role (`anon`, learner, admin).
 - **Learners never see the solutions.** `answers.is_correct` and
-  `questions.explanation` are only reachable through the
-  `check_answer(question_id, answer_ids[])` function, never through a select.
+  `questions.explanation` are only reachable through
+  `submit_answer(attempt_id, question_id, answer_ids[])`, which records the
+  answer before it reveals anything, never through a select. Scores are
+  computed in the database; the client can't write them.
 - **No hosted Supabase access from the dev machine.** Local stack only;
   migrations reach the hosted project through CI.
 - **No hard-coded UI strings.** All user-facing text goes through i18next

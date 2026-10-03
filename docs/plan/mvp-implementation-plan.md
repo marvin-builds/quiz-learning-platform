@@ -51,7 +51,7 @@ The harness is code in the repo, versioned and reviewed like the app.
 
 - **`CLAUDE.md`** (short, under ~150 lines): commands, folder layout, the
   definition of done, the TDD rule, "never edit an approved test to make it
-  pass", security rules (RLS, `check_answer`), i18n rule (no hard-coded UI
+  pass", security rules (RLS, `submit_answer`), i18n rule (no hard-coded UI
   strings).
 - Deeper procedures go into **project skills** in `.claude/skills/` so they load
   only when needed:
@@ -143,7 +143,7 @@ stuck (systematic debugging), instead of guessing further.
 | Layer | Tool | What it proves | Extra quality check |
 |---|---|---|---|
 | Domain logic (scoring, progress) | Jest + **fast-check** property tests | Scoring rules hold for all inputs, e.g. "all correct ⇒ full points", "any wrong pick in multi-choice ⇒ 0" | **Stryker** mutation testing: tests must kill the mutants |
-| Database, RLS, `check_answer` | pgTAP | Every policy has a positive **and** a negative test per role (anon, learner, admin) | Reviewer checks each new table has RLS on |
+| Database, RLS, `start_attempt`/`submit_answer`, scoring in SQL | pgTAP | Every policy has a positive **and** a negative test per role (anon, learner, admin) | Reviewer checks each new table has RLS on |
 | Components | Jest + React Native Testing Library | Rendering, states (loading/empty/error), i18n keys | — |
 | End-to-end | Playwright on the web build | The real flows in section 5, against a reset local stack with seed data | axe accessibility scan; screenshots as artifacts |
 | Mobile | Expo dev build, manual smoke | Nothing broke on Android/iOS | Once per phase, not per slice |
@@ -181,13 +181,21 @@ needs it.
 
 1. Content schema (`categories`, `quizzes`, `questions`, `answers`) + RLS +
    seed data
-2. `check_answer` function: correctness + explanation, never leaks other
-   answers
-3. Category list and quiz list screens
-4. Quiz player: single and multiple choice, images
-5. Answer feedback with explanation, result screen
-6. Anonymous sign-in and `attempts` storage
-7. Security review of the learner surface (see "Security reviews" below)
+2. Anonymous sign-in and attempts (`start_attempt`)
+3. `submit_answer`: records the first answer per question, scores it in SQL,
+   then reveals the solution and explanation of that question only
+4. E2E harness: Playwright and axe on the web build, locally and in CI
+5. Browser verification for the agent: `ui-verifier`, Playwright MCP,
+   `e2e-flow` skill
+6. Category list and quiz list screens
+7. Quiz player: single and multiple choice
+8. Images in questions and answers (public Storage bucket)
+9. Answer feedback with explanation, result screen, E2E flow A
+10. Security review of the learner surface (see "Security reviews" below)
+
+The order follows the server-authoritative answer flow decided while planning
+phase 1 (section 7): attempts exist before answers can be checked, and the
+harness for browser tests comes before the first screen that needs it.
 
 **E2E flow A:** an anonymous user opens a category, plays a quiz, sees
 explanations and the score.
@@ -232,7 +240,7 @@ that, a dedicated security review closes a phase when it adds an attack
 surface, so a problem is found before the next phase builds on it, not at
 launch:
 
-- **End of phase 1, learner surface:** content RLS, `check_answer`, solution
+- **End of phase 1, learner surface:** content RLS, `start_attempt`/`submit_answer`, solution
   leaks, unpublished content, abuse of anonymous sign-in.
 - **End of phase 2, admin surface:** privilege escalation to admin, writes
   without the admin role, Storage policies.
@@ -294,6 +302,18 @@ Decided with the walking-skeleton deploy (#7):
 | Hosted credentials | Only in GitHub secrets (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PUBLISHABLE_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`); the root `.env` holds only the local stack's public values |
 | Hosted dashboard settings | Created with "Automatically expose new tables" off and "Enable automatic RLS" on. Locally, a migration revokes the default privileges of `anon` and `authenticated` (and `execute` on new functions in any schema from `PUBLIC`), so a table or function without explicit grants is closed in both places; helper functions used in RLS policies need an explicit `grant execute` |
 | Stale types | CI fails when `src/types/database.ts` differs from `npm run db:types` |
+
+Decided while planning phase 1 (2026-10-03):
+
+| Topic | Decision |
+|---|---|
+| Answer checking | Server-authoritative ([ADR 0002 amendment](../adr/0002-supabase-backend.md#amendment-2026-10-03-answers-are-recorded-before-they-are-checked)): `start_attempt(quiz_id)` creates an attempt; `submit_answer(attempt_id, question_id, answer_ids[])` stores the first submission per question, scores it in SQL, then returns correctness, the correct answer ids, the explanation and the points. Replaying a quiz in a new attempt is an accepted gap |
+| Scoring | One point per question, rounded to 2 decimals per question; the attempt's score is the sum of the stored points. `src/domain/scoring.ts` stays as the property-tested reference the SQL cases mirror |
+| Anonymous session | Browsing works as `anon` without a session; starting a quiz signs in anonymously if there is no session yet. Locally the anonymous sign-in limit is raised for E2E runs; hosted keeps 30 per hour per IP |
+| Images | A public-read Storage bucket `quiz-images`; uploads come with phase 2. Every image has a required alt text |
+| Admins in phase 1 | See and do what learners do; the admin read and write paths come with phase 2 |
+| Hosted content | `seed.sql` runs only locally, so the hosted site shows the empty state until admins create content in phase 2 |
+| Issues | Created for phase 1 only; phases 2 and 3 get theirs after the phase 1 review in ADR 0003 |
 
 The agentic workflow itself is recorded in
 [ADR 0003](../adr/0003-agentic-test-first-workflow.md).
