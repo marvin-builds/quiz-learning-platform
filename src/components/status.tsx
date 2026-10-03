@@ -1,9 +1,36 @@
+import { Link } from 'expo-router';
 import { Pressable, type PressableProps, Text, View } from 'react-native';
 
-// The loading, empty, error and not-found messages the list screens share.
+// The loading, empty, error and not-found messages the screens share, and
+// their button.
 
 export function StatusMessage({ text }: { text: string }) {
   return <Text className="py-6 text-center text-base text-gray-600">{text}</Text>;
+}
+
+export function Button({
+  label,
+  disabled = false,
+  onPress,
+}: {
+  label: string;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      role="button"
+      disabled={disabled}
+      onPress={onPress}
+      className={`items-center rounded-lg px-4 py-3 ${
+        disabled ? 'bg-gray-300' : 'bg-blue-700 active:bg-blue-800'
+      }`}
+    >
+      <Text className={`text-base font-semibold ${disabled ? 'text-gray-600' : 'text-white'}`}>
+        {label}
+      </Text>
+    </Pressable>
+  );
 }
 
 export function ErrorState({
@@ -17,14 +44,22 @@ export function ErrorState({
 }) {
   return (
     <View className="items-center py-6">
-      <Text className="text-center text-base text-red-700">{message}</Text>
-      <Pressable
-        role="button"
-        onPress={onRetry}
-        className="mt-4 rounded-lg bg-blue-700 px-4 py-2 active:bg-blue-800"
-      >
-        <Text className="text-base font-semibold text-white">{retryLabel}</Text>
-      </Pressable>
+      <Text className="mb-4 text-center text-base text-red-700">{message}</Text>
+      <Button label={retryLabel} onPress={onRetry} />
+    </View>
+  );
+}
+
+/** A not-found message with a link back to the category list. */
+export function NotFoundState({ message, backLabel }: { message: string; backLabel: string }) {
+  return (
+    <View className="items-center">
+      <StatusMessage text={message} />
+      <Link href="/" asChild>
+        <Pressable>
+          <Text className="text-base font-semibold text-blue-700 underline">{backLabel}</Text>
+        </Pressable>
+      </Link>
     </View>
   );
 }

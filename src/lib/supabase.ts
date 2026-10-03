@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { AppState, Platform } from 'react-native';
 
-import { authStorage, detectSessionInUrl } from '@/lib/auth-storage';
+import { authStorage } from '@/lib/auth-storage';
 import type { Database } from '@/types/database';
 
 // Expo inlines EXPO_PUBLIC_* at build time: `.env` holds the local stack's
@@ -20,7 +20,8 @@ export const supabase = createClient<Database>(url, key, {
     storage: authStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl,
+    // Only the browser has a URL to read a session from.
+    detectSessionInUrl: Platform.OS === 'web',
   },
 });
 

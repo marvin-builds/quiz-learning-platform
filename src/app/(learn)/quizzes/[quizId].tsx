@@ -1,12 +1,11 @@
-import type { PostgrestError } from '@supabase/supabase-js';
 import { type UseMutationOptions, useMutation, useQuery } from '@tanstack/react-query';
-import { Link, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { PageTitle } from '@/components/page-title';
-import { ErrorState, StatusMessage } from '@/components/status';
+import { Button, ErrorState, NotFoundState, StatusMessage } from '@/components/status';
 import { fetchQuiz, fetchQuizQuestions } from '@/lib/content';
 import { ensureSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
@@ -27,38 +26,28 @@ export default function QuizScreen() {
     <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="px-4 py-8">
       <PageTitle title={quiz.data?.title ?? t('categories.title')} />
       <View className="mx-auto w-full max-w-2xl">
-        {quiz.isPending ? (
-          <StatusMessage text={t('quiz.loading')} />
-        ) : quiz.isError ? (
-          <ErrorState
-            message={t('quiz.error')}
-            retryLabel={t('quiz.retry')}
-            onRetry={() => quiz.refetch()}
-          />
-        ) : quiz.data === null ? (
-          <NotFound />
-        ) : (
-          <QuizContent quiz={quiz.data} />
-        )}
+        <QuizBody quiz={quiz} />
       </View>
     </ScrollView>
   );
 }
 
-function NotFound() {
+function QuizBody({ quiz }: { quiz: ReturnType<typeof useQuery<Quiz | null>> }) {
   const { t } = useTranslation();
-  return (
-    <View className="items-center">
-      <StatusMessage text={t('quiz.notFound')} />
-      <Link href="/" asChild>
-        <Pressable>
-          <Text className="text-base font-semibold text-blue-700 underline">
-            {t('quiz.backToCategories')}
-          </Text>
-        </Pressable>
-      </Link>
-    </View>
-  );
+  if (quiz.isPending) return <StatusMessage text={t('quiz.loading')} />;
+  if (quiz.isError) {
+    return (
+      <ErrorState
+        message={t('quiz.error')}
+        retryLabel={t('quiz.retry')}
+        onRetry={() => quiz.refetch()}
+      />
+    );
+  }
+  if (quiz.data === null) {
+    return <NotFoundState message={t('quiz.notFound')} backLabel={t('quiz.backToCategories')} />;
+  }
+  return <QuizContent quiz={quiz.data} />;
 }
 
 function QuizContent({ quiz }: { quiz: Quiz }) {
@@ -87,27 +76,35 @@ function QuizContent({ quiz }: { quiz: Quiz }) {
           <Text className="mb-6 text-base text-gray-600">
             {t('quiz.questionCount', { count: quiz.questionCount })}
           </Text>
-          {quiz.questionCount === 0 ? (
-            <StatusMessage text={t('quiz.noQuestions')} />
-          ) : start.isError && (start.error as PostgrestError).message === NOT_AVAILABLE ? (
-            <StatusMessage text={t('quiz.unavailable')} />
-          ) : start.isError ? (
-            <ErrorState
-              message={t('quiz.startError')}
-              retryLabel={t('quiz.retry')}
-              onRetry={() => start.run()}
-            />
-          ) : (
-            <PrimaryButton
-              label={t('quiz.start')}
-              disabled={start.busy}
-              onPress={() => start.run()}
-            />
-          )}
+          <StartAction quiz={quiz} start={start} />
         </>
       )}
     </>
   );
+}
+
+function StartAction({
+  quiz,
+  start,
+}: {
+  quiz: Quiz;
+  start: ReturnType<typeof useGuardedMutation<string>>;
+}) {
+  const { t } = useTranslation();
+  if (quiz.questionCount === 0) return <StatusMessage text={t('quiz.noQuestions')} />;
+  if (start.error?.message === NOT_AVAILABLE) {
+    return <StatusMessage text={t('quiz.unavailable')} />;
+  }
+  if (start.isError) {
+    return (
+      <ErrorState
+        message={t('quiz.startError')}
+        retryLabel={t('quiz.retry')}
+        onRetry={() => start.run()}
+      />
+    );
+  }
+  return <Button label={t('quiz.start')} disabled={start.busy} onPress={() => start.run()} />;
 }
 
 function Player({ quizId, attemptId }: { quizId: string; attemptId: string }) {
@@ -120,7 +117,7 @@ function Player({ quizId, attemptId }: { quizId: string; attemptId: string }) {
   });
   const [index, setIndex] = useState(0);
   const [picks, setPicks] = useState<string[]>([]);
-  // Item 9 shows the recorded result (submit.data) before moving on.
+  // Returns the recorded result, which item 9 shows before moving on.
   const submit = useGuardedMutation({
     mutationFn: async (answer: { questionId: string; answerIds: string[] }) => {
       const { data, error } = await supabase
@@ -154,13 +151,7 @@ function Player({ quizId, attemptId }: { quizId: string; attemptId: string }) {
   const question = questions.data[index];
   const send = () => submit.run({ questionId: question.id, answerIds: picks });
   const pick = (answerId: string) =>
-    setPicks((current) =>
-      !question.multiple_correct
-        ? [answerId]
-        : current.includes(answerId)
-          ? current.filter((id) => id !== answerId)
-          : [...current, answerId],
-    );
+    setPicks((current) => togglePick(current, answerId, question.multiple_correct));
 
   return (
     <View>
@@ -171,7 +162,7 @@ function Player({ quizId, attemptId }: { quizId: string; attemptId: string }) {
       {submit.isError ? (
         <ErrorState message={t('quiz.submitError')} retryLabel={t('quiz.retry')} onRetry={send} />
       ) : (
-        <PrimaryButton
+        <Button
           label={t('quiz.submit')}
           disabled={picks.length === 0 || submit.busy}
           onPress={send}
@@ -179,6 +170,12 @@ function Player({ quizId, attemptId }: { quizId: string; attemptId: string }) {
       )}
     </View>
   );
+}
+
+/** Single choice: a pick replaces the selection. Multiple choice: it toggles. */
+function togglePick(picks: string[], answerId: string, multiple: boolean): string[] {
+  if (!multiple) return [answerId];
+  return picks.includes(answerId) ? picks.filter((id) => id !== answerId) : [...picks, answerId];
 }
 
 function QuestionView({
@@ -201,9 +198,7 @@ function QuestionView({
       <Text nativeID={labelId} className="mb-2 text-xl font-semibold text-gray-900">
         {question.text}
       </Text>
-      {multiple ? (
-        <Text className="mb-2 text-base text-gray-600">{t('quiz.multipleHint')}</Text>
-      ) : null}
+      {multiple && <Text className="mb-2 text-base text-gray-600">{t('quiz.multipleHint')}</Text>}
       <View role={multiple ? 'group' : 'radiogroup'} aria-labelledby={labelId} className="gap-3">
         {question.answers.map((answer) => {
           const checked = picks.includes(answer.id);
@@ -234,8 +229,8 @@ function QuestionView({
 
 /**
  * A mutation that is busy from the press on: TanStack Query reports
- * isPending only on its next notification, so a second press before that
- * would send the request twice.
+ * isPending only on its next notification (scheduled with setTimeout), so a
+ * second press before that would send the request twice.
  */
 function useGuardedMutation<TData, TVariables = void>(
   options: Pick<UseMutationOptions<TData, Error, TVariables>, 'mutationFn' | 'onSuccess'>,
@@ -252,30 +247,4 @@ function useGuardedMutation<TData, TVariables = void>(
       mutation.mutate(variables);
     },
   };
-}
-
-function PrimaryButton({
-  label,
-  disabled,
-  onPress,
-}: {
-  label: string;
-  disabled: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      role="button"
-      disabled={disabled}
-      aria-disabled={disabled}
-      onPress={onPress}
-      className={`items-center rounded-lg px-4 py-3 ${
-        disabled ? 'bg-gray-300' : 'bg-blue-700 active:bg-blue-800'
-      }`}
-    >
-      <Text className={`text-base font-semibold ${disabled ? 'text-gray-600' : 'text-white'}`}>
-        {label}
-      </Text>
-    </Pressable>
-  );
 }

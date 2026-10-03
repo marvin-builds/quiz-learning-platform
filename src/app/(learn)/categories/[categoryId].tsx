@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
 import { PageTitle } from '@/components/page-title';
-import { ErrorState, ListCard, StatusMessage } from '@/components/status';
+import { ErrorState, ListCard, NotFoundState, StatusMessage } from '@/components/status';
 import { fetchCategoryWithQuizzes } from '@/lib/content';
 
 type Category = NonNullable<Awaited<ReturnType<typeof fetchCategoryWithQuizzes>>>;
@@ -30,28 +30,15 @@ export default function CategoryScreen() {
             onRetry={() => category.refetch()}
           />
         ) : category.data === null ? (
-          <NotFound />
+          <NotFoundState
+            message={t('category.notFound')}
+            backLabel={t('category.backToCategories')}
+          />
         ) : (
           <CategoryContent category={category.data} />
         )}
       </View>
     </ScrollView>
-  );
-}
-
-function NotFound() {
-  const { t } = useTranslation();
-  return (
-    <View className="items-center">
-      <StatusMessage text={t('category.notFound')} />
-      <Link href="/" asChild>
-        <Pressable>
-          <Text className="text-base font-semibold text-blue-700 underline">
-            {t('category.backToCategories')}
-          </Text>
-        </Pressable>
-      </Link>
-    </View>
   );
 }
 
