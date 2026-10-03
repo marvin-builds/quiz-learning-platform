@@ -1,0 +1,59 @@
+# Builds the installable preview APK for the per-phase mobile smoke test
+# (docs/mobile-smoke-test.md). Only by hand: `eas build --local` runs on this
+# runner, so it uses no EAS build credits, and the hosted key stays a GitHub secret.
+name: Android preview APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the preview APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Holds the secrets; restricted to main in the repository settings.
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: npm ci
+      # Secrets go only to this step, not to the outer npm ci (the local build
+      # reinstalls dependencies with them in its env, which --local can't avoid).
+      # The preview profile in eas.json sets the hosted URL; the committed .env holds
+      # the local stack's values, so it must not be loaded.
+      - name: Build the APK
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          EXPO_NO_DOTENV: '1'
+        run: |
+          # An empty key would build an APK that fails on start.
+          test -n "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" || { echo "SUPABASE_PUBLISHABLE_KEY is not set"; exit 1; }
+          npx -y eas-cli@24.10.0 build --local -p android --profile preview \
+            --non-interactive --output quiz-preview.apk
+      - name: Check that the APK talks to the hosted backend, not the local stack
+        run: |
+          url=$(node -p "require('./eas.json').build.preview.env.EXPO_PUBLIC_SUPABASE_URL")
+          unzip -p quiz-preview.apk assets/index.android.bundle > bundle
+          grep -aqF "$url" bundle || { echo "The APK's bundle lacks $url"; exit 1; }
+          # The local stack's URL and key from .env; a bare 127.0.0.1 is also in library code.
+          local_key=$(sed -n 's/^EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=//p' .env)
+          test -n "$local_key" || { echo ".env has no local publishable key"; exit 1; }
+          if grep -aqF http://127.0.0.1:54321 bundle || grep -aqF "$local_key" bundle; then
+            echo "The APK's bundle points at the local stack"; exit 1
+          fi
+      - uses: actions/upload-artifact@v7
+        with:
+          name: quiz-preview-apk
+          path: quiz-preview.apk
+          if-no-files-found: error

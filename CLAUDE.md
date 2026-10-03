@@ -39,6 +39,8 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
   branch; `-- --pick` only prints the pick
 - `npx expo install <package>`: add dependencies with versions matching the Expo SDK
 - `npx expo-doctor`: check dependency and config problems
+- `gh workflow run android-preview.yml --ref main`: build the Android preview
+  APK by hand; dev client and checklist: [mobile smoke test](docs/mobile-smoke-test.md)
 - `npx supabase start` / `stop`: local stack in Docker (CLI pinned in `package.json`)
 - `npx supabase migration new <name>`: new migration file
 - `npx supabase db reset && npx supabase test db`: rebuild the local database

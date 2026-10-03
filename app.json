@@ -11,6 +11,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "io.github.marvinmai.quiz",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -26,6 +27,13 @@
     "plugins": ["expo-router", "expo-localization", "expo-sqlite"],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b930b749-32bb-4664-ba5c-d72c21ab11fd"
+      }
+    },
+    "owner": "marvinmai"
   }
 }
