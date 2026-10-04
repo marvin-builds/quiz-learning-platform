@@ -162,6 +162,8 @@ function Player({
       />
     );
   }
+  // The questions may have been deleted between Start and this read.
+  if (questions.data.length === 0) return <StatusMessage text={t('quiz.noQuestions')} />;
 
   const question = questions.data[index];
   const isLast = index === questions.data.length - 1;
