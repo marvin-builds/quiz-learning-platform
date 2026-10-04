@@ -7,7 +7,8 @@ argument-hint: '[issue-number]'
 # Semi-auto workflow
 
 Invoking this skill is my go-ahead for everything up to the merge of one
-issue: gate 1 (the tests), commits, push, PR and rebases of the slice's own
+issue: gate 1 (the tests; database-security slices still stop there, see
+step 4), commits, push, PR and rebases of the slice's own
 branch. **Never merge**; that stays mine. Everything else in `feature-slice`
 and `CLAUDE.md` applies unchanged: the hooks, the caps, the locked tests and
 the never-break rules. The approval covers this one issue; the next one needs
@@ -132,8 +133,13 @@ while they are still new, following `quality-review-loop`:
    files are uncommitted; rerun them and confirm they still fail for the
    right reason. One fix pass; if a fresh review still finds a blocker, stop
    and ask me.
-4. Log the design choices the tests pin down, then commit the tests on their
-   own (`Add failing tests for …`).
+4. Log the design choices the tests pin down.
+5. **Database security stops here.** If the slice adds or changes an RLS
+   policy, a grant, a `security definer` function or a Storage policy, stop
+   and present the tests as in `feature-slice` gate 1 (file → behaviors,
+   design choices), plus the review findings and how you triaged them. Wait
+   for my approval; my answer resumes the run. Otherwise go on.
+6. Commit the tests on their own (`Add failing tests for …`).
 
 ### During green, refactor and review
 
