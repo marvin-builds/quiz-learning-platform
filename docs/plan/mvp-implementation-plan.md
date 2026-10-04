@@ -19,8 +19,8 @@ repeated here.
 
 **Not in the MVP:** store release (phase 4), Realtime, desktop, multilingual
 content, offline. Android is smoke-tested once per phase in an installable
-preview APK, so mobile doesn't drift, but it isn't released; iOS needs its own
-decision (#68).
+preview APK, so mobile doesn't drift, but it isn't released; iOS isn't
+smoke-tested before phase 4 (#68).
 
 **MVP is done when** the three end-to-end flows in section 5 pass in CI against
 a fresh local Supabase stack, the pgTAP security suite is green, and the web
@@ -147,7 +147,7 @@ stuck (systematic debugging), instead of guessing further.
 | Database, RLS, `start_attempt`/`submit_answer`, scoring in SQL | pgTAP | Every policy has a positive **and** a negative test per role (anon, learner, admin) | Reviewer checks each new table has RLS on |
 | Components | Jest + React Native Testing Library | Rendering, states (loading/empty/error), i18n keys | — |
 | End-to-end | Playwright on the web build | The real flows in section 5, against a reset local stack with seed data | axe accessibility scan; screenshots as artifacts |
-| Mobile | Android preview APK, manual smoke ([checklist](../mobile-smoke-test.md)); iOS: #68 | Nothing broke on Android | Once per phase, not per slice |
+| Mobile | Android preview APK, manual smoke ([checklist](../mobile-smoke-test.md)); iOS: none before phase 4 (#68) | Nothing broke on Android | Once per phase, not per slice |
 
 Test data comes from `supabase/seed.sql` plus small typed factories, so every
 run starts from a known state.
@@ -316,6 +316,7 @@ Decided while planning phase 1 (2026-10-03):
 | Admins in phase 1 | See and do what learners do; the admin read and write paths come with phase 2 |
 | Hosted content | `seed.sql` runs only locally, so the hosted site shows the empty state until admins create content in phase 2 |
 | Android smoke build | The preview APK is built by hand with a `workflow_dispatch` job that runs `eas build --local` on the GitHub runner (#67): it uses no EAS free-tier build credits, and the hosted publishable key stays a GitHub secret of the `production` environment instead of moving to expo.dev or the dev machine. Package id `io.github.marvinmai.quiz`. The per-phase checklist targets the preview APK; see [mobile smoke test](../mobile-smoke-test.md) |
+| iOS smoke test | None before phase 4 (#68): there is no Mac, so the only route is an EAS cloud build for a real iPhone, which needs the Apple Developer Program ($99/year, which also covers App Store distribution) and an iPhone. Revisit with the store release |
 | Issues | Created for phase 1 only; phases 2 and 3 get theirs after the phase 1 review in ADR 0003 |
 
 The agentic workflow itself is recorded in
