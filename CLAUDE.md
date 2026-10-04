@@ -114,9 +114,9 @@ memory before using an Expo or React Native API.
 For an issue, follow the `feature-slice` skill. When I invoke
 `semi-auto-workflow`, it runs one issue through that loop without stopping at
 gate 1 (except for database security, see Workflow) or before the push, and
-stops before the merge. Slices that touch the database run one at a time
-until each worktree has its own Supabase stack (#87); start it with
-`npm run -s slice` to skip the worktree-switch prompt. What runs
+stops before the merge; start it with `npm run -s slice` to skip the
+worktree-switch prompt. Slices that touch the database run one at a time
+until each worktree has its own Supabase stack (#87). What runs
 automatically:
 
 - **After every edit** (`post-edit.mjs`): ESLint with `--fix` and the
