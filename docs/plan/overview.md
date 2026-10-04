@@ -91,17 +91,21 @@ Playwright for web end-to-end flows. Tests come first.
 
 ## Phases (rough estimates for one full-time developer)
 
+These are the planning estimates. Phase 1 was measured against them in
+[ADR 0003 → Review](../adr/0003-agentic-test-first-workflow.md#review); later
+phases are re-estimated there after each phase.
+
 0. **Foundation (about 1 week):**
    - Git repo and Expo app skeleton
    - TypeScript, ESLint and Jest setup
    - Supabase CLI and local stack, with the first migration
    - CI on GitHub Actions (lint, typecheck, tests, DB tests)
-1. **Learner MVP on web (about 3 weeks):**
+1. **Learner MVP on web (about 3 weeks; took about 18 hours):**
    - Category and quiz browsing
    - Quiz player with single and multiple choice
    - Server-recorded answers (`submit_answer`), explanation and result screen
    - Anonymous sign-in
-2. **Admin editor (about 3 weeks):**
+2. **Admin editor (about 3 weeks; re-estimated at 1 to 2 days of agent time):**
    - Admin-guarded routes
    - Create, edit and delete categories, quizzes, questions and answers
    - Image upload to Storage, reordering, publish toggle and preview
