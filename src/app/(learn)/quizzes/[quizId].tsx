@@ -246,11 +246,6 @@ const MARK_STYLE: Record<Mark, { icon: string; text: string; border: string }> =
   missed: { icon: '!', text: 'text-amber-800', border: 'border-amber-700' },
 };
 
-const PICK_BORDER: Record<string, string> = {
-  true: 'border-blue-700',
-  false: 'border-gray-200',
-};
-
 // One point per question (plan § 7), so partial points are "of 1 point".
 const POINTS_PER_QUESTION = 1;
 
@@ -309,7 +304,6 @@ function QuestionView({
         {question.answers.map((answer) => {
           const checked = picks.includes(answer.id);
           const mark = markOf(answer.id, picks, feedback);
-          const border = mark ? MARK_STYLE[mark].border : PICK_BORDER[String(checked)];
           return (
             <Pressable
               key={answer.id}
@@ -322,7 +316,7 @@ function QuestionView({
               })}
               className={`flex-row items-center rounded-xl border bg-white p-4 ${
                 disabled ? '' : 'hover:bg-gray-50'
-              } ${border}`}
+              } ${mark ? MARK_STYLE[mark].border : checked ? 'border-blue-700' : 'border-gray-200'}`}
             >
               <View
                 className={`mr-3 h-5 w-5 border-2 ${multiple ? 'rounded' : 'rounded-full'} ${
