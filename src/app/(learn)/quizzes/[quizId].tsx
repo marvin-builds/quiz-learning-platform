@@ -274,6 +274,7 @@ function QuestionView({
   const labelId = `question-${question.id}`;
   const hintId = `hint-${question.id}`;
   const multiple = question.multiple_correct;
+  const locked = feedback !== null;
 
   return (
     <View className="mb-6">
@@ -314,17 +315,28 @@ function QuestionView({
               {...pickOnSpace(() => {
                 if (!disabled) onPick(answer.id);
               })}
-              className={`flex-row items-center rounded-xl border bg-white p-4 ${
-                disabled ? '' : 'hover:bg-gray-50'
-              } ${mark ? MARK_STYLE[mark].border : checked ? 'border-blue-700' : 'border-gray-200'}`}
+              // Locked by the feedback: muted, so the answers look done.
+              className={`flex-row items-center rounded-xl border p-4 ${
+                locked ? 'bg-gray-50' : 'bg-white'
+              } ${disabled ? '' : 'hover:bg-gray-50'} ${
+                mark ? MARK_STYLE[mark].border : checked ? 'border-blue-700' : 'border-gray-200'
+              }`}
             >
               <View
                 className={`mr-3 h-5 w-5 border-2 ${multiple ? 'rounded' : 'rounded-full'} ${
-                  checked ? 'border-blue-700 bg-blue-700' : 'border-gray-400 bg-white'
+                  checked
+                    ? locked
+                      ? 'border-gray-600 bg-gray-600'
+                      : 'border-blue-700 bg-blue-700'
+                    : 'border-gray-400 bg-white'
                 }`}
               />
               <View className="flex-1 gap-2">
-                <Text className="text-base text-gray-900">{answer.text}</Text>
+                <Text
+                  className={`text-base ${locked && !mark ? 'text-gray-600' : 'text-gray-900'}`}
+                >
+                  {answer.text}
+                </Text>
                 <QuizImage path={answer.image_path} alt={answer.image_alt} className="h-24 w-24" />
                 {mark ? (
                   <View className="flex-row items-center gap-1">
@@ -424,7 +436,8 @@ function Result({
         <Button label={t('quiz.result.playAgain')} onPress={onPlayAgain} />
       </View>
       <Link href={`/categories/${categoryId}`} asChild>
-        <Pressable>
+        {/* Padded to a 44 px touch target. */}
+        <Pressable className="min-h-11 justify-center px-2">
           <Text className="text-base font-semibold text-blue-700 underline">
             {t('quiz.result.backToCategory')}
           </Text>
