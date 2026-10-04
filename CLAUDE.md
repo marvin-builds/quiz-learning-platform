@@ -25,8 +25,8 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `npm run lint`: ESLint with Prettier and the no-hard-coded-strings rule
 - `npm run typecheck`: `tsc --noEmit` in strict mode
 - `npm run test:e2e`: Playwright and axe in Chromium (phone and desktop) on
-  the static web export; needs a started and reset local stack, and once
-  `npx playwright install chromium`
+  the static web export; needs `npx supabase start && npx supabase db reset`
+  first, and once `npx playwright install chromium`
 - `npm run -s check`: lint, typecheck, tests and timing tests, quiet (only
   problems and a summary); use it for verification runs; no e2e tests
 - `npm run test:mutation`: Stryker on `src/domain/`; fails below 80 %
