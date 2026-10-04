@@ -57,14 +57,21 @@ async function pickAndSubmit(page: Page, role: 'radio' | 'checkbox', answers: st
   expect((await response).ok()).toBe(true);
 }
 
+// After an answer is recorded, its feedback shows until Next is pressed.
+async function next(page: Page) {
+  await button(page, 'quiz.next').click();
+}
+
 // Opens the quiz, starts it and answers the two single choice questions, so
 // the multiple choice question is on screen.
 async function reachMultipleChoice(page: Page) {
   await page.goto(`/quizzes/${HAUPTSTAEDTE}`);
   await start(page);
   await pickAndSubmit(page, 'radio', ['Paris']);
+  await next(page);
   await expect(page.getByText(ITALY, { exact: true })).toBeVisible();
   await pickAndSubmit(page, 'radio', ['Rom']);
+  await next(page);
   await expect(page.getByText(DANUBE, { exact: true })).toBeVisible();
 }
 
@@ -143,7 +150,7 @@ test('retry after a failed submit is disabled without a pick, and sends the pick
   const sent = await response;
   expect(sent.ok()).toBe(true);
   expect(sent.request().postDataJSON()).toMatchObject({ answer_ids: [expect.any(String)] });
-  await expect(page.getByText(text('quiz.finished'), { exact: true })).toBeVisible();
+  await expect(button(page, 'quiz.seeResult')).toBeVisible();
 });
 
 test('starting offline shows the start error with retry, and retry starts once back online', async ({
@@ -189,6 +196,8 @@ test('submitting offline shows the submit error with retry, and retry submits on
   await context.setOffline(false);
   await retry.click();
 
+  await expect(page.getByText(text('quiz.feedback.correct'), { exact: true })).toBeVisible();
+  await next(page);
   await expect(page.getByText(ITALY, { exact: true })).toBeVisible();
 });
 
@@ -210,9 +219,11 @@ test('each question is a heading, and the multiple choice group is described by 
   await expect(page.getByRole('heading', { name: FRANCE, exact: true })).toBeVisible();
 
   await pickAndSubmit(page, 'radio', ['Paris']);
+  await next(page);
   await expect(page.getByRole('heading', { name: ITALY, exact: true })).toBeVisible();
 
   await pickAndSubmit(page, 'radio', ['Rom']);
+  await next(page);
   await expect(page.getByRole('heading', { name: DANUBE, exact: true })).toBeVisible();
   await expect(page.getByRole('group', { name: DANUBE, exact: true })).toHaveAccessibleDescription(
     text('quiz.multipleHint'),

@@ -67,7 +67,7 @@ type Query = {
 };
 type Session = { access_token: string; user: { id: string; is_anonymous: boolean } };
 
-const mockDb: Record<string, Row[]> = { quizzes: [], questions: [], answers: [] };
+const mockDb: Record<string, Row[]> = { quizzes: [], questions: [], answers: [], attempts: [] };
 const mockRead: { detail: ReadState; content: ReadState } = { detail: 'ok', content: 'ok' };
 const mockQueries: Query[] = [];
 const mockRpcHandlers: Record<string, (args: Row) => Promise<Result>> = {};
@@ -496,6 +496,18 @@ function seedTables() {
     milan,
     marseille,
   ];
+  // The attempt start_attempt returns, as submit_answer leaves it after three
+  // answers worth one point each.
+  mockDb.attempts = [
+    {
+      id: ATTEMPT,
+      quiz_id: QUIZ,
+      started_at: '2026-10-04T00:00:00Z',
+      finished_at: '2026-10-04T00:05:00Z',
+      score: 3,
+      max_score: 3,
+    },
+  ];
 }
 
 const failure: PostgrestError = { code: 'PGRST000', message: 'connection refused' };
@@ -538,6 +550,18 @@ async function answerWith(role: 'radio' | 'checkbox', texts: string[]) {
   await fireEvent.press(submitButton());
 }
 
+// The keys this slice adds aren't in the typed resources yet, so look them up
+// untyped; a missing key comes back as the key itself, which no screen shows.
+const t = (key: string, options?: Record<string, unknown>): string =>
+  (i18n.t as unknown as (key: string, options?: Record<string, unknown>) => string)(key, options);
+
+// After an answer is recorded, its feedback shows until Next (or See result
+// after the last question) is pressed.
+const pressNext = async () =>
+  fireEvent.press(await screen.findByRole('button', { name: t('quiz.next') }));
+const pressSeeResult = async () =>
+  fireEvent.press(await screen.findByRole('button', { name: t('quiz.seeResult') }));
+
 const roleOf = (node: TestInstance): unknown => node.props.role ?? node.props.accessibilityRole;
 
 // The nearest ancestor that is a (radio) group, and the name it is labelled
@@ -573,15 +597,34 @@ const statusKeys = [
   'questionsLoading',
   'questionsError',
   'submitError',
-  'finished',
+  'result.loading',
+  'result.error',
 ] as const;
 const expectOnlyStatus = (shown: (typeof statusKeys)[number] | null) => {
   for (const key of statusKeys.filter((other) => other !== shown)) {
-    expect(screen.queryByText(i18n.t(`quiz.${key}`))).not.toBeOnTheScreen();
+    expect(screen.queryByText(t(`quiz.${key}`))).not.toBeOnTheScreen();
   }
 };
+// A key below `quiz`, e.g. `result.loading`, as a property path.
+const quizPath = (key: string) => ['quiz', ...key.split('.')];
+const quizTextOf = (locale: unknown, key: string): unknown =>
+  quizPath(key).reduce<unknown>(
+    (node, part) => (node as Record<string, unknown> | undefined)?.[part],
+    locale,
+  );
 
-const plainKeys = [...statusKeys, 'retry', 'start', 'submit', 'multipleHint'] as const;
+const plainKeys = [
+  ...statusKeys,
+  'retry',
+  'start',
+  'submit',
+  'multipleHint',
+  'next',
+  'seeResult',
+  'result.title',
+  'result.playAgain',
+  'result.backToCategory',
+] as const;
 
 describe('<QuizScreen />', () => {
   beforeEach(async () => {
@@ -604,9 +647,9 @@ describe('<QuizScreen />', () => {
   describe('texts', () => {
     it('has a non-empty German and English text for each key, different per language', () => {
       for (const key of plainKeys) {
-        expect(de).toHaveProperty(['quiz', key], expect.stringMatching(/\S/));
-        expect(en).toHaveProperty(['quiz', key], expect.stringMatching(/\S/));
-        expect(i18n.t(`quiz.${key}`, { lng: 'en' })).not.toBe(i18n.t(`quiz.${key}`, { lng: 'de' }));
+        expect(de).toHaveProperty(quizPath(key), expect.stringMatching(/\S/));
+        expect(en).toHaveProperty(quizPath(key), expect.stringMatching(/\S/));
+        expect(t(`quiz.${key}`, { lng: 'en' })).not.toBe(t(`quiz.${key}`, { lng: 'de' }));
       }
     });
 
@@ -615,8 +658,7 @@ describe('<QuizScreen />', () => {
       // Read from the locale files, so a missing text counts as a duplicate
       // instead of falling back to its distinct key.
       for (const [lng, locale] of Object.entries({ de, en })) {
-        const quizTexts = (locale as { quiz?: Record<string, string> }).quiz ?? {};
-        const texts = statusKeys.map((key) => quizTexts[key]);
+        const texts = statusKeys.map((key) => quizTextOf(locale, key));
         const duplicates = statusKeys.filter((_, index) => texts.indexOf(texts[index]) !== index);
         expect({ lng, duplicateStatusTexts: duplicates }).toEqual({
           lng,
@@ -902,8 +944,10 @@ describe('<QuizScreen />', () => {
       expect(rendered.map(textOf)).toEqual(['Antwort A', 'Antwort B', 'Antwort C']);
 
       await answerWith('radio', ['Antwort A']);
+      await pressNext();
       expect(await screen.findByText(tieSecond.text)).toBeOnTheScreen();
       await answerWith('radio', ['Ja']);
+      await pressNext();
       expect(await screen.findByText(late.text)).toBeOnTheScreen();
     });
 
@@ -934,8 +978,10 @@ describe('<QuizScreen />', () => {
     it('shows multiple choice answers as checkboxes in a group named by the question, with a hint', async () => {
       await startQuiz();
       await answerWith('radio', ['Paris']);
+      await pressNext();
       await screen.findByText(italy.text);
       await answerWith('radio', ['Rom']);
+      await pressNext();
 
       expect(await screen.findByText(danube.text)).toBeOnTheScreen();
       expect(screen.getByText(progress(3, 3))).toBeOnTheScreen();
@@ -951,8 +997,10 @@ describe('<QuizScreen />', () => {
     it('toggles each pick on a multiple choice question', async () => {
       await startQuiz();
       await answerWith('radio', ['Paris']);
+      await pressNext();
       await screen.findByText(italy.text);
       await answerWith('radio', ['Rom']);
+      await pressNext();
       await screen.findByText(danube.text);
 
       await fireEvent.press(screen.getByRole('checkbox', { name: 'Wien' }));
@@ -993,8 +1041,10 @@ describe('<QuizScreen />', () => {
     it('submits every picked answer of a multiple choice question', async () => {
       await startQuiz();
       await answerWith('radio', ['Paris']);
+      await pressNext();
       await screen.findByText(italy.text);
       await answerWith('radio', ['Rom']);
+      await pressNext();
       await screen.findByText(danube.text);
 
       await answerWith('checkbox', ['Wien', 'Prag', 'Budapest']);
@@ -1022,15 +1072,17 @@ describe('<QuizScreen />', () => {
       expect(screen.getByText(progress(1, 3))).toBeOnTheScreen();
 
       submit.resolve(submitted([paris.id]));
+      await pressNext();
       expect(await screen.findByText(italy.text)).toBeOnTheScreen();
       expect(callsOf('submit_answer')).toHaveLength(1);
     });
 
-    it('moves to the next question with nothing picked after the answer is recorded', async () => {
+    it('moves to the next question with nothing picked on Next after the answer is recorded', async () => {
       mockRpcHandlers.submit_answer = () => Promise.resolve(submitted([paris.id]));
       await startQuiz();
 
       await answerWith('radio', ['Paris']);
+      await pressNext();
 
       expect(await screen.findByText(italy.text)).toBeOnTheScreen();
       expect(screen.getByText(progress(2, 3))).toBeOnTheScreen();
@@ -1041,20 +1093,23 @@ describe('<QuizScreen />', () => {
       expect(submitButton()).toBeDisabled();
     });
 
-    it('shows the finished state after the last question', async () => {
+    it('shows the result on See result after the last question', async () => {
       await startQuiz();
       await answerWith('radio', ['Paris']);
+      await pressNext();
       await screen.findByText(italy.text);
       await answerWith('radio', ['Rom']);
+      await pressNext();
       await screen.findByText(danube.text);
 
       await answerWith('checkbox', ['Wien', 'Bratislava', 'Budapest']);
+      await pressSeeResult();
 
-      expect(await screen.findByText(i18n.t('quiz.finished'))).toBeOnTheScreen();
+      expect(await screen.findByText(t('quiz.result.title'))).toBeOnTheScreen();
       expect(screen.queryByText(danube.text)).not.toBeOnTheScreen();
       expect(screen.queryByRole('button', { name: i18n.t('quiz.submit') })).not.toBeOnTheScreen();
       expect(callsOf('submit_answer')).toHaveLength(3);
-      expectOnlyStatus('finished');
+      expectOnlyStatus(null);
     });
 
     it('shows an error with retry when submitting fails, keeps the selection and sends it again on retry', async () => {
@@ -1071,6 +1126,7 @@ describe('<QuizScreen />', () => {
 
       mockRpcHandlers.submit_answer = () => Promise.resolve(submitted([paris.id]));
       await fireEvent.press(screen.getByRole('button', { name: i18n.t('quiz.retry') }));
+      await pressNext();
 
       expect(await screen.findByText(italy.text)).toBeOnTheScreen();
       const calls = callsOf('submit_answer');
@@ -1083,13 +1139,17 @@ describe('<QuizScreen />', () => {
     it('selects explicit columns and never the solutions', async () => {
       await startQuiz();
       await answerWith('radio', ['Paris']);
+      await pressNext();
       await screen.findByText(italy.text);
       await answerWith('radio', ['Rom']);
+      await pressNext();
       await screen.findByText(danube.text);
       await answerWith('checkbox', ['Wien']);
-      await screen.findByText(i18n.t('quiz.finished'));
+      await pressSeeResult();
+      await screen.findByText(t('quiz.result.title'));
 
       expect(mockQueries.length).toBeGreaterThan(0);
+      expect(mockQueries.some((query) => query.table === 'attempts')).toBe(true);
       for (const query of mockQueries) {
         expect(query.select).toEqual(expect.stringMatching(/\w/));
         expect(query.select).not.toContain('*');
