@@ -36,12 +36,36 @@ the hosted key never leaves GitHub's secrets. Start it from `main` (the
 
 ```sh
 gh workflow run android-preview.yml --ref main
-sleep 5 # until the run exists
+```
+
+Or on GitHub: Actions → "Android preview APK" → "Run workflow" on `main`.
+A build takes about 20 minutes. When it fails within the first minute with
+"The bearer token is invalid", replace the `EXPO_TOKEN` secret (see the
+one-time setup).
+
+### Install it on the phone
+
+The APK is attached to the finished run, not to a release:
+
+1. On the phone, open the repository's Actions tab in the browser (logged in
+   to GitHub; the GitHub app can't download artifacts), then the latest
+   "Android preview APK" run.
+2. Below the job summary, under **Artifacts**, tap `quiz-preview-apk`. If the
+   section is missing, switch the browser to "Desktop site".
+3. The download is a zip: open it in the Files app, extract it and tap
+   `quiz-preview.apk`. Allow installing unknown apps from that app when
+   Android asks.
+
+From the dev machine instead, with the phone connected by USB:
+
+```sh
 run=$(gh run list --workflow android-preview.yml --limit 1 --json databaseId -q '.[0].databaseId')
 gh run watch "$run" --exit-status
 gh run download "$run" --name quiz-preview-apk
 adb install -r quiz-preview.apk
 ```
+
+Artifacts are kept for 90 days.
 
 The workflow fails when the APK's bundle doesn't contain the hosted URL or
 still contains the local stack's URL or key.
