@@ -39,6 +39,26 @@
     "multipleHint": "Wähle alle richtigen Antworten aus.",
     "submit": "Antworten",
     "submitError": "Die Antwort konnte nicht gesendet werden.",
-    "finished": "Quiz beendet. Danke fürs Mitspielen!"
+    "next": "Weiter",
+    "seeResult": "Zum Ergebnis",
+    "feedback": {
+      "correct": "Richtig!",
+      "wrong": "Leider falsch.",
+      "partial_one": "Teilweise richtig: {{points}} von {{count}} Punkt",
+      "partial_other": "Teilweise richtig: {{points}} von {{count}} Punkten",
+      "pickedCorrect": "Deine Wahl ist richtig",
+      "pickedWrong": "Deine Wahl ist falsch",
+      "missed": "Richtig, aber nicht gewählt",
+      "explanation": "Erklärung"
+    },
+    "result": {
+      "title": "Dein Ergebnis",
+      "loading": "Ergebnis wird geladen …",
+      "error": "Das Ergebnis konnte nicht geladen werden.",
+      "score_one": "{{score}} von {{count}} Punkt",
+      "score_other": "{{score}} von {{count}} Punkten",
+      "playAgain": "Nochmal spielen",
+      "backToCategory": "Zurück zur Kategorie"
+    }
   }
 }
