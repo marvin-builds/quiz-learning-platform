@@ -129,7 +129,11 @@ test('flow A: an anonymous visitor plays the seeded quiz from its category to th
 
   await quizLink.click();
   await expect(page).toHaveURL(new RegExp(`/quizzes/${HAUPTSTAEDTE}$`));
-  await expect(page.getByText('Kennst du die Hauptstädte unserer Nachbarn?')).toBeVisible();
+  // The category screen stays mounted (hidden) under the quiz screen, with
+  // the same description on its quiz card.
+  await expect(
+    page.getByText('Kennst du die Hauptstädte unserer Nachbarn?').filter({ visible: true }),
+  ).toBeVisible();
   await expect(
     page.getByText(text('quiz.questionCount_other', { count: 3 }), { exact: true }),
   ).toBeVisible();
