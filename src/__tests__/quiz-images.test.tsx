@@ -378,9 +378,18 @@ async function startQuiz() {
   await screen.findByText(nobleGases.text);
 }
 
+// The keys this slice adds aren't in the typed resources yet, so look them up
+// untyped; a missing key comes back as the key itself, which no screen shows.
+const t = (key: string): string => (i18n.t as unknown as (key: string) => string)(key);
+
+// After an answer is recorded, its feedback shows until Next is pressed.
+const pressNext = async () =>
+  fireEvent.press(await screen.findByRole('button', { name: t('quiz.next') }));
+
 async function toSecondQuestion() {
   await fireEvent.press(screen.getByRole('checkbox', { name: answerName(helium.text) }));
   await fireEvent.press(submitButton());
+  await pressNext();
   await screen.findByText(gold.text);
 }
 
@@ -537,6 +546,7 @@ describe('images in the quiz player', () => {
     expect(screen.getByRole('checkbox', { name: answerName(neon.text) })).toBeChecked();
     expect(submitButton()).toBeEnabled();
     await fireEvent.press(submitButton());
+    await pressNext();
     expect(await screen.findByText(gold.text)).toBeOnTheScreen();
   });
 

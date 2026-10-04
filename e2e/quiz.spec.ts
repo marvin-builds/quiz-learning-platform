@@ -65,6 +65,11 @@ async function pickAndSubmit(page: Page, role: 'radio' | 'checkbox', answers: st
   expect((await response).ok()).toBe(true);
 }
 
+// After an answer is recorded, its feedback shows until Next is pressed.
+async function next(page: Page) {
+  await page.getByRole('button', { name: text('quiz.next'), exact: true }).click();
+}
+
 test('an anonymous visitor starts and finishes the seeded quiz, and the quiz passes axe', async ({
   page,
 }) => {
@@ -87,19 +92,22 @@ test('an anonymous visitor starts and finishes the seeded quiz, and the quiz pas
   await expectNoSeriousAxeViolations(page);
 
   await pickAndSubmit(page, 'radio', ['Paris']);
+  await next(page);
   await expect(page.getByText(ITALY, { exact: true })).toBeVisible();
   await expect(
     page.getByText(text('quiz.progress', { current: 2, total: 3 }), { exact: true }),
   ).toBeVisible();
 
   await pickAndSubmit(page, 'radio', ['Rom']);
+  await next(page);
   await expect(page.getByText(DANUBE, { exact: true })).toBeVisible();
   await expect(page.getByText(text('quiz.multipleHint'), { exact: true })).toBeVisible();
   await expectNoSeriousAxeViolations(page);
 
   await pickAndSubmit(page, 'checkbox', ['Wien', 'Bratislava', 'Budapest']);
+  await page.getByRole('button', { name: text('quiz.seeResult'), exact: true }).click();
 
-  await expect(page.getByText(text('quiz.finished'), { exact: true })).toBeVisible();
+  await expect(page.getByText(text('quiz.result.title'), { exact: true })).toBeVisible();
   await expectNoSeriousAxeViolations(page);
   expect(seen.signUps).toBe(1);
   expect(seen.errors).toEqual([]);

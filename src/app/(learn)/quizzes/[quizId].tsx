@@ -1,13 +1,14 @@
 import { type UseMutationOptions, useMutation, useQuery } from '@tanstack/react-query';
-import { useLocalSearchParams } from 'expo-router';
+import { Link, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { PageTitle } from '@/components/page-title';
 import { QuizImage } from '@/components/quiz-image';
 import { Button, ErrorState, NotFoundState, StatusMessage } from '@/components/status';
-import { fetchQuiz, fetchQuizQuestions } from '@/lib/content';
+import { fetchAttemptScore, fetchQuiz, fetchQuizQuestions } from '@/lib/content';
 import { ensureSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 
@@ -68,7 +69,13 @@ function QuizContent({ quiz }: { quiz: Quiz }) {
         {quiz.title}
       </Text>
       {start.isSuccess ? (
-        <Player quizId={quiz.id} attemptId={start.data} />
+        // Keyed by the attempt, so Play again starts over with fresh state.
+        <Player
+          key={start.data}
+          quiz={quiz}
+          attemptId={start.data}
+          onPlayAgain={() => start.run()}
+        />
       ) : (
         <>
           {quiz.description ? (
@@ -108,17 +115,26 @@ function StartAction({
   return <Button label={t('quiz.start')} disabled={start.busy} onPress={() => start.run()} />;
 }
 
-function Player({ quizId, attemptId }: { quizId: string; attemptId: string }) {
+function Player({
+  quiz,
+  attemptId,
+  onPlayAgain,
+}: {
+  quiz: Quiz;
+  attemptId: string;
+  onPlayAgain: () => void;
+}) {
   const { t } = useTranslation();
   // Read once per attempt: the questions must match the ones it started with.
   const questions = useQuery({
-    queryKey: ['quiz-questions', quizId, attemptId],
-    queryFn: () => fetchQuizQuestions(quizId),
+    queryKey: ['quiz-questions', quiz.id, attemptId],
+    queryFn: () => fetchQuizQuestions(quiz.id),
     staleTime: Infinity,
   });
   const [index, setIndex] = useState(0);
   const [picks, setPicks] = useState<string[]>([]);
-  // Returns the recorded result, which item 9 shows before moving on.
+  const [showResult, setShowResult] = useState(false);
+  // The recorded result of the current question; its feedback shows until Next.
   const submit = useGuardedMutation({
     mutationFn: async (answer: { questionId: string; answerIds: string[] }) => {
       const { data, error } = await supabase
@@ -131,12 +147,11 @@ function Player({ quizId, attemptId }: { quizId: string; attemptId: string }) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      setIndex((current) => current + 1);
-      setPicks([]);
-    },
   });
 
+  if (showResult) {
+    return <Result attemptId={attemptId} categoryId={quiz.category_id} onPlayAgain={onPlayAgain} />;
+  }
   if (questions.isPending) return <StatusMessage text={t('quiz.questionsLoading')} />;
   if (questions.isError) {
     return (
@@ -147,20 +162,39 @@ function Player({ quizId, attemptId }: { quizId: string; attemptId: string }) {
       />
     );
   }
-  if (index >= questions.data.length) return <StatusMessage text={t('quiz.finished')} />;
+  // The questions may have been deleted between Start and this read.
+  if (questions.data.length === 0) return <StatusMessage text={t('quiz.noQuestions')} />;
 
   const question = questions.data[index];
+  const isLast = index === questions.data.length - 1;
+  const feedback = submit.isSuccess ? submit.data : null;
   const send = () => submit.run({ questionId: question.id, answerIds: picks });
   const pick = (answerId: string) =>
     setPicks((current) => togglePick(current, answerId, question.multiple_correct));
+  const next = () => {
+    submit.reset();
+    setPicks([]);
+    setIndex((current) => current + 1);
+  };
 
   return (
     <View>
       <Text className="mb-2 text-sm font-semibold text-gray-600">
         {t('quiz.progress', { current: index + 1, total: questions.data.length })}
       </Text>
-      <QuestionView question={question} picks={picks} disabled={submit.busy} onPick={pick} />
-      {submit.isError ? (
+      <QuestionView
+        question={question}
+        picks={picks}
+        feedback={feedback}
+        disabled={submit.busy || feedback !== null}
+        onPick={pick}
+      />
+      {feedback ? (
+        <Button
+          label={isLast ? t('quiz.seeResult') : t('quiz.next')}
+          onPress={isLast ? () => setShowResult(true) : next}
+        />
+      ) : submit.isError ? (
         <ErrorState
           message={t('quiz.submitError')}
           retryLabel={t('quiz.retry')}
@@ -199,21 +233,50 @@ function pickOnSpace(pick: () => void) {
   };
 }
 
+type Feedback = {
+  is_correct: boolean;
+  points: number;
+  correct_answer_ids: string[];
+  explanation: string | null;
+};
+type Mark = 'pickedCorrect' | 'pickedWrong' | 'missed';
+
+// Every mark has an icon and a text, so it doesn't rely on color alone.
+const MARK_STYLE: Record<Mark, { icon: string; text: string; border: string }> = {
+  pickedCorrect: { icon: '✓', text: 'text-green-800', border: 'border-green-700' },
+  pickedWrong: { icon: '✗', text: 'text-red-700', border: 'border-red-700' },
+  missed: { icon: '!', text: 'text-amber-800', border: 'border-amber-700' },
+};
+
+// One point per question (plan § 7), so partial points are "of 1 point".
+const POINTS_PER_QUESTION = 1;
+
+/** A picked answer is right or wrong; an unpicked correct one was missed. */
+function markOf(answerId: string, picks: string[], feedback: Feedback | null): Mark | null {
+  if (!feedback) return null;
+  const correct = feedback.correct_answer_ids.includes(answerId);
+  if (picks.includes(answerId)) return correct ? 'pickedCorrect' : 'pickedWrong';
+  return correct ? 'missed' : null;
+}
+
 function QuestionView({
   question,
   picks,
+  feedback,
   disabled,
   onPick,
 }: {
   question: Question;
   picks: string[];
+  feedback: Feedback | null;
   disabled: boolean;
   onPick: (answerId: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const labelId = `question-${question.id}`;
   const hintId = `hint-${question.id}`;
   const multiple = question.multiple_correct;
+  const locked = feedback !== null;
 
   return (
     <View className="mb-6">
@@ -243,6 +306,7 @@ function QuestionView({
       >
         {question.answers.map((answer) => {
           const checked = picks.includes(answer.id);
+          const mark = markOf(answer.id, picks, feedback);
           return (
             <Pressable
               key={answer.id}
@@ -253,23 +317,134 @@ function QuestionView({
               {...pickOnSpace(() => {
                 if (!disabled) onPick(answer.id);
               })}
-              className={`flex-row items-center rounded-xl border bg-white p-4 hover:bg-gray-50 ${
-                checked ? 'border-blue-700' : 'border-gray-200'
+              // Locked by the feedback: muted, so the answers look done.
+              className={`flex-row items-center rounded-xl border p-4 ${
+                locked ? 'bg-gray-50' : 'bg-white'
+              } ${disabled ? '' : 'hover:bg-gray-50'} ${
+                mark ? MARK_STYLE[mark].border : checked ? 'border-blue-700' : 'border-gray-200'
               }`}
             >
               <View
                 className={`mr-3 h-5 w-5 border-2 ${multiple ? 'rounded' : 'rounded-full'} ${
-                  checked ? 'border-blue-700 bg-blue-700' : 'border-gray-400 bg-white'
+                  checked
+                    ? locked
+                      ? 'border-gray-600 bg-gray-600'
+                      : 'border-blue-700 bg-blue-700'
+                    : 'border-gray-400 bg-white'
                 }`}
               />
               <View className="flex-1 gap-2">
-                <Text className="text-base text-gray-900">{answer.text}</Text>
+                <Text
+                  className={`text-base ${locked && !mark ? 'text-gray-600' : 'text-gray-900'}`}
+                >
+                  {answer.text}
+                </Text>
                 <QuizImage path={answer.image_path} alt={answer.image_alt} className="h-24 w-24" />
+                {mark ? (
+                  <View className="flex-row items-center gap-1">
+                    <Text aria-hidden className={`text-base font-bold ${MARK_STYLE[mark].text}`}>
+                      {MARK_STYLE[mark].icon}
+                    </Text>
+                    <Text className={`text-sm font-semibold ${MARK_STYLE[mark].text}`}>
+                      {t(`quiz.feedback.${mark}`)}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             </Pressable>
           );
         })}
       </View>
+      {/* Mounted before the feedback, so screen readers announce the verdict. */}
+      <View aria-live="polite" className="mt-4">
+        {feedback ? (
+          <Text className="text-lg font-semibold text-gray-900">
+            {verdictOf(feedback, i18n.language, t)}
+          </Text>
+        ) : null}
+      </View>
+      {feedback?.explanation ? (
+        <View className="mt-2 rounded-xl bg-gray-100 p-4">
+          <Text className="mb-1 text-sm font-semibold text-gray-700">
+            {t('quiz.feedback.explanation')}
+          </Text>
+          <Text className="text-base text-gray-900">{feedback.explanation}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function verdictOf(feedback: Feedback, language: string, t: TFunction): string {
+  if (feedback.is_correct) return t('quiz.feedback.correct');
+  if (feedback.points > 0) {
+    return t('quiz.feedback.partial', {
+      points: formatNumber(feedback.points, language),
+      count: POINTS_PER_QUESTION,
+    });
+  }
+  return t('quiz.feedback.wrong');
+}
+
+/** Points with up to two decimals in the reader's format: 0,67 or 0.67. */
+function formatNumber(value: number, language: string): string {
+  return new Intl.NumberFormat(language, { maximumFractionDigits: 2 }).format(value);
+}
+
+/**
+ * The attempt's score as the database stored it, never summed here, with a
+ * whole-number percentage, Play again and a link back to the category.
+ */
+function Result({
+  attemptId,
+  categoryId,
+  onPlayAgain,
+}: {
+  attemptId: string;
+  categoryId: string;
+  onPlayAgain: () => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const attempt = useQuery({
+    queryKey: ['attempt-score', attemptId],
+    queryFn: () => fetchAttemptScore(attemptId),
+  });
+
+  if (attempt.isPending) return <StatusMessage text={t('quiz.result.loading')} />;
+  if (attempt.isError) {
+    return (
+      <ErrorState
+        message={t('quiz.result.error')}
+        retryLabel={t('quiz.retry')}
+        onRetry={() => attempt.refetch()}
+      />
+    );
+  }
+
+  const { score, max_score: maxScore } = attempt.data;
+  const percent = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+  return (
+    <View className="items-center gap-4">
+      <Text role="heading" aria-level={2} className="text-xl font-semibold text-gray-900">
+        {t('quiz.result.title')}
+      </Text>
+      <Text className="text-lg text-gray-900">
+        {t('quiz.result.score', { score: formatNumber(score, i18n.language), count: maxScore })}
+      </Text>
+      <Text className="text-3xl font-bold text-gray-900">
+        {new Intl.NumberFormat(i18n.language, { style: 'percent' }).format(percent / 100)}
+      </Text>
+      <View className="w-full">
+        <Button label={t('quiz.result.playAgain')} onPress={onPlayAgain} />
+      </View>
+      <Link href={`/categories/${categoryId}`} asChild>
+        {/* Padded to a 44 px touch target. */}
+        <Pressable className="min-h-11 justify-center px-2">
+          <Text className="text-base font-semibold text-blue-700 underline">
+            {t('quiz.result.backToCategory')}
+          </Text>
+        </Pressable>
+      </Link>
     </View>
   );
 }
