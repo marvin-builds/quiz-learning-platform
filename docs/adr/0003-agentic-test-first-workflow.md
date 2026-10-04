@@ -1,6 +1,6 @@
 # ADR 0003 — Test-gated agentic workflow with Claude Code
 
-- **Status:** Accepted (2026-10-03, planning), amended 2026-10-03 (see below)
+- **Status:** Accepted (2026-10-03, planning), amended 2026-10-03 (see below), reviewed 2026-10-04 (see [Review](#review))
 - **Context:** quiz learning platform, how the MVP is built day to day
 - **Deciders:** me, with Claude as the planning assistant
 - Overview: [overview](../plan/overview.md) · Details: [MVP implementation plan](../plan/mvp-implementation-plan.md)
@@ -308,3 +308,54 @@ it.
 After phase 1, check the time per slice, how often loops hit their caps,
 whether bugs got past the gates, and the token cost. Then decide whether to
 loosen gate 1 for low-risk slices, or to tighten the checks.
+
+### Phase 1 review (2026-10-04)
+
+Measured over the 12 slices of phase 1 (#45 to #53, #67, #68, #36; PRs #55
+to #78) from git, GitHub and the session transcripts:
+
+- **Time:** about 18 hours of wall clock from the first slice prompt to the
+  last merge, against the planned ~3 weeks. Median active time per slice
+  about 40 min; median PR open to merge 5 min.
+- **Caps:** none hit. No Stop-gate block, no escalation note, at most 2 of 3
+  review rounds.
+- **Bugs past the gates:** no CI failure on a slice branch and no fix commit
+  on `main`. One low security bug got past the slice's tests and reviewer:
+  `start_attempt` without a user (#46), caught by the phase review (#36,
+  F6). One approved e2e assertion could never pass; the agent's test review
+  missed it, the e2e run caught it, and an unlock fixed it (#53).
+- **Cost:** about $110 in slice sessions; semi-auto runs cost about twice
+  as much per slice as supervised ones, but they were also the UI-heavy
+  slices and add two reviews.
+- **Gate 1 in practice:** I never reviewed tests myself. The first three
+  slices were approved in advance, two delegated the test review to the
+  `reviewer`, and the rest ran semi-auto. The agent's test reviews were
+  substantive (blockers in #49, #51 and #53). My corrections were about the
+  process and the harness, not the product.
+- **Friction:** an unlock was cleared by a subagent's hand-back (#53, 7.5 h
+  lost overnight); the push confirmation stalled semi-auto runs for 20 to
+  115 min; parallel slices shared one local Supabase stack, against the
+  "sequential through phase 1" rule, and saw each other's data in pgTAP.
+
+Decided:
+
+- **Semi-auto is the default way to run a slice**, with the agent's test
+  review in place of mine at gate 1.
+- **Except for database security.** A slice whose migrations add or change
+  an RLS policy, a grant, a `security definer` function or a Storage policy
+  stops after the agent's test review and waits for my approval, as in
+  `feature-slice`. F6 came from such a slice, and phase 2 adds the admin
+  privilege surface.
+- **The checks from #36 are standing checks.** Every new function callable
+  through the API is in the allow-list of `function_privileges.test.sql`,
+  sets `search_path = ''`, and has a pgTAP test that calls it without a user
+  and as each role that must be refused, expecting the uniform error. The
+  `reviewer` checks this for every slice.
+- **Parallel slices need separate stacks.** Until each worktree has its own
+  local Supabase stack (#87), slices that touch the database run one at a
+  time.
+- **The autopilot (#17) waits** until the unlock fix (#86) and #87 are
+  merged and three phase 2 slices have run; it also has to solve the push
+  confirmation.
+- **Estimates:** phase 2 is planned at about 1 to 2 days of agent time
+  instead of ~3 weeks. Measure again after phase 2.

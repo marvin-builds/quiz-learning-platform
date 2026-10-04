@@ -94,7 +94,10 @@ memory before using an Expo or React Native API.
 - **Tests first.** Turn the issue's acceptance criteria into failing tests and
   watch them fail for the right reason before writing production code.
 - **Gate 1:** stop after the failing tests and let me approve them. From then
-  on they are the spec.
+  on they are the spec. Semi-auto runs (the default) replace my approval with
+  the agent's test review, except when the slice adds or changes an RLS
+  policy, a grant, a `security definer` function or a Storage policy: then
+  they stop at gate 1 too (ADR 0003 → Review).
 - **Never edit an approved test to make it pass.** If a test looks wrong, stop
   and say why.
 - **Gate 2:** commit verified work on the slice branch without asking; push,
@@ -110,7 +113,9 @@ memory before using an Expo or React Native API.
 
 For an issue, follow the `feature-slice` skill. When I invoke
 `semi-auto-workflow`, it runs one issue through that loop without stopping at
-gate 1 or before the push, and stops before the merge; start it with
+gate 1 (except for database security, see Workflow) or before the push, and
+stops before the merge. Slices that touch the database run one at a time
+until each worktree has its own Supabase stack (#87); start it with
 `npm run -s slice` to skip the worktree-switch prompt. What runs
 automatically:
 

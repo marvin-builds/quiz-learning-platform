@@ -22,6 +22,10 @@ number starts the branch name) and `CLAUDE.md` first.
 2. **RLS.** Every new table has RLS enabled. Every policy has a positive and a
    negative pgTAP test for `anon`, learner and admin. Missing negative tests
    are findings.
+   Every new function the API roles can call is a deliberate change to the
+   allow-list in `function_privileges.test.sql`, and has pgTAP tests that
+   call it without a user and as each role that must be refused, expecting
+   the same error every time (the gap #36 found in `start_attempt`).
 3. **Correctness.** Does the code do what the acceptance criteria say, for
    empty, error and boundary cases? Do the tests prove it, or would they pass
    with a wrong implementation?

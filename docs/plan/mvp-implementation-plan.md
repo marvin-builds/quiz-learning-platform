@@ -157,6 +157,11 @@ run starts from a known state.
 Estimates are for one full-time developer with the agentic workflow. Treat them
 as a hypothesis; measure after phase 1 and adjust.
 
+Measured after phase 1 (ADR 0003 → Review): phase 1 took about 18 hours of
+wall clock, not ~3 weeks, at a median of about 40 min of agent time per
+slice. Phase 2 is therefore planned at about 1 to 2 days of agent time; the
+headings below keep the original estimates for comparison.
+
 ### Phase 0: foundation and harness (~1 week)
 
 1. Repo, Expo app (TypeScript + Router), NativeWind, i18next, ESLint/Prettier,
@@ -276,7 +281,7 @@ Clarified on 2026-10-03:
 | Issue tracker | GitHub Issues in the project repo; one issue per slice, a milestone per phase |
 | Login | Anonymous + email/password + magic link; OAuth after the MVP |
 | Claude in CI | None; review runs locally before each PR |
-| Parallelism | Sequential through phase 1, then up to 2 worktree sessions |
+| Parallelism | Up to 2 worktree sessions from phase 2 on; slices that touch the database run one at a time until each worktree has its own Supabase stack (#87). Phase 1 already ran slices in parallel on one shared stack, which mixed their pgTAP data (ADR 0003 → Review) |
 | Repo | Public GitHub repo `quiz-learning-platform` under the GNU AGPL v3 (decided at gate 1 of #7) |
 
 Clarified on 2026-10-03 (second round):
