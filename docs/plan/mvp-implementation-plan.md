@@ -317,7 +317,7 @@ Decided while planning phase 1 (2026-10-03):
 | Hosted content | `seed.sql` runs only locally, so the hosted site shows the empty state until admins create content in phase 2 |
 | Android smoke build | The preview APK is built by hand with a `workflow_dispatch` job that runs `eas build --local` on the GitHub runner (#67): it uses no EAS free-tier build credits, and the hosted publishable key stays a GitHub secret of the `production` environment instead of moving to expo.dev or the dev machine. Package id `io.github.marvinmai.quiz`. The per-phase checklist targets the preview APK; see [mobile smoke test](../mobile-smoke-test.md) |
 | iOS smoke test | None before phase 4 (#68): there is no Mac, so the only route is an EAS cloud build for a real iPhone, which needs the Apple Developer Program ($99/year, which also covers App Store distribution) and an iPhone. Revisit with the store release |
-| Issues | Created for phase 1 only; phases 2 and 3 get theirs after the phase 1 review in ADR 0003 |
+| Issues | Created per phase. Phase 1 first; phase 2 (#79 to #84) on 2026-10-04, before the phase 1 review in ADR 0003 finished, because that review gates only the autopilot (#17), not the slices. Phase 3 gets its issues once phase 2 is under way |
 
 The agentic workflow itself is recorded in
 [ADR 0003](../adr/0003-agentic-test-first-workflow.md).
