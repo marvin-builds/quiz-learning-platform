@@ -20,23 +20,20 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `npm ci`: install exactly what the lockfile pins
 - `npx expo start --web`: dev server on the web (`npm start` for all platforms)
 - `npm test`: Jest; one file with `npx jest <path>`
-- `npm run test:timing`: duration budgets (`*.timing.test.ts`), run alone
-  and serially because parallel load makes them flaky; `npm test` skips them,
-  so run one with `npm run test:timing -- <path>`
+- `npm run test:timing [-- <path>]`: duration budgets (`*.timing.test.ts`),
+  serially and alone, since load makes them flaky; `npm test` skips them
 - `npm run lint`: ESLint with Prettier and the no-hard-coded-strings rule
 - `npm run typecheck`: `tsc --noEmit` in strict mode
-- `npm run test:e2e`: Playwright and axe in Chromium (phone and desktop) against
-  the static web export; needs the local stack running and reset first
-  (`npx supabase start && npx supabase db reset`). One-time setup:
-  `npx playwright install chromium`. `check` does not run it
-- `npm run -s check`: lint, typecheck, tests and timing tests with quiet output (only
+- `npm run test:e2e`: Playwright and axe in Chromium (phone and desktop) on
+  the static web export; needs a started and reset local stack, and once
+  `npx playwright install chromium`
+- `npm run -s check`: lint, typecheck, tests and timing tests, quiet (only
   problems and a summary); use it for verification runs; no e2e tests
 - `npm run test:mutation`: Stryker on `src/domain/`; fails below 80 %
-- `npm run -s slice [-- <n>]`: from a terminal, pick the next issue (or take
-  `<n>`), create or reuse its worktree in `../quiz-learning-platform.worktrees/`,
-  run `npm ci` and start `claude -n <branch> "/semi-auto-workflow <n>"` inside
-  it, so the session never asks to switch worktrees and is named after the
-  branch; `-- --pick` only prints the pick
+- `npm run -s slice [-- <n>]`: from a terminal, pick the next issue (or `<n>`),
+  create or reuse its worktree in `../quiz-learning-platform.worktrees/`, run
+  `npm ci` there and start a semi-auto session named after the branch;
+  `-- --pick` only prints the pick
 - `npx expo install <package>`: add dependencies with versions matching the Expo SDK
 - `npx expo-doctor`: check dependency and config problems
 - `gh workflow run android-preview.yml --ref main`: build the Android preview
@@ -61,14 +58,11 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `supabase/migrations/`: SQL migrations; `supabase/tests/database/`: pgTAP
   tests (`*.test.sql`), one file per table or function
 - `src/types/database.ts`: generated, never edit by hand
-- `.github/workflows/ci.yml`: CI on PRs and pushes to `main`; runs the same
-  commands as above (lint, typecheck, `jest --coverage` with an 80 % global
-  threshold in `package.json`, the timing tests, `supabase start` +
-  `supabase test db`, a stale-types check, `supabase db reset` +
-  `npm run test:e2e`). Change it together with the local
-  commands, never apart. On `main` it also migrates the hosted database,
-  pushes `supabase/config.toml` (hosted overrides in `[remotes.production]`)
-  and deploys the web export to Cloudflare Pages
+- `.github/workflows/ci.yml`: CI on PRs and pushes to `main`; the local
+  commands above (Jest with an 80 % coverage threshold, pgTAP, a stale-types
+  check, e2e). Change it together with them, never apart. On `main` it also
+  migrates the hosted database, pushes `supabase/config.toml` (hosted
+  overrides in `[remotes.production]`) and deploys to Cloudflare Pages
 - `.github/dependabot.yml`: daily GitHub Actions updates and npm security
   updates only; bump Expo and React Native with `npx expo install --fix`
 - `.env`: the local stack's public URL and key for the app; CI sets the
@@ -146,8 +140,8 @@ automatically:
   working directory (a worktree after `EnterWorktree`), falling back to
   `CLAUDE_PROJECT_DIR`. The hook scripts themselves load from the main
   checkout, so keep it on an up-to-date `main`. The MCP server runs where the
-  session started. A tool that can't start
-  (no `node_modules`) is reported as a setup problem: run `npm ci` there.
+  session started. A tool that can't start (no `node_modules`) is reported
+  as a setup problem: run `npm ci` there.
 
 ## Rules that must never break
 
