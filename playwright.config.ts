@@ -1,8 +1,20 @@
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { defineConfig } from '@playwright/test';
 
 // Browser tests against the static web export, which talks to the local
-// Supabase stack from .env: start and reset it first (see CLAUDE.md).
-const PORT = 4173;
+// Supabase stack from .env: start and reset it first (see CLAUDE.md). In a
+// worktree, .env.local (scripts/stack.mjs) points the export at the
+// worktree's own stack and gives the server its own port.
+function e2ePort(): number {
+  const file = path.join(process.cwd(), '.env.local');
+  const local = existsSync(file) ? readFileSync(file, 'utf8') : '';
+  const match = /^\s*QUIZ_E2E_PORT\s*=\s*(\d+)\s*$/m.exec(local);
+  return match ? Number(match[1]) : 4173;
+}
+
+const PORT = e2ePort();
 const baseURL = `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
