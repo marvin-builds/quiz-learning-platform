@@ -39,9 +39,7 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `gh workflow run android-preview.yml --ref main`: build the Android preview
   APK by hand; dev client and checklist: [mobile smoke test](docs/mobile-smoke-test.md)
 - `npx supabase start` / `stop`: local stack in Docker (CLI pinned in `package.json`);
-  in a worktree, its own stack: `node scripts/stack.mjs` (which `slice` runs)
-  writes the ignored `supabase/.env.local` and `.env.local` with its
-  `project_id` and ports; the main checkout keeps the defaults
+  in a worktree its own, set up by `node scripts/stack.mjs` (`slice` runs it)
 - `npx supabase migration new <name>`: new migration file
 - `npx supabase db reset && npx supabase test db`: rebuild the local database
   from the migrations and run the pgTAP tests; `start` and `reset` also create
@@ -88,8 +86,7 @@ memory before using an Expo or React Native API.
   session whose `cwd` is inside its worktree.
 - **One issue = one slice = one branch** named `<issue-number>-<short-slug>`
   (e.g. `2-expo-app-skeleton`), branched from an up-to-date `main`, in its
-  own worktree with its own Supabase stack (`npx supabase start` there when
-  the slice needs the database); the cleanup stops it (`feature-slice` step 8).
+  own worktree with its own Supabase stack.
 - **Tests first.** Turn the issue's acceptance criteria into failing tests and
   watch them fail for the right reason before writing production code.
 - **Gate 1:** stop after the failing tests and let me approve them. From then
@@ -120,9 +117,8 @@ automatically:
 
 - **After every edit** (`post-edit.mjs`): ESLint with `--fix` and the
   incremental typecheck for code, Prettier for other files,
-  `supabase db reset` + `supabase test db` for migrations (refused in a
-  worktree without its own stack). Problems come back in the same turn; fix
-  them before moving on.
+  `supabase db reset` + `supabase test db` for migrations. Problems come back
+  in the same turn; fix them before moving on.
 - **Approved tests are locked** (`protect-tests.mjs`): a test committed in
   `HEAD` can't be edited. Only I unlock them: a message of mine starting with
   "unlock tests" (or "unlock tests: <paths>") makes `unlock-tests.mjs` create
