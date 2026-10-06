@@ -45,11 +45,13 @@ function isExistingTest(rel) {
   }
 }
 
-// The headers of turns Claude Code starts itself, line by line from the first,
-// as they appear in real transcripts. Anything else, even a near miss, is
-// treated as the human's message and locks.
+// The headers of turns Claude Code starts itself, line by line from the first.
+// Anything else, even a near miss, is treated as the human's message and locks.
 const HARNESS_HEADERS = [
-  // A subagent's hand-back.
+  // A subagent's hand-back as Claude Code queues it; a real hand-back in this
+  // form locked, so the hook gets this rather than the transcript's form.
+  [/^<agent-message from="[0-9a-z]+">$/, /^\[Subagent hand-back\] /],
+  // The same hand-back as the transcript shows it, with a line in front.
   [
     /^Another Claude session sent a message:$/,
     /^<agent-message from="[0-9a-z]+">$/,
