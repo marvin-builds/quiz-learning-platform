@@ -128,9 +128,9 @@ it.
   approved test still needs my unlock.
 - **I unlock from the chat** (issue #26). A message of mine that starts with
   "unlock tests" (any case) lifts the lock, "unlock tests: <paths>" only for
-  those files. Any other prompt, including turns Claude Code starts itself,
-  and a new session lock again. Stop doesn't: background agents keep working
-  after the turn ends, and a stop the Stop hook blocks must not lose the
+  those files. My next typed message and a new session lock again; turns
+  Claude Code starts itself don't (issue #86, below). Stop doesn't either:
+  background agents keep working after the turn ends, and a stop the Stop hook blocks must not lose the
   unlock. Creating the marker in a separate terminal and deleting it later
   was two manual steps outside the conversation. Only the start of a message
   counts, because text quoted in an agent's report must not unlock. A
@@ -175,6 +175,29 @@ it.
   catch, is recorded here as accepted risk rather than fixed, unless it bites
   in practice. The #26, #29 and #30 follow-ups showed that each review finds
   a narrower edge, while the product waits.
+- **Harness turns keep the unlock** (issue #86). A subagent's hand-back
+  fires the same prompt event as my messages, so in #53 it ended an unlock
+  before the `test-writer` could use it, and the run waited 7.5 h for a
+  second one. The unlock hook now leaves the marker as it is, neither ending
+  nor widening it, when a prompt starts with one of the two headers seen in
+  the transcripts: a subagent hand-back ("Another Claude session sent a
+  message:", `<agent-message from="…">`, "[Subagent hand-back] …") or a task
+  notification (`<task-notification>`, `<task-id>…</task-id>`), each matched
+  line by line from column 0. Anything else, even a near miss, counts as my
+  message and locks, so a header Claude Code changes later brings back the
+  old behavior, not a looser one; then the patterns and their tests follow
+  the new transcripts. The agent can trigger such turns at will and so keep
+  an unlock alive until my next typed message, which is what "until my next
+  message" meant; it can't create or widen one, since only the first line
+  of a non-harness prompt unlocks. Accepted gaps, per the rule above: a
+  message from another session whose text starts with "[Subagent hand-back]"
+  keeps the unlock too; a notification or hand-back I paste at the start of
+  a message keeps it; a model-written prompt suggestion I accept counts as mine; and
+  the agent could start a nested `claude -p "unlock tests"` in the same
+  worktree. Open for the autopilot (#17): it starts workers with
+  `claude -p`, so an orchestrator-written prompt could unlock, and a
+  worker's SessionStart also removes the marker in its launch directory;
+  both need a rule there.
 - **PR branches are rebased, never merged with `main`.** Branch protection
   wants a PR up to date before it merges. Bringing it up to date by merging
   `main` into the branch (GitHub's REST update-branch does exactly that) put

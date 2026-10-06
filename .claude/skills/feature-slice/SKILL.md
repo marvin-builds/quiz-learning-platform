@@ -56,8 +56,9 @@ approved tests or the typecheck are red.
 If a test looks wrong, do not work around it: stop and explain. Only the human
 can unlock tests, by starting a message with "unlock tests" (or
 "unlock tests: <paths>"); ask them to, naming the files. The unlock lasts
-until their next other message: changes to approved tests go through the
-`test-writer` agent before then, with Edit/Write only: the protect-tests hook
+until their next typed message, through subagent hand-backs and task
+notifications: changes to approved tests go through the `test-writer` agent
+before then, with Edit/Write only: the protect-tests hook
 records those edits, and the stop gate excuses a changed approved test only
 when it is recorded. Changed approved tests are gate 1 again: the stop gate
 lets a recorded file be red while uncommitted, so stop and let the human
