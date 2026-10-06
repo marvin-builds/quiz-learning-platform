@@ -138,14 +138,15 @@ only when every check passes:
    `git rev-parse <branch>` equals `headRefOid`, so nothing local is lost.
    Otherwise stop and ask.
 3. From the main checkout, stop the worktree's own Supabase stack and delete
-   its volumes (`--workdir` makes the CLI read that worktree's
-   `supabase/.env.local`; without it, the command would stop main's stack),
-   then remove the worktree:
+   its volumes, then remove the worktree. `--workdir` makes the CLI read that
+   worktree's `supabase/.env.local`; a worktree without one has no stack of
+   its own, and the stop would hit main's, so the `test -f` skips it:
 
    ```sh
    git switch main && git pull --ff-only && git fetch --prune
-   npx supabase stop --no-backup --workdir ../quiz-learning-platform.worktrees/<branch>
-   git worktree remove ../quiz-learning-platform.worktrees/<branch>
+   wt=../quiz-learning-platform.worktrees/<branch>
+   test -f $wt/supabase/.env.local && npx supabase stop --no-backup --workdir $wt
+   git worktree remove $wt
    git branch -D <branch>
    ```
 
