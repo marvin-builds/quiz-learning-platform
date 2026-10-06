@@ -122,8 +122,8 @@ automatically:
   "unlock tests" (or "unlock tests: <paths>") makes `unlock-tests.mjs` create
   `.claude/state/tests-unlocked`; my next typed message, or a new session,
   removes it. Turns the harness starts (subagent hand-backs, task
-  notifications) leave it as it is. Never create, touch or mention that file in a command. Edit
-  tests with Edit/Write only, never with shell commands.
+  notifications) leave it as it is. Never create, touch or mention that file
+  in a command. Edit tests with Edit/Write only, never with shell commands.
 - **Stop gate** (`stop-gate.mjs`): the turn can't end while committed tests
   related to the branch's changes, or the typecheck of non-test code, are red.
   New tests, and committed test files changed through Edit/Write while
