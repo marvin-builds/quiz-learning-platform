@@ -19,7 +19,7 @@ function run(cmd, args, options = {}) {
   const result = spawnSync(cmd, args, { encoding: 'utf8', ...options });
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    throw new Error(`${cmd} ${args.join(' ')} failed:\n${result.stderr}`);
+    throw new Error(`${cmd} ${args.join(' ')} failed:\n${result.stderr ?? ''}`);
   }
   return (result.stdout ?? '').trim();
 }

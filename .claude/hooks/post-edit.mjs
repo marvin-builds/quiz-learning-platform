@@ -17,6 +17,9 @@ import {
   tscArgs,
 } from './lib.mjs';
 
+// The main checkout's copy, which also serves worktrees that predate it.
+const STACK_SCRIPT = path.resolve(import.meta.dirname, '..', '..', 'scripts', 'stack.mjs');
+
 const input = await readInput();
 const dir = projectDir(input);
 const rel = relativeToProject(dir, editedPath(input));
@@ -60,7 +63,7 @@ async function checkMigration() {
   if (isLinkedWorktree() && !fs.existsSync(path.join(dir, 'supabase', '.env.local'))) {
     return [
       'This worktree has no Supabase stack of its own (supabase/.env.local), so a reset ' +
-        "would hit the main checkout's database. Run `node scripts/stack.mjs`, then " +
+        `would hit the main checkout's database. Run \`node ${STACK_SCRIPT}\`, then ` +
         '`npx supabase start`, and edit the migration again.',
     ];
   }
