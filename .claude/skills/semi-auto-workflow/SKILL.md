@@ -185,4 +185,6 @@ Run `feature-slice` step 8. Its checks (`MERGED`, a clean worktree, the
 local branch at `headRefOid`) are the go-ahead. To reach the main checkout,
 leave the worktree with `ExitWorktree` (`keep`), then run step 8's commands
 there. Finish by naming the next unblocked issue and asking whether to start
-it; don't start it on your own.
+it; don't start it on your own. When the session was launched in the removed
+worktree, it now runs without hooks (step 8): say so, and offer the next
+issue for a new session (`npm run -s slice -- <n>`) instead.

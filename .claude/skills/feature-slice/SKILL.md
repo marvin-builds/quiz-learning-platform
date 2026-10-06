@@ -155,3 +155,8 @@ only when every check passes:
 
 A session running inside that worktree cannot run git in the main checkout.
 Then leave the commands from step 3 for the human to run in a normal terminal.
+
+The cleanup ends the session's work. A session launched in the removed
+worktree loads its hooks from there, so from now on none of them runs: no
+locked tests, no post-edit checks, no stop gate. Don't edit anything more in
+it; the next issue, or any other change, starts in a new session.
