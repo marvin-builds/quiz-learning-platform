@@ -38,7 +38,8 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `npx expo-doctor`: check dependency and config problems
 - `gh workflow run android-preview.yml --ref main`: build the Android preview
   APK by hand; dev client and checklist: [mobile smoke test](docs/mobile-smoke-test.md)
-- `npx supabase start` / `stop`: local stack in Docker (CLI pinned in `package.json`)
+- `npx supabase start` / `stop`: local stack in Docker (CLI pinned in `package.json`);
+  in a worktree its own, set up by `node scripts/stack.mjs` (`slice` runs it)
 - `npx supabase migration new <name>`: new migration file
 - `npx supabase db reset && npx supabase test db`: rebuild the local database
   from the migrations and run the pgTAP tests; `start` and `reset` also create
@@ -84,7 +85,8 @@ memory before using an Expo or React Native API.
   an issue "session open" when `claude agents --json` lists a running
   session whose `cwd` is inside its worktree.
 - **One issue = one slice = one branch** named `<issue-number>-<short-slug>`
-  (e.g. `2-expo-app-skeleton`), branched from an up-to-date `main`.
+  (e.g. `2-expo-app-skeleton`), branched from an up-to-date `main`, in its
+  own worktree with its own Supabase stack.
 - **Tests first.** Turn the issue's acceptance criteria into failing tests and
   watch them fail for the right reason before writing production code.
 - **Gate 1:** stop after the failing tests and let me approve them. From then
@@ -109,8 +111,8 @@ For an issue, follow the `feature-slice` skill. When I invoke
 `semi-auto-workflow`, it runs one issue through that loop without stopping at
 gate 1 (except for database security, see Workflow) or before the push, and
 stops before the merge; start it with `npm run -s slice` to skip the
-worktree-switch prompt. Slices that touch the database run one at a time
-until each worktree has its own Supabase stack (#87). What runs
+worktree-switch prompt. Each worktree runs its own Supabase stack
+(`scripts/stack.mjs`), so database slices can run in parallel. What runs
 automatically:
 
 - **After every edit** (`post-edit.mjs`): ESLint with `--fix` and the

@@ -374,9 +374,10 @@ Decided:
   sets `search_path = ''`, and has a pgTAP test that calls it without a user
   and as each role that must be refused, expecting the uniform error. The
   `reviewer` checks this for every slice.
-- **Parallel slices need separate stacks.** Until each worktree has its own
-  local Supabase stack (#87), slices that touch the database run one at a
-  time.
+- **Parallel slices need separate stacks.** Slices that touch the database
+  ran one at a time until #87 gave every worktree its own local Supabase
+  stack (`scripts/stack.mjs`: its own `project_id` and port block); the
+  post-edit hook refuses a migration reset in a worktree without one.
 - **The autopilot (#17) waits** until the unlock fix (#86) and #87 are
   merged and three phase 2 slices have run; it also has to solve the push
   confirmation.

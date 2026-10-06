@@ -19,7 +19,7 @@ function run(cmd, args, options = {}) {
   const result = spawnSync(cmd, args, { encoding: 'utf8', ...options });
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    throw new Error(`${cmd} ${args.join(' ')} failed:\n${result.stderr}`);
+    throw new Error(`${cmd} ${args.join(' ')} failed:\n${result.stderr ?? ''}`);
   }
   return (result.stdout ?? '').trim();
 }
@@ -163,6 +163,9 @@ async function main(args) {
 
   const dir = worktreeFor(issue, root);
   console.log(`Worktree: ${dir}`);
+  // Its own Supabase stack settings; the script next to this one, since an
+  // older worktree may predate it.
+  run(process.execPath, [path.join(import.meta.dirname, 'stack.mjs'), dir], { stdio: 'inherit' });
   if (!fs.existsSync(path.join(dir, 'node_modules'))) {
     run('npm', ['ci'], { cwd: dir, stdio: 'inherit' });
   }
