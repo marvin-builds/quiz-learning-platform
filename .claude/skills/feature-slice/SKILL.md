@@ -78,7 +78,8 @@ Run `/simplify` on the change. Tests stay green, and nothing new is added.
 ## 5. Verify
 
 `npm run -s check`, plus `npx supabase db reset && npx supabase test db` if
-the slice touches the database, plus `npm run db:types` after schema changes.
+the slice touches the database (on the worktree's own stack: `npx supabase
+start` there first), plus `npm run db:types` after schema changes.
 For UI changes, start the app in the background on a port no other worktree
 uses (`npx expo start --web --port <port>`) and delegate to the `ui-verifier`
 agent with the URL and the issue's acceptance criteria: it checks phone and
@@ -136,10 +137,14 @@ only when every check passes:
 2. `git status --short` in the slice worktree is empty, and
    `git rev-parse <branch>` equals `headRefOid`, so nothing local is lost.
    Otherwise stop and ask.
-3. From the main checkout:
+3. From the main checkout, stop the worktree's own Supabase stack and delete
+   its volumes (`--workdir` makes the CLI read that worktree's
+   `supabase/.env.local`; without it, the command would stop main's stack),
+   then remove the worktree:
 
    ```sh
    git switch main && git pull --ff-only && git fetch --prune
+   npx supabase stop --no-backup --workdir ../quiz-learning-platform.worktrees/<branch>
    git worktree remove ../quiz-learning-platform.worktrees/<branch>
    git branch -D <branch>
    ```

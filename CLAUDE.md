@@ -38,7 +38,10 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `npx expo-doctor`: check dependency and config problems
 - `gh workflow run android-preview.yml --ref main`: build the Android preview
   APK by hand; dev client and checklist: [mobile smoke test](docs/mobile-smoke-test.md)
-- `npx supabase start` / `stop`: local stack in Docker (CLI pinned in `package.json`)
+- `npx supabase start` / `stop`: local stack in Docker (CLI pinned in `package.json`);
+  in a worktree, its own stack: `node scripts/stack.mjs` (which `slice` runs)
+  writes the ignored `supabase/.env.local` and `.env.local` with its
+  `project_id` and ports; the main checkout keeps the defaults
 - `npx supabase migration new <name>`: new migration file
 - `npx supabase db reset && npx supabase test db`: rebuild the local database
   from the migrations and run the pgTAP tests; `start` and `reset` also create
@@ -84,7 +87,9 @@ memory before using an Expo or React Native API.
   an issue "session open" when `claude agents --json` lists a running
   session whose `cwd` is inside its worktree.
 - **One issue = one slice = one branch** named `<issue-number>-<short-slug>`
-  (e.g. `2-expo-app-skeleton`), branched from an up-to-date `main`.
+  (e.g. `2-expo-app-skeleton`), branched from an up-to-date `main`, in its
+  own worktree with its own Supabase stack (`npx supabase start` there when
+  the slice needs the database); the cleanup stops it (`feature-slice` step 8).
 - **Tests first.** Turn the issue's acceptance criteria into failing tests and
   watch them fail for the right reason before writing production code.
 - **Gate 1:** stop after the failing tests and let me approve them. From then
@@ -109,14 +114,15 @@ For an issue, follow the `feature-slice` skill. When I invoke
 `semi-auto-workflow`, it runs one issue through that loop without stopping at
 gate 1 (except for database security, see Workflow) or before the push, and
 stops before the merge; start it with `npm run -s slice` to skip the
-worktree-switch prompt. Slices that touch the database run one at a time
-until each worktree has its own Supabase stack (#87). What runs
+worktree-switch prompt. Each worktree runs its own Supabase stack
+(`scripts/stack.mjs`), so database slices can run in parallel. What runs
 automatically:
 
 - **After every edit** (`post-edit.mjs`): ESLint with `--fix` and the
   incremental typecheck for code, Prettier for other files,
-  `supabase db reset` + `supabase test db` for migrations. Problems come back
-  in the same turn; fix them before moving on.
+  `supabase db reset` + `supabase test db` for migrations (refused in a
+  worktree without its own stack). Problems come back in the same turn; fix
+  them before moving on.
 - **Approved tests are locked** (`protect-tests.mjs`): a test committed in
   `HEAD` can't be edited. Only I unlock them: a message of mine starting with
   "unlock tests" (or "unlock tests: <paths>") makes `unlock-tests.mjs` create

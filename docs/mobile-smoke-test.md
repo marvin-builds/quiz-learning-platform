@@ -115,7 +115,11 @@ phone itself. Two ways around it:
   and restart `npx expo start --clear`. The local stack listens on all
   interfaces; the firewall must allow port 54321. Delete `.env.local`
   afterwards: it also applies to web exports on that machine, such as the
-  one `npm run test:e2e` builds.
+  one `npm run test:e2e` builds. In a worktree, `.env.local` already points
+  to the worktree's own stack (`scripts/stack.mjs`): change only the host in
+  `EXPO_PUBLIC_SUPABASE_URL`, keep its port (also the one to forward with
+  `adb reverse`), and run `node scripts/stack.mjs` afterwards instead of
+  deleting the file.
 
 Debug builds allow plain HTTP; the preview build talks to the hosted HTTPS
 URL only.

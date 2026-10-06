@@ -102,7 +102,10 @@ Defined in `.claude/agents/`:
   phase 1 while the harness matures; from phase 2 on, up to **two** parallel
   worktree sessions (e.g. a learner slice and an admin slice). Rules for
   parallel work: migrations get timestamps at merge time, not at creation, and
-  each worktree runs its own local Supabase stack on separate ports.
+  each worktree runs its own local Supabase stack on separate ports
+  (`scripts/stack.mjs`: its own `project_id` and a port block per worktree in
+  git-ignored env files, so the committed `supabase/config.toml` stays as CI
+  uses it).
 - **CI (GitHub Actions):** lint, typecheck, Jest with coverage, `supabase start`
   + `supabase test db`, Playwright against the web build, axe accessibility
   check. The same commands as locally, so "green locally" means "green in CI".
@@ -281,7 +284,7 @@ Clarified on 2026-10-03:
 | Issue tracker | GitHub Issues in the project repo; one issue per slice, a milestone per phase |
 | Login | Anonymous + email/password + magic link; OAuth after the MVP |
 | Claude in CI | None; review runs locally before each PR |
-| Parallelism | Up to 2 worktree sessions from phase 2 on; slices that touch the database run one at a time until each worktree has its own Supabase stack (#87). Phase 1 already ran slices in parallel on one shared stack, which mixed their pgTAP data (ADR 0003 → Review) |
+| Parallelism | Up to 2 worktree sessions from phase 2 on; each worktree runs its own local Supabase stack (`scripts/stack.mjs`, #87), so slices that touch the database can run in parallel too. Phase 1 already ran slices in parallel on one shared stack, which mixed their pgTAP data (ADR 0003 → Review) |
 | Repo | Public GitHub repo `quiz-learning-platform` under the GNU AGPL v3 (decided at gate 1 of #7) |
 
 Clarified on 2026-10-03 (second round):

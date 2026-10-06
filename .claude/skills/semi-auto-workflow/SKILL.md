@@ -61,7 +61,8 @@ git fetch origin
 git worktree add --no-track -b <n>-<slug> ../quiz-learning-platform.worktrees/<n>-<slug> origin/main
 ```
 
-Enter it with `EnterWorktree`, then `npm ci` there. Inside the worktree,
+Enter it with `EnterWorktree`, then `npm ci` and `node scripts/stack.mjs`
+(its own Supabase stack settings) there. Inside the worktree,
 run git as plain, separate commands (no `cd … &&` chains, no `-C`): the
 worktree guard refuses commands it can't verify.
 

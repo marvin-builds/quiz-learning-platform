@@ -376,7 +376,9 @@ Decided:
   `reviewer` checks this for every slice.
 - **Parallel slices need separate stacks.** Until each worktree has its own
   local Supabase stack (#87), slices that touch the database run one at a
-  time.
+  time. Done in #87: `scripts/stack.mjs` gives every worktree its own
+  `project_id` and port block, and the post-edit hook refuses a migration
+  reset in a worktree without one.
 - **The autopilot (#17) waits** until the unlock fix (#86) and #87 are
   merged and three phase 2 slices have run; it also has to solve the push
   confirmation.
