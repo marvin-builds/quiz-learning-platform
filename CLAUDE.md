@@ -111,7 +111,9 @@ For an issue, follow the `feature-slice` skill. When I invoke
 `semi-auto-workflow`, it runs one issue through that loop without stopping at
 gate 1 (except for database security, see Workflow) or before the push, and
 stops before the merge; start it with `npm run -s slice` to skip the
-worktree-switch prompt. Each worktree runs its own Supabase stack
+worktree-switch prompt and the push prompt (the launcher sets
+`AI_PUSH_AUTHORITY=1`; the personal push guard then allows pushes of the
+session's own branch, never `main`). Each worktree runs its own Supabase stack
 (`scripts/stack.mjs`), so database slices can run in parallel. What runs
 automatically:
 

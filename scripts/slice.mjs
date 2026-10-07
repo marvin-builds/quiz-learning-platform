@@ -170,10 +170,13 @@ async function main(args) {
     run('npm', ['ci'], { cwd: dir, stdio: 'inherit' });
   }
   // Named after the branch, so the terminal title and /resume show the issue.
+  // AI_PUSH_AUTHORITY lets the personal push guard allow pushes of this
+  // session's own branch (never main) without a prompt.
   const branch = run('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: dir });
   const session = spawnSync('claude', ['-n', branch, `/semi-auto-workflow ${issue.number}`], {
     cwd: dir,
     stdio: 'inherit',
+    env: { ...process.env, AI_PUSH_AUTHORITY: '1' },
   });
   return session.status ?? 1;
 }
