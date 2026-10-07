@@ -381,5 +381,12 @@ Decided:
 - **The autopilot (#17) waits** until the unlock fix (#86) and #87 are
   merged and three phase 2 slices have run; it also has to solve the push
   confirmation.
+- **Push authority for launched runs** (2026-10-07, taken out of #17). The
+  personal push guard allows a push without the prompt only in a session
+  started with `AI_PUSH_AUTHORITY=1`, which `scripts/slice.mjs` sets and a
+  command inside the session can't. It allows the current branch only,
+  never the default branch, and no force beyond `--force-with-lease`. The
+  earlier per-repo opt-in (`ai.allowPush` in the repo's config) is gone,
+  since the agent could set it itself. Every other session still asks.
 - **Estimates:** phase 2 is planned at about 1 to 2 days of agent time
   instead of ~3 weeks. Measure again after phase 2.
