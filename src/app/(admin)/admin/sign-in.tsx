@@ -6,7 +6,8 @@ import { ScrollView, Text, TextInput, View } from 'react-native';
 
 import { PageTitle } from '@/components/page-title';
 import { Button } from '@/components/status';
-import { signInErrorOf, signInWithPassword } from '@/lib/admin';
+import { signInErrorOf } from '@/lib/admin';
+import { supabase } from '@/lib/supabase';
 
 export default function AdminSignInScreen() {
   const { t } = useTranslation();
@@ -14,7 +15,10 @@ export default function AdminSignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const signIn = useMutation({
-    mutationFn: () => signInWithPassword(email.trim(), password),
+    mutationFn: async () => {
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) throw error;
+    },
     onSuccess: () => {
       // Content read as the previous user (e.g. anonymous) must not linger.
       queryClient.clear();

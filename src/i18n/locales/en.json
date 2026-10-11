@@ -76,7 +76,8 @@
     "guard": {
       "loading": "Checking access …",
       "error": "Access could not be checked.",
-      "noAccess": "This account has no access to the admin area."
+      "noAccess": "This account has no access to the admin area.",
+      "retry": "Try again"
     },
     "dashboard": {
       "title": "Admin area",

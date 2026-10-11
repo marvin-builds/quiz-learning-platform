@@ -76,7 +76,8 @@
     "guard": {
       "loading": "Zugang wird geprüft …",
       "error": "Der Zugang konnte nicht geprüft werden.",
-      "noAccess": "Dieses Konto hat keinen Zugang zum Admin-Bereich."
+      "noAccess": "Dieses Konto hat keinen Zugang zum Admin-Bereich.",
+      "retry": "Erneut versuchen"
     },
     "dashboard": {
       "title": "Admin-Bereich",
