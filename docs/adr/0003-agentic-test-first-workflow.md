@@ -1,6 +1,6 @@
 # ADR 0003 — Test-gated agentic workflow with Claude Code
 
-- **Status:** Accepted (2026-10-03, planning), amended 2026-10-03 (see below), reviewed 2026-10-04 (see [Review](#review))
+- **Status:** Accepted (2026-10-03, planning), amended 2026-10-03 (see below), reviewed 2026-10-04 (see [Review](#review)), amended 2026-10-11 (no lock on approved tests, at the end)
 - **Context:** quiz learning platform, how the MVP is built day to day
 - **Deciders:** me, with Claude as the planning assistant
 - Overview: [overview](../plan/overview.md) · Details: [MVP implementation plan](../plan/mvp-implementation-plan.md)
@@ -390,3 +390,33 @@ Decided:
   since the agent could set it itself. Every other session still asks.
 - **Estimates:** phase 2 is planned at about 1 to 2 days of agent time
   instead of ~3 weeks. Measure again after phase 2.
+
+### Amendment (2026-10-11): approved tests aren't locked
+
+Issue #100. The protected-tests hook made every legitimate change to an
+approved test wait for my "unlock tests" message. That stalled semi-auto runs
+(#53 waited 7.5 h for an unlock) and took a harness of its own, with a review
+round per edge case (#26, #29, #30, #86), while the reviewer agent and my
+review before the merge already read the branch diff, tests included.
+
+- **The lock is gone.** `protect-tests.mjs`, `unlock-tests.mjs`, the unlock
+  marker and the record of unlocked edits are removed. This supersedes the
+  bullets above on the protected-tests hook, unlocking from the chat, "only an
+  unlocked edit excuses a changed approved test" and harness turns keeping
+  the unlock; "approved means committed" stays, without the lock.
+- **A changed approved test is still gate 1 again** (#29 stays). The Stop
+  hook lets a committed test with uncommitted content changes be red,
+  however it was changed, until it is committed; a red committed test
+  without such changes still blocks. A change of only whitespace or file
+  mode doesn't count, so it can't excuse a red test.
+- **Weakening is caught by review, not by a hook.** The `reviewer` checks
+  every changed committed test for removed assertions, looser matchers,
+  skipped or dropped cases and deleted test files, and reports one without
+  a reason from the issue or an approved re-spec as a blocker. In
+  `feature-slice` I approve each re-spec; in semi-auto runs the agent's test
+  review does, logged as a decision, except in database-security slices,
+  which stop for me as at gate 1.
+- **Consequence, accepted:** "tests weakened to get green are blocked
+  mechanically" (Consequences) no longer holds for a committed test; a
+  weakened test is green, so only the `reviewer` and my review of the diff
+  catch it.

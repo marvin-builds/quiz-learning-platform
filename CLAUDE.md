@@ -94,8 +94,9 @@ memory before using an Expo or React Native API.
   the agent's test review, except when the slice adds or changes an RLS
   policy, a grant, a `security definer` function or a Storage policy: then
   they stop at gate 1 too (ADR 0003 → Review).
-- **Never edit an approved test to make it pass.** If a test looks wrong, stop
-  and say why.
+- **Never edit an approved test to make it pass.** If a test looks wrong,
+  stop and say why; a change to it is a re-spec and goes through gate 1
+  again.
 - **Gate 2:** commit verified work on the slice branch without asking; push,
   PR and merge only after my go-ahead. Rebase onto a fresh `origin/main`
   right before every push, and check the PR is mergeable after opening it.
@@ -121,22 +122,15 @@ automatically:
   incremental typecheck for code, Prettier for other files,
   `supabase db reset` + `supabase test db` for migrations. Problems come back
   in the same turn; fix them before moving on.
-- **Approved tests are locked** (`protect-tests.mjs`): a test committed in
-  `HEAD` can't be edited. Only I unlock them: a message of mine starting with
-  "unlock tests" (or "unlock tests: <paths>") makes `unlock-tests.mjs` create
-  `.claude/state/tests-unlocked`; my next typed message, or a new session,
-  removes it. Turns the harness starts (subagent hand-backs, task
-  notifications) leave it as it is. Never create, touch or mention that file
-  in a command. Edit tests with Edit/Write only, never with shell commands.
+- **Approved tests aren't locked.** A changed test is reviewed like any
+  other change: the `reviewer` checks every changed committed test for
+  weakening, and I review the diff before the merge.
 - **Stop gate** (`stop-gate.mjs`): the turn can't end while committed tests
   related to the branch's changes, or the typecheck of non-test code, are red.
-  New tests, and committed test files changed through Edit/Write while
-  unlocked (recorded in `.claude/state/unlocked-edits`, exempt as a whole file
-  until committed), may be red (gate 1); a test changed any other way blocks.
-  Never write that file or name it in a shell command (the hook denies
-  any command mentioning it). A branch that changes only Markdown, `docs/` or
-  `.github/` skips the checks. After 10 blocked stops, write
-  `.claude/state/escalation.md` and stop.
+  New tests, and committed test files with uncommitted content changes (a
+  re-spec, exempt as a whole file until committed), may be red (gate 1). A
+  branch that changes only Markdown, `docs/` or `.github/` skips the checks.
+  After 10 blocked stops, write `.claude/state/escalation.md` and stop.
 - **Agents:** `test-writer` writes the failing tests and can only write test
   files; `reviewer` reviews the branch diff read-only; `ui-verifier` checks
   the running web app through the Playwright MCP server (`.mcp.json`; setup
