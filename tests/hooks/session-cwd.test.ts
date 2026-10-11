@@ -79,46 +79,6 @@ describe('hooks in a session that works in another repository than it was launch
     });
   });
 
-  describe('protect-tests', () => {
-    function edit(relative: string, cwd = session.dir) {
-      return inSession(
-        'protect-tests.mjs',
-        {
-          hook_event_name: 'PreToolUse',
-          tool_name: 'Edit',
-          tool_input: { file_path: session.path(relative), old_string: 'a', new_string: 'b' },
-        },
-        cwd,
-      );
-    }
-
-    const denied = (result: ReturnType<typeof edit>) =>
-      result.output?.hookSpecificOutput?.permissionDecision === 'deny';
-
-    it('blocks editing a test committed in the cwd repository', () => {
-      session.write('src/domain/scoring.test.ts', 'a\n');
-      session.commitAll();
-
-      expect(denied(edit('src/domain/scoring.test.ts'))).toBe(true);
-    });
-
-    it('allows a new, uncommitted test in the cwd repository', () => {
-      launch.write('src/domain/new-feature.test.ts', 'a\n');
-      launch.commitAll();
-      session.write('README.md', 'x\n');
-      session.commitAll();
-
-      expect(denied(edit('src/domain/new-feature.test.ts'))).toBe(false);
-    });
-
-    it('resolves a cwd in a subdirectory to the top level of its work tree', () => {
-      session.write('tests/lint/rule.test.ts', 'a\n');
-      session.commitAll();
-
-      expect(denied(edit('tests/lint/rule.test.ts', session.path('tests/lint')))).toBe(true);
-    });
-  });
-
   describe('post-edit', () => {
     function edited(relative: string) {
       const filePath = session.path(relative);
@@ -156,13 +116,17 @@ describe('hooks in a session that works in another repository than it was launch
   });
 
   describe('test-writer-scope', () => {
-    function write(relative: string) {
-      return inSession('test-writer-scope.mjs', {
-        hook_event_name: 'PreToolUse',
-        agent_type: 'test-writer',
-        tool_name: 'Write',
-        tool_input: { file_path: session.path(relative), content: 'x' },
-      });
+    function write(relative: string, cwd = session.dir) {
+      return inSession(
+        'test-writer-scope.mjs',
+        {
+          hook_event_name: 'PreToolUse',
+          agent_type: 'test-writer',
+          tool_name: 'Write',
+          tool_input: { file_path: session.path(relative), content: 'x' },
+        },
+        cwd,
+      );
     }
 
     it('allows writing a test file of the cwd repository', () => {
@@ -173,6 +137,18 @@ describe('hooks in a session that works in another repository than it was launch
 
     it('blocks a non-test file of the cwd repository, named relative to it', () => {
       const result = write('src/domain/scoring.ts');
+
+      expect(result.output?.hookSpecificOutput?.permissionDecision).toBe('deny');
+      expect(result.output?.hookSpecificOutput?.permissionDecisionReason).toContain(
+        'not src/domain/scoring.ts.',
+      );
+    });
+
+    it('resolves a cwd in a subdirectory to the top level of its work tree', () => {
+      session.write('tests/lint/rule.test.ts', 'a\n');
+      session.commitAll();
+
+      const result = write('src/domain/scoring.ts', session.path('tests/lint'));
 
       expect(result.output?.hookSpecificOutput?.permissionDecision).toBe('deny');
       expect(result.output?.hookSpecificOutput?.permissionDecisionReason).toContain(
@@ -203,42 +179,49 @@ describe('project directory fallbacks', () => {
     fs.rmSync(notARepo, { recursive: true, force: true });
   });
 
-  function editCommittedTest(
+  /**
+   * Whether test-writer-scope resolved the project to `project`: it names a
+   * non-test file relative to the project it resolved, and by its absolute
+   * path when the file lies outside it.
+   */
+  function resolvesToProject(
     cwd: string | undefined,
     launchDir: string,
     env: Record<string, string> = {},
   ) {
     const result = runHookInSession(
-      'protect-tests.mjs',
+      'test-writer-scope.mjs',
       {
         hook_event_name: 'PreToolUse',
-        tool_name: 'Edit',
-        tool_input: {
-          file_path: project.path('src/domain/scoring.test.ts'),
-          old_string: 'a',
-          new_string: 'b',
-        },
+        agent_type: 'test-writer',
+        tool_name: 'Write',
+        tool_input: { file_path: project.path('src/domain/scoring.ts'), content: 'x' },
       },
       { cwd, launchDir, env },
     );
-    return result.output?.hookSpecificOutput?.permissionDecision === 'deny';
+    return (
+      result.output?.hookSpecificOutput?.permissionDecision === 'deny' &&
+      String(result.output?.hookSpecificOutput?.permissionDecisionReason).includes(
+        'not src/domain/scoring.ts.',
+      )
+    );
   }
 
   it('uses CLAUDE_PROJECT_DIR when the event has no cwd', () => {
-    expect(editCommittedTest(undefined, project.dir)).toBe(true);
+    expect(resolvesToProject(undefined, project.dir)).toBe(true);
   });
 
   it('uses CLAUDE_PROJECT_DIR when cwd is not inside a git work tree', () => {
-    expect(editCommittedTest(notARepo, project.dir)).toBe(true);
+    expect(resolvesToProject(notARepo, project.dir)).toBe(true);
   });
 
   it('prefers CLAUDE_PROJECT_DIR over the process directory', () => {
-    expect(editCommittedTest(notARepo, elsewhere.dir, { CLAUDE_PROJECT_DIR: project.dir })).toBe(
+    expect(resolvesToProject(notARepo, elsewhere.dir, { CLAUDE_PROJECT_DIR: project.dir })).toBe(
       true,
     );
   });
 
   it('uses the process directory when there is neither a usable cwd nor CLAUDE_PROJECT_DIR', () => {
-    expect(editCommittedTest(notARepo, project.dir, { CLAUDE_PROJECT_DIR: '' })).toBe(true);
+    expect(resolvesToProject(notARepo, project.dir, { CLAUDE_PROJECT_DIR: '' })).toBe(true);
   });
 });
