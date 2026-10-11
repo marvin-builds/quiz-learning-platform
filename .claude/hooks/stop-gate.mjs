@@ -38,6 +38,9 @@ const NO_CHECKS_NEEDED = [/\.md$/, /^docs\//, /^\.github\//];
 
 const input = await readInput();
 const dir = projectDir(input);
+// blocking() per file: every failing suite and type error asks, and each
+// answer costs git processes.
+const blockingByFile = new Map();
 
 if (!MAY_STOP_RED.has(input.agent_type)) {
   ensureStateDir(dir);
@@ -104,7 +107,11 @@ function noteWrittenSince(time) {
  * test, or a committed one whose content changed since HEAD (a re-spec).
  */
 function blocking(rel) {
-  return !rel || !isTestFile(rel) || (isCommitted(dir, rel) && !hasUncommittedChanges(dir, rel));
+  if (!rel || !isTestFile(rel)) return true;
+  if (!blockingByFile.has(rel)) {
+    blockingByFile.set(rel, isCommitted(dir, rel) && !hasUncommittedChanges(dir, rel));
+  }
+  return blockingByFile.get(rel);
 }
 
 async function findFailures() {
