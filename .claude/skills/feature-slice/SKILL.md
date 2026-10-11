@@ -44,7 +44,7 @@ plus any design choice the tests pin down. Do not commit them yet; the stop
 gate lets you end the turn because only new tests are red.
 
 After approval, commit the tests on their own (`Add failing tests for …`).
-From now on they are approved: the protect-tests hook blocks edits to them.
+From now on they are approved, and they are the spec.
 
 ## 3. Green
 
@@ -53,16 +53,13 @@ lint and type errors after every edit, and pgTAP results after a migration
 edit; fix them as they come. The stop gate won't let the turn end while
 approved tests or the typecheck are red.
 
-If a test looks wrong, do not work around it: stop and explain. Only the human
-can unlock tests, by starting a message with "unlock tests" (or
-"unlock tests: <paths>"); ask them to, naming the files. The unlock lasts
-until their next typed message, through subagent hand-backs and task
-notifications: changes to approved tests go through the `test-writer` agent
-before then, with Edit/Write only: the protect-tests hook
-records those edits, and the stop gate excuses a changed approved test only
-when it is recorded. Changed approved tests are gate 1 again: the stop gate
-lets a recorded file be red while uncommitted, so stop and let the human
-approve them, then commit them on their own before changing the code.
+If a test looks wrong, do not work around it and never weaken it to get
+green: stop and explain why it is wrong against the spec. A change to an
+approved test is a re-spec: it goes through the `test-writer` agent and is
+gate 1 again. The stop gate lets a committed test with uncommitted changes be
+red, so stop and let the human approve the re-spec (a table of what is kept,
+dropped and changed), then commit it on its own before changing the code.
+The `reviewer` checks every changed committed test for weakening.
 
 A branch that changes only Markdown, `docs/` or `.github/` passes the stop
 gate without running Jest or tsc.
@@ -158,5 +155,5 @@ Then leave the commands from step 3 for the human to run in a normal terminal.
 
 The cleanup ends the session's work. A session launched in the removed
 worktree loads its hooks from there, so from now on none of them runs: no
-locked tests, no post-edit checks, no stop gate. Don't edit anything more in
+post-edit checks, no stop gate. Don't edit anything more in
 it; the next issue, or any other change, starts in a new session.

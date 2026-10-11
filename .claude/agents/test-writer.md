@@ -1,6 +1,6 @@
 ---
 name: test-writer
-description: Turns an issue's acceptance criteria into failing tests (Jest, React Native Testing Library, pgTAP, later Playwright) before any production code exists. Use in the red step of a feature slice, and when approved tests must change after the human unlocked them.
+description: Turns an issue's acceptance criteria into failing tests (Jest, React Native Testing Library, pgTAP, later Playwright) before any production code exists. Use in the red step of a feature slice, and for a re-spec when an approved test is wrong against the spec.
 tools: Read, Grep, Glob, Bash, Write, Edit
 hooks:
   PreToolUse:
@@ -40,6 +40,10 @@ testing, and follow their style.
   nothing; fix or drop it.
 - Mocks only at real boundaries (network, clock). Never mock the module under
   test.
+- **Re-spec:** when you change an approved (committed) test, change only
+  what the spec says is wrong. Never weaken it to fit an implementation: no
+  removed assertions, looser matchers or skipped cases without a reason from
+  the spec. Report each change as kept, dropped or changed, with the reason.
 
 ## Output
 

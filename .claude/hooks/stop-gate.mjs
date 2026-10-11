@@ -1,12 +1,11 @@
 // Stop / SubagentStop: the agent may not end its turn while approved tests
-// fail or production code has type errors. New tests, and committed tests the
-// agent changed while the human had them unlocked (recorded by
-// protect-tests.mjs), may be red: that is gate 1, where they wait for
-// approval. A branch that changes only docs or GitHub config skips the checks,
-// since such changes aren't expected to affect them; CI runs everything. After
-// QUIZ_STOP_CAP blocked stops in one turn the agent must write an escalation
-// note instead of trying again; a few stops later it is released regardless,
-// so it never loops.
+// fail or production code has type errors. New tests, and committed tests
+// whose content the agent changed (re-specs), may be red: that is gate 1,
+// where they wait for approval. A branch that changes only docs or GitHub
+// config skips the checks, since such changes aren't expected to affect them;
+// CI runs everything. After QUIZ_STOP_CAP blocked stops in one turn the agent
+// must write an escalation note instead of trying again; a few stops later it
+// is released regardless, so it never loops.
 import fs from 'node:fs';
 import path from 'node:path';
 import {
@@ -20,12 +19,10 @@ import {
   parseTscErrors,
   projectDir,
   readInput,
-  readUnlockedEdits,
   relativeToProject,
   respond,
   run,
   tscArgs,
-  writeUnlockedEdits,
 } from './lib.mjs';
 
 // Agents that leave red tests behind by design: the test-writer at gate 1,
@@ -41,9 +38,9 @@ const NO_CHECKS_NEEDED = [/\.md$/, /^docs\//, /^\.github\//];
 
 const input = await readInput();
 const dir = projectDir(input);
-// A recorded re-spec ends once the file matches HEAD again (approved or reverted).
-const unlockedEdits = readUnlockedEdits(dir).filter((rel) => hasUncommittedChanges(dir, rel));
-writeUnlockedEdits(dir, unlockedEdits);
+// blocking() per file: every failing suite and type error asks, and each
+// answer costs git processes.
+const blockingByFile = new Map();
 
 if (!MAY_STOP_RED.has(input.agent_type)) {
   ensureStateDir(dir);
@@ -107,10 +104,14 @@ function noteWrittenSince(time) {
 
 /**
  * A failure counts unless it lives only in a test that awaits approval: a new
- * test, or a committed one with a recorded unlocked edit (a re-spec).
+ * test, or a committed one whose content changed since HEAD (a re-spec).
  */
 function blocking(rel) {
-  return !rel || !isTestFile(rel) || (isCommitted(dir, rel) && !unlockedEdits.includes(rel));
+  if (!rel || !isTestFile(rel)) return true;
+  if (!blockingByFile.has(rel)) {
+    blockingByFile.set(rel, isCommitted(dir, rel) && !hasUncommittedChanges(dir, rel));
+  }
+  return blockingByFile.get(rel);
 }
 
 async function findFailures() {
