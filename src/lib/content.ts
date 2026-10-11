@@ -1,8 +1,9 @@
 import { supabase } from '@/lib/supabase';
 
 // Reads of the learner-facing content. RLS hides unpublished categories and
-// quizzes (and published quizzes in unpublished categories) from learners, so
-// these queries don't filter on `published` themselves.
+// quizzes (and published quizzes in unpublished categories) from learners,
+// but returns them to admins, so these queries filter on `published` too:
+// a signed-in admin sees the learner area like a learner.
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -10,6 +11,7 @@ export async function fetchCategories() {
   const { data, error } = await supabase
     .from('categories')
     .select('id, name, description')
+    .eq('published', true)
     .order('sort_order', { ascending: true });
   if (error) throw error;
   return data;
@@ -24,6 +26,8 @@ export async function fetchCategoryWithQuizzes(categoryId: string) {
     .from('categories')
     .select('id, name, description, quizzes(id, title, description)')
     .eq('id', categoryId)
+    .eq('published', true)
+    .eq('quizzes.published', true)
     .order('sort_order', { referencedTable: 'quizzes', ascending: true })
     .maybeSingle();
   if (error) throw error;
@@ -38,15 +42,18 @@ export async function fetchQuiz(quizId: string) {
   if (!UUID.test(quizId)) return null;
 
   // Only ids: a count-only embed needs a select on the whole row, which the
-  // column grants on questions refuse.
+  // column grants on questions refuse. The inner join drops a quiz whose
+  // category is unpublished.
   const { data, error } = await supabase
     .from('quizzes')
-    .select('id, category_id, title, description, questions(id)')
+    .select('id, category_id, title, description, questions(id), categories!inner(published)')
     .eq('id', quizId)
+    .eq('published', true)
+    .eq('categories.published', true)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  const { questions, ...quiz } = data;
+  const { questions, categories: _category, ...quiz } = data;
   return { ...quiz, questionCount: questions.length };
 }
 
