@@ -8,8 +8,15 @@
 -- quiz id included. The quiz is seed.sql's "Hauptstädte Europas", visible and
 -- playable, which the positive control at the end proves. start_attempt.test.sql
 -- has the function's other rules.
+--
+-- The "no attempt is created" checks count only attempts on that quiz started
+-- in this test's transaction (started_at = now(), the column default and what
+-- start_attempt stores), whatever their user_id. Attempts the e2e tests commit
+-- meanwhile on the same stack start in other transactions, so they don't
+-- count; the positive control proves the count sees an attempt start_attempt
+-- creates here.
 begin;
-select plan(10);
+select plan(11);
 
 -- Fixtures: a learner for the positive control.
 insert into auth.users (id, email) values
@@ -39,7 +46,15 @@ $$;
 
 grant execute on function pg_temp.start_attempt_error(uuid) to authenticated;
 
-select set_config('test.attempts_before', (select count(*) from public.attempts)::text, true);
+-- Attempts on the quiz that start_attempt created in this transaction.
+create function pg_temp.attempts_started_here()
+returns bigint
+language sql
+as $$
+  select count(*) from public.attempts
+  where quiz_id = '20000000-0000-4000-8000-000000000001'
+    and started_at = now()
+$$;
 
 -- authenticated, claims without any content ---------------------------------
 
@@ -61,8 +76,8 @@ select unalike(
 reset role;
 
 select is(
-  (select count(*) from public.attempts)::text,
-  current_setting('test.attempts_before'),
+  pg_temp.attempts_started_here(),
+  0::bigint,
   'without claims no attempt is created'
 );
 
@@ -86,8 +101,8 @@ select unalike(
 reset role;
 
 select is(
-  (select count(*) from public.attempts)::text,
-  current_setting('test.attempts_before'),
+  pg_temp.attempts_started_here(),
+  0::bigint,
   'with claims but no sub no attempt is created'
 );
 
@@ -108,8 +123,8 @@ select unalike(
 );
 
 select is(
-  (select count(*) from public.attempts)::text,
-  current_setting('test.attempts_before'),
+  pg_temp.attempts_started_here(),
+  0::bigint,
   'a caller without a user creates no attempt'
 );
 
@@ -125,6 +140,12 @@ select lives_ok(
 );
 
 reset role;
+
+select is(
+  pg_temp.attempts_started_here(),
+  1::bigint,
+  'the "no attempt is created" checks count the attempt the learner just started'
+);
 
 select * from finish();
 rollback;
