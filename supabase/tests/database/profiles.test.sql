@@ -1,6 +1,8 @@
--- Access rules for public.profiles, per role: anon, learner, admin.
+-- Access rules for public.profiles, per role: anon, anonymous user, learner,
+-- admin. Nobody makes themselves admin: not by updating their role, not by
+-- inserting a profile, not with sign-up metadata.
 begin;
-select plan(23);
+select plan(29);
 
 -- Fixtures: three auth users. Their profiles must come from the signup trigger.
 insert into auth.users (id, email, raw_user_meta_data) values
@@ -60,6 +62,39 @@ select throws_ok(
 
 reset role;
 
+-- anonymous user ----------------------------------------------------------
+
+insert into auth.users (id, is_anonymous) values
+  ('44444444-4444-4444-4444-444444444444', true);
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub": "44444444-4444-4444-4444-444444444444", "role": "authenticated", "is_anonymous": true}',
+  true);
+
+select throws_ok(
+  $$ update public.profiles set role = 'admin'
+     where id = '44444444-4444-4444-4444-444444444444' $$,
+  '42501', null,
+  'an anonymous user cannot change their own role'
+);
+
+select throws_ok(
+  $$ insert into public.profiles (id, display_name, role)
+     values ('77777777-7777-7777-7777-777777777777', 'Mallory', 'admin') $$,
+  '42501', null,
+  'an anonymous user cannot insert an admin profile'
+);
+
+reset role;
+
+select results_eq(
+  $$ select role::text from public.profiles
+     where id = '44444444-4444-4444-4444-444444444444' $$,
+  $$ values ('learner'::text) $$,
+  'the anonymous user is still a learner'
+);
+
 -- learner (alice) ---------------------------------------------------------
 
 set local role authenticated;
@@ -102,6 +137,13 @@ select throws_ok(
      values ('44444444-4444-4444-4444-444444444444', 'Mallory') $$,
   '42501', null,
   'learner cannot insert a profile'
+);
+
+select throws_ok(
+  $$ insert into public.profiles (id, display_name, role)
+     values ('77777777-7777-7777-7777-777777777777', 'Mallory', 'admin') $$,
+  '42501', null,
+  'learner cannot insert an admin profile'
 );
 
 select throws_ok(
@@ -165,7 +207,8 @@ select results_eq(
   $$ values
        ('11111111-1111-1111-1111-111111111111', 'Alice Liddell', 'learner'),
        ('22222222-2222-2222-2222-222222222222', 'Bob', 'learner'),
-       ('33333333-3333-3333-3333-333333333333', 'Carol Admin', 'admin') $$,
+       ('33333333-3333-3333-3333-333333333333', 'Carol Admin', 'admin'),
+       ('44444444-4444-4444-4444-444444444444', null, 'learner') $$,
   'only the allowed changes reached the table'
 );
 
@@ -178,6 +221,29 @@ select results_eq(
      where id = '55555555-5555-5555-5555-555555555555' $$,
   $$ values (null::text, 'learner'::text) $$,
   'signup without metadata creates a learner profile with no display name'
+);
+
+-- Signup metadata can't choose the role: both metadata fields are set by
+-- the client at sign-up (supabase.auth.signUp options.data) or by an admin
+-- API the app doesn't use, so neither may make an admin.
+insert into auth.users (id, email, raw_user_meta_data, raw_app_meta_data) values
+  ('66666666-6666-6666-6666-666666666666', 'eve@example.test',
+   '{"display_name": "Eve", "role": "admin"}', '{}'),
+  ('88888888-8888-8888-8888-888888888888', 'trent@example.test',
+   '{"display_name": "Trent"}', '{"role": "admin"}');
+
+select results_eq(
+  $$ select role::text from public.profiles
+     where id = '66666666-6666-6666-6666-666666666666' $$,
+  $$ values ('learner'::text) $$,
+  'signup with role admin in the user metadata creates a learner profile'
+);
+
+select results_eq(
+  $$ select role::text from public.profiles
+     where id = '88888888-8888-8888-8888-888888888888' $$,
+  $$ values ('learner'::text) $$,
+  'signup with role admin in the app metadata creates a learner profile'
 );
 
 delete from auth.users where id = '55555555-5555-5555-5555-555555555555';

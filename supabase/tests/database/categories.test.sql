@@ -1,15 +1,19 @@
 -- public.categories: structure, constraints and access per role (anon,
--- learner, admin). Fixtures are created here as the owner, independent of
--- seed.sql, and vanish on rollback. In phase 1 an admin is treated like a
--- learner; phase 2 changes the admin tests on purpose.
+-- anonymous user, learner, admin). Fixtures are created here as the owner,
+-- independent of seed.sql, and vanish on rollback. An admin reads every
+-- category, published or not (private.is_admin()); everyone else only the
+-- published ones. Nobody writes through the API yet (phase 2 items 2 to 5).
 begin;
-select plan(36);
+select plan(39);
 
 -- Fixtures ----------------------------------------------------------------
 
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'alice@example.test'),
   ('33333333-3333-3333-3333-333333333333', 'carol@example.test');
+
+insert into auth.users (id, is_anonymous) values
+  ('44444444-4444-4444-4444-444444444444', true);
 
 update public.profiles set role = 'admin' where id = '33333333-3333-3333-3333-333333333333';
 
@@ -134,6 +138,28 @@ select throws_ok(
 
 reset role;
 
+-- anonymous user ----------------------------------------------------------
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub": "44444444-4444-4444-4444-444444444444", "role": "authenticated", "is_anonymous": true}',
+  true);
+
+select results_eq(
+  $$ select id from public.categories
+     where id in ('c0000000-0000-0000-0000-000000000001',
+                  'c0000000-0000-0000-0000-000000000002') $$,
+  $$ values ('c0000000-0000-0000-0000-000000000001'::uuid) $$,
+  'an anonymous user sees a published category'
+);
+
+select is_empty(
+  $$ select 1 from public.categories where not published $$,
+  'an anonymous user does not see unpublished categories'
+);
+
+reset role;
+
 -- learner (alice) ---------------------------------------------------------
 
 set local role authenticated;
@@ -174,7 +200,11 @@ select throws_ok(
 
 reset role;
 
--- admin (carol), treated like a learner in phase 1 ------------------------
+-- admin (carol) -----------------------------------------------------------
+
+-- Every category id as the owner sees it, for the admin to match.
+select set_config('test.all_category_ids',
+  (select string_agg(id::text, ',') from public.categories), true);
 
 set local role authenticated;
 select set_config('request.jwt.claims',
@@ -185,31 +215,40 @@ select results_eq(
      where id = 'c0000000-0000-0000-0000-000000000001' $$,
   $$ values ('c0000000-0000-0000-0000-000000000001'::uuid, 'Sichtbares Thema'::text,
              'Veröffentlicht'::text, 1, true) $$,
-  'an admin sees a published category in phase 1'
+  'an admin sees a published category'
 );
 
-select is_empty(
-  $$ select 1 from public.categories where not published $$,
-  'an admin does not see unpublished categories in phase 1'
+select results_eq(
+  $$ select id, name, description, sort_order, published from public.categories
+     where id = 'c0000000-0000-0000-0000-000000000002' $$,
+  $$ values ('c0000000-0000-0000-0000-000000000002'::uuid, 'Verstecktes Thema'::text,
+             null::text, 2, false) $$,
+  'an admin sees an unpublished category with all its columns'
+);
+
+select set_eq(
+  $$ select id from public.categories $$,
+  $$ select unnest(string_to_array(current_setting('test.all_category_ids'), ',')::uuid[]) $$,
+  'an admin sees every category, published or not'
 );
 
 select throws_ok(
   $$ insert into public.categories (name, sort_order, published) values ('Neu', 3, true) $$,
   '42501', null,
-  'an admin cannot insert a category in phase 1'
+  'an admin cannot insert a category through the API yet'
 );
 
 select throws_ok(
   $$ update public.categories set name = 'Geändert'
      where id = 'c0000000-0000-0000-0000-000000000001' $$,
   '42501', null,
-  'an admin cannot update a category in phase 1'
+  'an admin cannot update a category through the API yet'
 );
 
 select throws_ok(
   $$ delete from public.categories where id = 'c0000000-0000-0000-0000-000000000001' $$,
   '42501', null,
-  'an admin cannot delete a category in phase 1'
+  'an admin cannot delete a category through the API yet'
 );
 
 reset role;
