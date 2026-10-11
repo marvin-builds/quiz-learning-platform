@@ -404,6 +404,17 @@ describe('admin sign-in screen (/admin/sign-in)', () => {
     expect(screen.getByLabelText(text('admin.signIn.password', 'en'))).toBeOnTheScreen();
   });
 
+  it('signs in when the password field is submitted (Enter), like a login form', async () => {
+    await renderAt('/admin/sign-in');
+    await screen.findByLabelText(text('admin.signIn.email'));
+
+    await fillIn(ADMIN_EMAIL, ADMIN_PASSWORD);
+    await fireEvent(screen.getByLabelText(text('admin.signIn.password')), 'submitEditing');
+
+    expect(await screen.findByText(dashboardTitle())).toBeOnTheScreen();
+    expect(mockAuth.passwordSignIns).toEqual([{ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }]);
+  });
+
   it('signs in with the typed email and password and opens the dashboard', async () => {
     const result = await renderAt('/admin/sign-in');
     await screen.findByLabelText(text('admin.signIn.email'));
