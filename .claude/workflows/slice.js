@@ -192,7 +192,7 @@ if (run === 'all' || run === 'red') {
   phase('Red');
   await work(
     'commit-tests',
-    `The human approved the uncommitted failing tests at gate 1. If test files are uncommitted, commit them on their own: stage only them, message \`Add failing tests for <what>\` (sentence case, the attribution line from your instructions). If they are already committed, change nothing.`,
+    `The human approved the uncommitted failing tests at gate 1. Log every decision the orchestrator's notes carry over from the red run (design choices the tests pin, rejected or deferred review findings) in the decision log, unless it is already there. If test files are uncommitted, commit them on their own: stage only them, message \`Add failing tests for <what>\` (sentence case, the attribution line from your instructions). If they are already committed, change nothing.`,
     { phase: 'Red' },
   );
 } else {
