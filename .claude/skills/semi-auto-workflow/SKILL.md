@@ -10,8 +10,8 @@ Invoking this skill is my go-ahead for everything up to the merge of one
 issue: gate 1 (the tests; database-security slices still stop there, see
 step 4), commits, push, PR and rebases of the slice's own
 branch. **Never merge**; that stays mine. Everything else in `feature-slice`
-and `CLAUDE.md` applies unchanged: the hooks, the caps, the locked tests and
-the never-break rules. The approval covers this one issue; the next one needs
+and `CLAUDE.md` applies unchanged: the hooks, the caps, approved tests as the spec
+and the never-break rules. The approval covers this one issue; the next one needs
 a new invocation.
 
 ## 1. Pick the issue
@@ -76,8 +76,8 @@ you make it, not afterwards:
 - **Decision**, and where it lands (file, test, column, message);
 - **Options** considered, and why this one;
 - **Confidence**: high, medium or low;
-- **Reversal cost**: what changing it later would take (a migration, a locked
-  test, a public API).
+- **Reversal cost**: what changing it later would take (a migration, a re-spec
+  of approved tests, a public API).
 
 Typical entries: a conservative reading of an ambiguous criterion, a design
 choice the tests pin down, a review finding rejected or deferred, a deviation
@@ -115,8 +115,8 @@ Triage the findings:
 
 ### Gate 1 doesn't stop, but the tests get the review I would give them
 
-Once committed they are locked, and only I can unlock them, so review them
-while they are still new, following `quality-review-loop`:
+Once committed they are the spec, and changing them is a re-spec, so review
+them while they are still new, following `quality-review-loop`:
 
 1. Run the `test-writer`'s tests yourself and confirm each fails for the
    right reason (a missing table or function, not a typo or a broken
@@ -144,10 +144,16 @@ while they are still new, following `quality-review-loop`:
 
 ### During green, refactor and review
 
-- **A test that looks wrong** still stops the run: explain why and ask me to
-  unlock, as in `feature-slice` step 3.
-- **Review findings** that would need a change to a locked test become open
-  points in the PR, not fixes.
+- **A test that looks wrong against the spec** is re-spec'd, not worked
+  around and never weakened to get green: the `test-writer` changes it, and
+  the change gets the same review as new tests (items 1 to 4 of the gate 1
+  list, plus the lens "nothing is weakened": no removed assertions, looser
+  matchers or skipped cases without a reason from the spec). Log it as a
+  decision for the report, and commit it on its own before changing the
+  code. A re-spec in a database-security slice stops for my approval, as at
+  gate 1.
+- **Review findings** that would need a change to an approved test follow
+  the same re-spec path, or become open points in the PR.
 - Log implementation choices that go beyond the tests (a helper vs. a
   subquery, an extra constraint, a deviation from a doc).
 
