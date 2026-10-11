@@ -89,6 +89,27 @@ leaderboard) can close it. The scoring rules now live in SQL. The TypeScript
 version in `src/domain/scoring.ts` stays as the property-tested reference
 that the SQL cases mirror.
 
+#### Addendum (2026-10-12): only a visible quiz can be answered
+
+An attempt outlives its quiz's visibility: an admin can unpublish a quiz, or
+its category, and edit it as a draft while attempts on it are open. If
+`submit_answer` kept serving those attempts, a learner could read the draft's
+solutions, which are not published yet. Of the options (snapshot the
+solutions when the attempt starts, or refuse at submit time), I chose to
+refuse at submit time:
+
+- Every call, first or repeated, needs the attempt's quiz to be visible now
+  (quiz and category published, `private.is_quiz_visible`). Otherwise it
+  raises the same `not available` as every other rejection, stores nothing
+  and reveals nothing, also for a question answered before.
+- It applies to every role; admins get no exemption.
+- It doesn't latch: once the quiz is published again, the attempt can be
+  answered again.
+
+This replaces the earlier behavior that let an attempt started before its
+quiz was unpublished still be answered and finished. Such an attempt stays
+open until its quiz is published again.
+
 ## Consequences
 
 **Positive:**
