@@ -410,6 +410,16 @@ reset role;
 
 select results_eq(
   $$ select attempt_id, question_id, is_correct, points from public.attempt_answers
+     -- The fixture attempts and the rejected insert's attempt id, so leftovers
+     -- of e2e runs don't count.
+     where attempt_id in ('f0000000-0000-0000-0000-000000000001',
+                          'f0000000-0000-0000-0000-000000000002',
+                          'f0000000-0000-0000-0000-000000000003',
+                          'f0000000-0000-0000-0000-000000000004',
+                          'f0000000-0000-0000-0000-000000000005',
+                          'f0000000-0000-0000-0000-000000000006',
+                          'f0000000-0000-0000-0000-000000000007',
+                          'f0000000-0000-0000-0000-0000000000ff')
      order by attempt_id, question_id $$,
   $$ values
        ('f0000000-0000-0000-0000-000000000001'::uuid,
