@@ -65,11 +65,14 @@ function slug(title) {
   return words.join('-');
 }
 
+// The issues right after "Depends on", joined by commas, "and" or spaces; the
+// list ends at anything else, so "Depends on #79; blocks #80" names only #79.
+const DEPENDS_ON = /depends on((?:[\s,]*(?:and\s+)?#\d+)+)/gi;
+
 function dependencies(issue) {
-  return issue.body
-    .split('\n')
-    .filter((line) => /depends on/i.test(line))
-    .flatMap((line) => [...line.matchAll(/#(\d+)/g)].map((m) => Number(m[1])));
+  return [...issue.body.matchAll(DEPENDS_ON)].flatMap((list) =>
+    [...list[1].matchAll(/#(\d+)/g)].map((m) => Number(m[1])),
+  );
 }
 
 function branches() {
