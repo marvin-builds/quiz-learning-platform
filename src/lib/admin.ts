@@ -1,4 +1,4 @@
-import { isAuthApiError, isAuthRetryableFetchError, type Session } from '@supabase/supabase-js';
+import { isAuthApiError, type Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
@@ -38,17 +38,13 @@ export async function fetchIsAdmin(userId: string): Promise<boolean> {
   return data?.role === 'admin';
 }
 
-export type SignInError = 'invalidCredentials' | 'network';
-
-/** Signs in with email and password; the error says which message to show. */
-export async function signInWithPassword(email: string, password: string): Promise<void> {
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
-}
-
-export function signInErrorOf(error: unknown): SignInError {
-  if (isAuthRetryableFetchError(error)) return 'network';
-  if (isAuthApiError(error) && error.code === 'invalid_credentials') return 'invalidCredentials';
-  // Anything else (a server error, a rate limit) isn't the visitor's typing.
-  return 'network';
+/**
+ * Which message a failed sign-in shows. Only GoTrue's invalid_credentials is
+ * the visitor's typing; anything else (no connection, a server error, a rate
+ * limit) gets the try-again message.
+ */
+export function signInErrorOf(error: unknown): 'invalidCredentials' | 'network' {
+  return isAuthApiError(error) && error.code === 'invalid_credentials'
+    ? 'invalidCredentials'
+    : 'network';
 }
