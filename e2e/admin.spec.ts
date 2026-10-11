@@ -118,3 +118,29 @@ test('signing out returns to the learner area and closes /admin again', async ({
   await page.goto('/admin');
   await expectKeptOut(page);
 });
+
+// The admin policies let RLS return drafts to an admin, so the learner area
+// filters on `published` itself: a signed-in admin sees it like a learner.
+// Seed (supabase/seed.sql): Musik is an unpublished category, Flüsse in
+// Deutschland a draft in Geografie, Komponisten a published quiz in Musik.
+test('a signed-in admin sees the learner area without drafts', async ({ page }) => {
+  await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await expect(dashboardHeading(page)).toBeVisible();
+
+  await page.goto('/');
+  await expect(page.getByText('Geografie', { exact: true })).toBeVisible();
+  await expect(page.getByText('Musik', { exact: true })).toBeHidden();
+
+  await page.goto('/categories/10000000-0000-4000-8000-000000000004');
+  await expect(page.getByText(de.category.notFound, { exact: true })).toBeVisible();
+
+  await page.goto('/categories/10000000-0000-4000-8000-000000000001');
+  await expect(page.getByText('Hauptstädte Europas', { exact: true })).toBeVisible();
+  await expect(page.getByText('Flüsse in Deutschland', { exact: true })).toBeHidden();
+
+  await page.goto('/quizzes/20000000-0000-4000-8000-000000000002');
+  await expect(page.getByText(de.quiz.notFound, { exact: true })).toBeVisible();
+
+  await page.goto('/quizzes/20000000-0000-4000-8000-000000000004');
+  await expect(page.getByText(de.quiz.notFound, { exact: true })).toBeVisible();
+});

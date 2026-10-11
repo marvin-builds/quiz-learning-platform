@@ -8,8 +8,8 @@ import { renderWithQueryClient } from '@/test-utils/render-with-query-client';
 
 // The loading, empty and error states of the category list on `/`.
 // Boundaries: the Supabase client (network) and the router (navigation).
-// Every `supabase.from(...)` query answers with `mockResponse`, or never
-// answers while it is 'pending'.
+// Every `supabase.from(...)` query answers with the rows of `mockResponse`
+// that pass its `eq` filters, or never answers while it is 'pending'.
 
 type PostgrestError = { message: string; code: string };
 type Response = { data: unknown; error: PostgrestError | null } | 'pending';
@@ -17,17 +17,30 @@ type Response = { data: unknown; error: PostgrestError | null } | 'pending';
 const mockResponse: { current: Response } = { current: 'pending' };
 
 function mockQueryBuilder() {
+  const filters: [string, unknown][] = [];
   const builder = {
     select: () => builder,
     order: () => builder,
+    eq(column: string, value: unknown) {
+      filters.push([column, value]);
+      return builder;
+    },
     abortSignal: () => builder,
     then<T>(
       onFulfilled: (value: { data: unknown; error: PostgrestError | null }) => T,
       onRejected?: (reason: unknown) => T,
     ) {
       const response = mockResponse.current;
+      const filtered = (data: unknown) =>
+        Array.isArray(data)
+          ? data.filter((row: Record<string, unknown>) =>
+              filters.every(([column, value]) => row[column] === value),
+            )
+          : data;
       const result: Promise<{ data: unknown; error: PostgrestError | null }> =
-        response === 'pending' ? new Promise(() => {}) : Promise.resolve(response);
+        response === 'pending'
+          ? new Promise(() => {})
+          : Promise.resolve({ ...response, data: filtered(response.data) });
       return result.then(onFulfilled, onRejected);
     },
   };
@@ -56,6 +69,7 @@ const category = {
   name: 'Geografie',
   description: 'Länder, Städte und Flüsse',
   sort_order: 1,
+  published: true,
 };
 const failure = { code: 'PGRST000', message: 'connection refused' };
 
