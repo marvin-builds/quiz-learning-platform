@@ -25,7 +25,7 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `npm run lint`: ESLint with Prettier and the no-hard-coded-strings rule
 - `npm run typecheck`: `tsc --noEmit` in strict mode
 - `npm run test:e2e`: Playwright and axe in Chromium (phone and desktop) on
-  the static web export; needs `npx supabase start && npx supabase db reset`
+  the static web export, one run at a time across worktrees (a lock); needs `npx supabase start && npx supabase db reset`
   first, and once `npx playwright install chromium`
 - `npm run -s check`: lint, typecheck, tests and timing tests, quiet (only
   problems and a summary); use it for verification runs; no e2e tests
@@ -33,7 +33,11 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `npm run -s slice [-- <n>]`: from a terminal, pick the next issue (or `<n>`),
   create or reuse its worktree in `../quiz-learning-platform.worktrees/`, run
   `npm ci` there and start a semi-auto session named after the branch;
-  `-- --pick` only prints the pick
+  `-- --pick` only prints the pick; `-- --ready` lists all startable issues,
+  `-- --no-session <n> [--parent <branch>]` only creates the worktree (for
+  the orchestrator), `-- --orchestrate` starts the orchestrator session
+- `node scripts/migration-order.mjs [--fix] [<base>]`: migrations of the
+  branch older than `origin/main`'s newest (`--fix` renames them); before a push
 - `npx expo install <package>`: add dependencies with versions matching the Expo SDK
 - `npx expo-doctor`: check dependency and config problems
 - `gh workflow run android-preview.yml --ref main`: build the Android preview
@@ -137,6 +141,12 @@ automatically:
   files; `reviewer` reviews the branch diff read-only; `ui-verifier` checks
   the running web app through the Playwright MCP server (`.mcp.json`; setup
   in `feature-slice` step 5). The `e2e-flow` skill covers e2e specs.
+- **Orchestrator:** the `orchestrator` skill runs several issues at once
+  from the main checkout, each as the `slice` workflow
+  (`.claude/workflows/slice.js`) in its own worktree, within
+  `scripts/capacity.mjs`'s resource check; ADR 0003 → orchestrator amendment.
+  Workflow agents edit by absolute path, so the hooks check the edited
+  file's work tree, and the stop gate the `Slice worktree:` line of the task.
 - **Which checkout:** the hooks check the git work tree of the session's
   working directory (a worktree after `EnterWorktree`), falling back to
   `CLAUDE_PROJECT_DIR`. The hook scripts themselves load from the main
