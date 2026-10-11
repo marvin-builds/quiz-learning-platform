@@ -63,7 +63,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:timing": "jest --runInBand --testPathIgnorePatterns /node_modules/ '/\\.stryker-tmp/' '--testPathPattern=\\.timing\\.test\\.ts$'",
-    "test:e2e": "playwright test",
+    "test:e2e": "node scripts/e2e-lock.mjs playwright test",
     "check": "expo lint --quiet && tsc --noEmit --pretty false && jest --silent --reporters=summary && npm run -s test:timing -- --silent --reporters=summary",
     "db:types": "supabase gen types typescript --local > src/types/database.ts && prettier --write --log-level warn src/types/database.ts",
     "test:mutation": "stryker run",
