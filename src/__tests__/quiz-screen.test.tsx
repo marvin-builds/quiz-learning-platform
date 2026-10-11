@@ -28,13 +28,17 @@ function renderWithQueryClient(ui: ReactElement) {
 // The fake client answers like the local stack would:
 // - `from(table)` queries apply `eq`/`in` filters, `order` (also on embedded
 //   tables via `referencedTable`, as `answers` or `questions.answers`),
-//   `maybeSingle`/`single`, embeds (`questions(...)`, `answers(...)`), a
+//   `maybeSingle`/`single`, embeds (`questions(...)`, `answers(...)`, and
+//   the quiz's category as one object, `categories(...)`), a
 //   `{ count: 'exact', head }` option (count is null without it), and return
 //   only the selected columns. A non-UUID id fails with 22P02. As the column
 //   grants do, selecting `questions.explanation`, `answers.is_correct`, `*`
 //   or a count-only embed (`questions(count)`) on those tables fails with
 //   42501; aggregates such as `id.count()` fail with PGRST123, as PostgREST
-//   has them disabled.
+//   has them disabled. A filter on `<embed path>.<column>` (e.g.
+//   `categories.published`) filters the embedded rows only, and an
+//   `!inner` embed drops the row when no embedded row is left, as in
+//   PostgREST. The fake returns drafts like the database does to an admin.
 // - Reads of question texts or answers are "content" reads, controlled by
 //   `mockRead.content`; every other read (the quiz, its question count) by
 //   `mockRead.detail`.
@@ -54,7 +58,7 @@ type PostgrestError = {
 };
 type Result = { data: unknown; error: PostgrestError | null; count?: number | null };
 type ReadState = 'ok' | 'pending' | { error: PostgrestError };
-type Field = { key: string; column: string; embed?: Field[] };
+type Field = { key: string; column: string; inner?: boolean; embed?: Field[] };
 type Order = { column: string; ascending: boolean; referencedTable?: string };
 type Query = {
   table: string;
@@ -67,7 +71,13 @@ type Query = {
 };
 type Session = { access_token: string; user: { id: string; is_anonymous: boolean } };
 
-const mockDb: Record<string, Row[]> = { quizzes: [], questions: [], answers: [], attempts: [] };
+const mockDb: Record<string, Row[]> = {
+  categories: [],
+  quizzes: [],
+  questions: [],
+  answers: [],
+  attempts: [],
+};
 const mockRead: { detail: ReadState; content: ReadState } = { detail: 'ok', content: 'ok' };
 const mockQueries: Query[] = [];
 const mockRpcHandlers: Record<string, (args: Row) => Promise<Result>> = {};
@@ -82,6 +92,8 @@ const mockParams: { current: Record<string, string> } = { current: {} };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PARENT_KEY: Record<string, string> = { questions: 'quiz_id', answers: 'question_id' };
+// To-one embeds: the column of the embedding row that references the embedded one.
+const REFERENCE_KEY: Record<string, string> = { categories: 'category_id' };
 const HIDDEN_COLUMNS: Record<string, string[]> = {
   questions: ['explanation', '*'],
   answers: ['is_correct', '*'],
@@ -107,13 +119,14 @@ function mockSplitTopLevel(select: string): string[] {
 
 function mockParseFields(select: string): Field[] {
   return mockSplitTopLevel(select).map((item) => {
-    const match = /^(?:(\w+):)?([\w*]+)(?:!\w+)?(?:\(([\s\S]*)\))?$/.exec(item);
+    const match = /^(?:(\w+):)?([\w*]+)(?:!(\w+))?(?:\(([\s\S]*)\))?$/.exec(item);
     if (!match) throw new Error(`The fake client can't parse the select item "${item}"`);
-    const [, alias, column, inner] = match;
+    const [, alias, column, hint, body] = match;
     return {
       key: alias ?? column,
       column,
-      embed: inner === undefined ? undefined : mockParseFields(inner),
+      inner: hint === 'inner',
+      embed: body === undefined ? undefined : mockParseFields(body),
     };
   });
 }
@@ -173,23 +186,45 @@ function mockChildren(table: string, parent: Row): Row[] {
   return (mockDb[table] ?? []).filter((row) => row[key] === parent.id);
 }
 
+// Whether a row at `path` passes the filters on that path: `id` at the top,
+// `categories.published` for the embedded category.
+function mockMatches(row: Row, query: Query, path: string[]): boolean {
+  return query.filters.every(({ column, values }) => {
+    const segments = column.split('.');
+    const name = segments.pop()!;
+    return segments.join('.') !== path.join('.') || values.includes(row[name]);
+  });
+}
+
 // `path` is the embed path from the queried table (e.g. `questions.answers`);
-// an embedded order names either that path or its last segment.
-function mockProject(row: Row, fields: Field[], query: Query, path: string[] = []): Row {
+// an embedded order names either that path or its last segment. Null: an
+// `!inner` embed has no row left, so the row itself drops out.
+function mockProject(row: Row, fields: Field[], query: Query, path: string[] = []): Row | null {
   const projected: Row = {};
   for (const field of fields) {
     if (field.embed) {
       const childPath = [...path, field.column];
+      const referenceKey = REFERENCE_KEY[field.column];
+      if (referenceKey) {
+        const referenced = (mockDb[field.column] ?? []).find(
+          (other) => other.id === row[referenceKey] && mockMatches(other, query, childPath),
+        );
+        const embedded = referenced ? mockProject(referenced, field.embed, query, childPath) : null;
+        if (field.inner && !embedded) return null;
+        projected[field.key] = embedded;
+        continue;
+      }
       const children = mockSort(
-        mockChildren(field.column, row),
+        mockChildren(field.column, row).filter((child) => mockMatches(child, query, childPath)),
         query.orders.filter(
           (order) =>
             order.referencedTable === childPath.join('.') || order.referencedTable === field.column,
         ),
-      );
-      projected[field.key] = children.map((child) =>
-        mockProject(child, field.embed!, query, childPath),
-      );
+      )
+        .map((child) => mockProject(child, field.embed!, query, childPath))
+        .filter((child): child is Row => child !== null);
+      if (field.inner && children.length === 0) return null;
+      projected[field.key] = children;
     } else if (field.column === '*') {
       Object.assign(projected, row);
     } else {
@@ -233,11 +268,11 @@ function mockRespond(query: Query): Promise<Result> {
   if (state !== 'ok') return Promise.resolve({ data: null, error: state.error });
 
   const rows = mockSort(
-    (mockDb[query.table] ?? []).filter((row) =>
-      query.filters.every(({ column, values }) => values.includes(row[column])),
-    ),
+    (mockDb[query.table] ?? []).filter((row) => mockMatches(row, query, [])),
     query.orders.filter((order) => !order.referencedTable),
-  ).map((row) => mockProject(row, fields, query));
+  )
+    .map((row) => mockProject(row, fields, query))
+    .filter((row): row is Row => row !== null);
 
   const count = query.count ? rows.length : null;
   if (query.mode === 'many') {
@@ -422,6 +457,13 @@ const QUIZ = '20000000-0000-4000-8000-000000000001';
 const EMPTY_QUIZ = '20000000-0000-4000-8000-000000000005';
 const ATTEMPT = '60000000-0000-4000-8000-000000000001';
 
+const geografie = {
+  id: GEOGRAFIE,
+  name: 'Geografie',
+  description: 'Länder, Städte und Flüsse',
+  sort_order: 1,
+  published: true,
+};
 const quiz = {
   id: QUIZ,
   category_id: GEOGRAFIE,
@@ -482,6 +524,7 @@ const bratislava = answer(9, danube.id, 'Bratislava', true, 3);
 const budapest = answer(10, danube.id, 'Budapest', true, 4);
 
 function seedTables() {
+  mockDb.categories = [geografie];
   mockDb.quizzes = [emptyQuiz, quiz];
   mockDb.questions = [danube, france, italy];
   mockDb.answers = [
@@ -743,6 +786,24 @@ describe('<QuizScreen />', () => {
       await renderWithQueryClient(<QuizScreen />);
 
       expect(await screen.findByText(i18n.t('quiz.notFound'))).toBeOnTheScreen();
+      expectOnlyStatus('notFound');
+    });
+
+    // RLS returns drafts to an admin, so the learner area filters them itself.
+    it.each([
+      ['an unpublished quiz', () => (mockDb.quizzes = [emptyQuiz, { ...quiz, published: false }])],
+      [
+        'a published quiz in an unpublished category',
+        () => (mockDb.categories = [{ ...geografie, published: false }]),
+      ],
+    ])('shows the not-found state for %s, even when the database returns it', async (_, draft) => {
+      draft();
+
+      await renderWithQueryClient(<QuizScreen />);
+
+      expect(await screen.findByText(i18n.t('quiz.notFound'))).toBeOnTheScreen();
+      expect(screen.queryByText(quiz.title)).not.toBeOnTheScreen();
+      expect(screen.queryByRole('button', { name: i18n.t('quiz.start') })).not.toBeOnTheScreen();
       expectOnlyStatus('notFound');
     });
 
