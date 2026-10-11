@@ -6,9 +6,19 @@
 //   npm run -s slice -- <n>     start or resume issue <n>
 //   npm run -s slice -- --pick  print the next issue as JSON, change nothing
 //
+// For the orchestrator (#17):
+//   npm run -s slice -- --orchestrate   start the orchestrator session in the
+//                                       main checkout, with push authority for
+//                                       the branches it sets up
+//   npm run -s slice -- --ready         print every issue that can start, and
+//                                       why the others wait, as JSON
+//   npm run -s slice -- --no-session <n> [--parent <branch>]
+//       set up issue <n>'s worktree without a session and print it as JSON;
+//       a new branch starts from <branch> (a stacked child) instead of main
+//
 // The pick: open issues by milestone, then number; skip one that has a
-// `<n>-*` branch (local or on origin) or whose "Depends on #n" issues are
-// still open. Worktrees go to `<main checkout>.worktrees/<n>-<slug>`, where
+// `<n>-*` branch (local or on origin), is labelled `manual`, or whose
+// "Depends on #n" issues are still open. Worktrees go to `<main checkout>.worktrees/<n>-<slug>`, where
 // GitKraken puts them too.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -27,7 +37,7 @@ function run(cmd, args, options = {}) {
 const git = (...args) => run('git', args);
 const gh = (...args) => JSON.parse(run('gh', args));
 
-const FIELDS = 'number,title,milestone,body';
+const FIELDS = 'number,title,milestone,body,labels';
 const FILLER = new Set([
   'a',
   'an',
@@ -80,11 +90,15 @@ function worktrees() {
 
 const ownBranch = (names, number) => names.find((name) => name.startsWith(`${number}-`));
 
-function pick() {
+const isManual = (issue) => (issue.labels ?? []).some((label) => label.name === 'manual');
+
+/** Every open issue in pick order, as ready or waiting (with the reason). */
+function survey() {
   const open = gh('issue', 'list', '--state', 'open', '--limit', '200', '--json', FIELDS);
   const openNumbers = new Set(open.map((issue) => issue.number));
   const existing = branches();
-  const waits = [];
+  const ready = [];
+  const waiting = [];
   const sorted = [...open].sort(
     (a, b) =>
       (a.milestone?.number ?? Infinity) - (b.milestone?.number ?? Infinity) || a.number - b.number,
@@ -92,18 +106,28 @@ function pick() {
   for (const issue of sorted) {
     const branch = ownBranch(existing, issue.number);
     const blockers = dependencies(issue).filter((n) => openNumbers.has(n));
-    if (branch) waits.push(`#${issue.number}: in progress (branch ${branch})`);
-    else if (blockers.length) {
-      waits.push(`#${issue.number}: waits for ${blockers.map((n) => `#${n}`).join(', ')}`);
-    } else return { issue, waits };
+    let reason;
+    if (branch) reason = `in progress (branch ${branch})`;
+    else if (isManual(issue)) reason = 'manual';
+    else if (blockers.length) reason = `waits for ${blockers.map((n) => `#${n}`).join(', ')}`;
+    if (reason) waiting.push({ issue, reason });
+    else ready.push(issue);
   }
-  return { issue: undefined, waits };
+  return { ready, waiting };
+}
+
+function pick() {
+  const { ready, waiting } = survey();
+  return {
+    issue: ready[0],
+    waits: waiting.map(({ issue, reason }) => `#${issue.number}: ${reason}`),
+  };
 }
 
 // The issue's worktree: an existing one, one for its existing branch, or a
 // new branch from origin/main without an upstream, so a bare `git push` can
 // never target main.
-function worktreeFor(issue, root) {
+function worktreeFor(issue, root, parent) {
   const found = worktrees().find((w) => w.branch?.startsWith(`${issue.number}-`));
   if (found) return found.path;
   const local = ownBranch(git('branch', '--format=%(refname:short)').split('\n'), issue.number);
@@ -112,10 +136,36 @@ function worktreeFor(issue, root) {
   const dir = path.join(`${root}.worktrees`, branch);
   if (local) git('worktree', 'add', '-q', dir, branch);
   else {
-    const remote = ownBranch(branches(), issue.number) ? `origin/${branch}` : 'origin/main';
+    const remote = ownBranch(branches(), issue.number) ? `origin/${branch}` : baseOf(parent);
     git('worktree', 'add', '-q', '--no-track', '-b', branch, dir, remote);
   }
   return dir;
+}
+
+// A stacked child starts from its parent's branch: the pushed one if there
+// is one, else the local one.
+function baseOf(parent) {
+  if (!parent) return 'origin/main';
+  const remote = spawnSync('git', ['rev-parse', '-q', '--verify', `refs/remotes/origin/${parent}`]);
+  return remote.status === 0 ? `origin/${parent}` : parent;
+}
+
+// The personal push guard lets an orchestrator session push the branches
+// listed here (one per line, in the git common dir).
+function allowPush(branch) {
+  const file = path.join(
+    git('rev-parse', '--path-format=absolute', '--git-common-dir'),
+    'ai-push-branches',
+  );
+  const listed = fs.existsSync(file)
+    ? fs.readFileSync(file, 'utf8').split('\n').filter(Boolean)
+    : [];
+  if (!listed.includes(branch)) fs.writeFileSync(file, [...listed, branch, ''].join('\n'));
+}
+
+function option(args, name) {
+  const at = args.indexOf(name);
+  return at === -1 ? undefined : args[at + 1];
 }
 
 async function confirm(question) {
@@ -128,7 +178,37 @@ async function confirm(question) {
 
 async function main(args) {
   const root = path.dirname(git('rev-parse', '--path-format=absolute', '--git-common-dir'));
+  if (args[0] === '--orchestrate') {
+    const session = spawnSync('claude', ['-n', 'orchestrator', '/orchestrator'], {
+      cwd: root,
+      stdio: 'inherit',
+      env: { ...process.env, AI_PUSH_AUTHORITY: 'orchestrator' },
+    });
+    return session.status ?? 1;
+  }
   git('fetch', '-q', 'origin');
+
+  if (args[0] === '--ready') {
+    const { ready, waiting } = survey();
+    const brief = (issue) => ({
+      number: issue.number,
+      title: issue.title,
+      branch: `${issue.number}-${slug(issue.title)}`,
+    });
+    console.log(
+      JSON.stringify({
+        ready: ready.map(brief),
+        waiting: waiting.map(({ issue, reason }) => ({ number: issue.number, reason })),
+      }),
+    );
+    return 0;
+  }
+
+  // Without a session, stdout carries only the JSON line for the orchestrator.
+  const noSession = args[0] === '--no-session';
+  if (noSession) args = args.slice(1);
+  const say = noSession ? console.error : console.log;
+  const quiet = noSession ? ['inherit', process.stderr, 'inherit'] : 'inherit';
 
   let issue;
   if (args[0] && args[0] !== '--pick') {
@@ -161,18 +241,25 @@ async function main(args) {
     }
   }
 
-  const dir = worktreeFor(issue, root);
-  console.log(`Worktree: ${dir}`);
+  const dir = worktreeFor(issue, root, noSession ? option(args, '--parent') : undefined);
+  say(`Worktree: ${dir}`);
   // Its own Supabase stack settings; the script next to this one, since an
   // older worktree may predate it.
-  run(process.execPath, [path.join(import.meta.dirname, 'stack.mjs'), dir], { stdio: 'inherit' });
+  run(process.execPath, [path.join(import.meta.dirname, 'stack.mjs'), dir], { stdio: quiet });
   if (!fs.existsSync(path.join(dir, 'node_modules'))) {
-    run('npm', ['ci'], { cwd: dir, stdio: 'inherit' });
+    run('npm', ['ci'], { cwd: dir, stdio: quiet });
+  }
+  const branch = run('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: dir });
+  if (noSession) {
+    allowPush(branch);
+    console.log(
+      JSON.stringify({ number: issue.number, title: issue.title, branch, worktree: dir }),
+    );
+    return 0;
   }
   // Named after the branch, so the terminal title and /resume show the issue.
   // AI_PUSH_AUTHORITY lets the personal push guard allow pushes of this
   // session's own branch (never main) without a prompt.
-  const branch = run('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: dir });
   const session = spawnSync('claude', ['-n', branch, `/semi-auto-workflow ${issue.number}`], {
     cwd: dir,
     stdio: 'inherit',
