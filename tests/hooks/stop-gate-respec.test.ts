@@ -1,18 +1,17 @@
 /**
  * @jest-environment node
  */
-import fs from 'node:fs';
 import { Fixture, writeTypeScriptProject } from './fixture';
 
 jest.setTimeout(60_000);
 
 const HOOK = 'stop-gate.mjs';
 const CAP = { QUIZ_STOP_CAP: '2' };
-const UNLOCK_FILE = '.claude/state/tests-unlocked';
 
-// A committed test with uncommitted changes is a re-spec the human unlocked,
-// provided protect-tests recorded the change as an unlocked edit: like a new
-// test at gate 1, it may then be red until the human approves it.
+// A committed test with uncommitted changes is a re-spec: like a new test at
+// gate 1, it may be red until the human approves it. Everything else that is
+// red still blocks. The plain working-tree re-spec and a re-spec with a type
+// error are covered in stop-gate-respec-any-change.test.ts.
 describe('stop-gate hook with a committed test that has uncommitted changes', () => {
   let fixture: Fixture;
 
@@ -37,26 +36,9 @@ describe('stop-gate hook with a committed test that has uncommitted changes', ()
     return fixture.runHook(HOOK, { hook_event_name: 'Stop', stop_hook_active: false }, CAP);
   }
 
-  /**
-   * Changes a committed test as the agent does after the human's unlock: the
-   * protect-tests hook allows the Edit and records it, then the tool writes the
-   * file. The human's next message locks again, so the marker is gone at the stop.
-   */
-  function unlockedEdit(relative: string, content: string): void {
-    fixture.write(UNLOCK_FILE, '');
-    const result = fixture.runHook('protect-tests.mjs', {
-      hook_event_name: 'PreToolUse',
-      tool_name: 'Edit',
-      tool_input: { file_path: fixture.path(relative), old_string: 'a', new_string: 'b' },
-    });
-    expect(result.output?.hookSpecificOutput?.permissionDecision).not.toBe('deny');
-    fixture.write(relative, content);
-    fs.rmSync(fixture.path(UNLOCK_FILE));
-  }
-
   /** Changes the approved sum test so that it fails against the unchanged code. */
   function respecCommittedTest(): void {
-    unlockedEdit(
+    fixture.write(
       'src/sum.test.js',
       "const sum = require('./sum');\ntest('adds three', () => expect(sum(1, 2, 3)).toBe(6));\n",
     );
@@ -66,44 +48,9 @@ describe('stop-gate hook with a committed test that has uncommitted changes', ()
     fixture.write('src/sum.js', 'module.exports = (a, b) => a - b;\n');
   }
 
-  it('lets the agent stop when the only red test is a committed test changed in the working tree', () => {
-    respecCommittedTest();
-
-    const result = stop();
-
-    expect(result.status).toBe(0);
-    expect(result.output?.decision).toBeUndefined();
-  });
-
   it('lets the agent stop when the only red test is a committed test with staged changes', () => {
     respecCommittedTest();
     fixture.git('add', 'src/sum.test.js');
-
-    const result = stop();
-
-    expect(result.status).toBe(0);
-    expect(result.output?.decision).toBeUndefined();
-  });
-
-  it('lets the agent stop when a changed committed TypeScript test has a type error', () => {
-    // Jest only runs the .js tests here, so the type error is the only failure.
-    fixture.write(
-      'package.json',
-      JSON.stringify({ jest: { testEnvironment: 'node', testMatch: ['**/*.test.js'] } }),
-    );
-    fixture.write('src/score.ts', 'export const score = (): number => 1;\n');
-    fixture.write(
-      'src/score-types.test.ts',
-      "import { score } from './score';\nexport const points: number = score();\n",
-    );
-    fixture.commitAll('approve score types');
-    fixture.markAsOriginMain();
-    expect(stop().output?.decision).toBeUndefined();
-
-    unlockedEdit(
-      'src/score-types.test.ts',
-      "import { score } from './score';\nexport const points: string = score();\n",
-    );
 
     const result = stop();
 
