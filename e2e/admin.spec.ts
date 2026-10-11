@@ -100,6 +100,17 @@ test('a wrong password shows the wrong-credentials message', async ({ page }) =>
   await expect(page).toHaveURL(/\/admin\/sign-in\/?$/);
 });
 
+// The disabled button loses the focus while signing in; keyboard users get
+// it back at the start of the form instead of nowhere.
+test('after a failed sign-in the focus is back in the email field', async ({ page }) => {
+  await signIn(page, ADMIN_EMAIL, 'not-the-password');
+
+  await expect(
+    page.getByText(text('admin.signIn.errors.invalidCredentials'), { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel(text('admin.signIn.email'), { exact: true })).toBeFocused();
+});
+
 test('an anonymous visitor opening /admin does not see the dashboard', async ({ page }) => {
   await page.goto('/admin');
 
