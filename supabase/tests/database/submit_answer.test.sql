@@ -4,7 +4,8 @@
 -- not), and it returns exactly one row (is_correct, points,
 -- correct_answer_ids, explanation) for the asked question. It records and
 -- scores the first valid answer per (attempt, question) before revealing
--- anything; a later call, or one that loses the race, gets the stored row.
+-- anything; a later call, or one that loses the race, gets the stored row
+-- while the quiz is visible.
 -- Points follow plan § 7 with one point per question, rounded to 2 decimals;
 -- when the stored answers reach max_score the attempt is finished. Every
 -- rejection raises SQLSTATE P0001 with exactly 'not available' and stores
@@ -14,8 +15,14 @@
 -- created by start_attempt start at the same instant the fixture questions
 -- were created, which must count as "not after". In phase 1 an admin is
 -- treated like a learner.
+-- Visibility (#76): every call, first or repeated, needs the attempt's quiz
+-- to be visible now (quiz and category published, as in
+-- private.is_quiz_visible), for every role. Otherwise it raises the same
+-- 'not available', stores nothing and reveals no solution, so a quiz that is
+-- unpublished and edited as a draft can't leak the draft. The check doesn't
+-- latch: once the quiz is published again, submissions work again.
 begin;
-select plan(86);
+select plan(98);
 
 -- Fixtures ----------------------------------------------------------------
 
@@ -30,7 +37,11 @@ insert into auth.users (id, is_anonymous) values
 update public.profiles set role = 'admin' where id = '33333333-3333-3333-3333-333333333333';
 
 insert into public.categories (id, name, sort_order, published) values
-  ('c0000000-0000-0000-0000-000000000001', 'Sichtbares Thema', 1, true);
+  ('c0000000-0000-0000-0000-000000000001', 'Sichtbares Thema', 1, true),
+  -- unpublished after the attempt on its quiz started
+  ('c0000000-0000-0000-0000-000000000002', 'Wird verborgen', 2, true),
+  -- never published; a quiz is moved here after the attempt started
+  ('c0000000-0000-0000-0000-000000000003', 'Verborgenes Thema', 3, false);
 
 insert into public.quizzes (id, category_id, title, sort_order, published) values
   -- three questions: single with explanation, multiple without, single with explanation
@@ -50,7 +61,19 @@ insert into public.quizzes (id, category_id, title, sort_order, published) value
    'Wächst nach dem Start', 5, true),
   -- three multiple-choice questions with three correct answers each
   ('d0000000-0000-0000-0000-000000000006', 'c0000000-0000-0000-0000-000000000001',
-   'Drei Mehrfachauswahlfragen', 6, true);
+   'Drei Mehrfachauswahlfragen', 6, true),
+  -- its category is unpublished after the attempt started
+  ('d0000000-0000-0000-0000-000000000007', 'c0000000-0000-0000-0000-000000000002',
+   'Thema wird verborgen', 1, true),
+  -- moved to an unpublished category after the attempt started
+  ('d0000000-0000-0000-0000-000000000008', 'c0000000-0000-0000-0000-000000000001',
+   'Wird verschoben', 7, true),
+  -- unpublished after the attempt started, then published again
+  ('d0000000-0000-0000-0000-000000000009', 'c0000000-0000-0000-0000-000000000001',
+   'Wird wieder veröffentlicht', 8, true),
+  -- answered once, then unpublished and edited as a draft
+  ('d0000000-0000-0000-0000-000000000010', 'c0000000-0000-0000-0000-000000000001',
+   'Wird bearbeitet', 9, true);
 
 insert into public.questions (id, quiz_id, text, multiple_correct, explanation, sort_order) values
   ('e0000000-0000-0000-0000-000000000011', 'd0000000-0000-0000-0000-000000000001',
@@ -70,7 +93,17 @@ insert into public.questions (id, quiz_id, text, multiple_correct, explanation, 
   ('e0000000-0000-0000-0000-000000000062', 'd0000000-0000-0000-0000-000000000006',
    'Zweite Mehrfachauswahl?', true, null, 2),
   ('e0000000-0000-0000-0000-000000000063', 'd0000000-0000-0000-0000-000000000006',
-   'Dritte Mehrfachauswahl?', true, null, 3);
+   'Dritte Mehrfachauswahl?', true, null, 3),
+  ('e0000000-0000-0000-0000-000000000071', 'd0000000-0000-0000-0000-000000000007',
+   'Frage im verborgenen Thema?', false, null, 1),
+  ('e0000000-0000-0000-0000-000000000081', 'd0000000-0000-0000-0000-000000000008',
+   'Frage im verschobenen Quiz?', false, null, 1),
+  ('e0000000-0000-0000-0000-000000000091', 'd0000000-0000-0000-0000-000000000009',
+   'Frage im wieder veröffentlichten Quiz?', false, 'Wieder öffentlich.', 1),
+  ('e0000000-0000-0000-0000-000000000101', 'd0000000-0000-0000-0000-000000000010',
+   'Frage, die bearbeitet wird?', false, 'Öffentliche Erklärung.', 1),
+  ('e0000000-0000-0000-0000-000000000102', 'd0000000-0000-0000-0000-000000000010',
+   'Unbeantwortete Frage im bearbeiteten Quiz?', false, 'Noch eine Erklärung.', 2);
 
 insert into public.questions (id, quiz_id, text, multiple_correct, sort_order, created_at) values
   ('e0000000-0000-0000-0000-000000000051', 'd0000000-0000-0000-0000-000000000005',
@@ -110,7 +143,13 @@ insert into public.answers (id, question_id, text, is_correct, sort_order) value
   ('a0000000-0000-0000-0000-000000000631', 'e0000000-0000-0000-0000-000000000063', 'A', true, 1),
   ('a0000000-0000-0000-0000-000000000632', 'e0000000-0000-0000-0000-000000000063', 'B', true, 2),
   ('a0000000-0000-0000-0000-000000000633', 'e0000000-0000-0000-0000-000000000063', 'C', true, 3),
-  ('a0000000-0000-0000-0000-000000000634', 'e0000000-0000-0000-0000-000000000063', 'D', false, 4);
+  ('a0000000-0000-0000-0000-000000000634', 'e0000000-0000-0000-0000-000000000063', 'D', false, 4),
+  ('a0000000-0000-0000-0000-000000000711', 'e0000000-0000-0000-0000-000000000071', 'Ja', true, 1),
+  ('a0000000-0000-0000-0000-000000000811', 'e0000000-0000-0000-0000-000000000081', 'Ja', true, 1),
+  ('a0000000-0000-0000-0000-000000000911', 'e0000000-0000-0000-0000-000000000091', 'Ja', true, 1),
+  ('a0000000-0000-0000-0000-000000001011', 'e0000000-0000-0000-0000-000000000101', 'Richtig', true, 1),
+  ('a0000000-0000-0000-0000-000000001012', 'e0000000-0000-0000-0000-000000000101', 'Falsch', false, 2),
+  ('a0000000-0000-0000-0000-000000001021', 'e0000000-0000-0000-0000-000000000102', 'Ja', true, 1);
 
 -- Alice's attempt on the growing quiz, started at 11:00 (set explicitly).
 insert into public.attempts (id, user_id, quiz_id, started_at, max_score) values
@@ -235,6 +274,10 @@ select set_config('test.race_b', public.start_attempt('d0000000-0000-0000-0000-0
 select set_config('test.unpub', public.start_attempt('d0000000-0000-0000-0000-000000000003')::text, true);
 select set_config('test.deleted', public.start_attempt('d0000000-0000-0000-0000-000000000004')::text, true);
 select set_config('test.three', public.start_attempt('d0000000-0000-0000-0000-000000000006')::text, true);
+select set_config('test.cat', public.start_attempt('d0000000-0000-0000-0000-000000000007')::text, true);
+select set_config('test.moved', public.start_attempt('d0000000-0000-0000-0000-000000000008')::text, true);
+select set_config('test.repub', public.start_attempt('d0000000-0000-0000-0000-000000000009')::text, true);
+select set_config('test.edited', public.start_attempt('d0000000-0000-0000-0000-000000000010')::text, true);
 
 -- Scoring (plan § 7), result and stored row -------------------------------
 
@@ -827,28 +870,150 @@ end;
 $$;
 grant execute on function public.test_submit_answer_error(uuid, uuid, uuid[]) to authenticated;
 
--- Gone or unpublished quizzes ---------------------------------------------
+-- Attempts started (and one answered) while their quizzes are visible -----
+-- The anonymous user and the admin start theirs on the quiz that is
+-- unpublished below; alice answers one question of the quiz that is then
+-- unpublished and edited as a draft.
 
-update public.quizzes set published = false where id = 'd0000000-0000-0000-0000-000000000003';
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub": "44444444-4444-4444-4444-444444444444", "role": "authenticated", "is_anonymous": true}',
+  true);
+select set_config('test.guest_unpub', public.start_attempt('d0000000-0000-0000-0000-000000000003')::text, true);
+
+select set_config('request.jwt.claims',
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+select set_config('test.admin_unpub', public.start_attempt('d0000000-0000-0000-0000-000000000003')::text, true);
+
+select set_config('request.jwt.claims',
+  '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}', true);
+
+select results_eq(
+  $$ select is_correct, points::text, correct_answer_ids, explanation
+     from public.submit_answer(current_setting('test.edited')::uuid,
+       'e0000000-0000-0000-0000-000000000101', '{a0000000-0000-0000-0000-000000001012}') $$,
+  $$ values (false, '0.00', '{a0000000-0000-0000-0000-000000001011}'::uuid[],
+             'Öffentliche Erklärung.') $$,
+  'while its quiz is published, a wrong answer reveals the published solution'
+);
+
+reset role;
+
+-- Gone, unpublished, hidden or edited quizzes -----------------------------
+-- Quiz 3 and 10 are unpublished, quiz 7's category is unpublished, quiz 8 is
+-- moved to an unpublished category, and quiz 4 is deleted. Quiz 10 is then
+-- edited as a draft: the explanation changes, is_correct flips on both old
+-- answers, and a new correct answer is added. Its draft solution is
+-- {1012, 1013} with 'Entwurfserklärung.', none of which may come back.
+
+update public.quizzes set published = false
+where id in ('d0000000-0000-0000-0000-000000000003', 'd0000000-0000-0000-0000-000000000009',
+             'd0000000-0000-0000-0000-000000000010');
+update public.categories set published = false where id = 'c0000000-0000-0000-0000-000000000002';
+update public.quizzes set category_id = 'c0000000-0000-0000-0000-000000000003'
+where id = 'd0000000-0000-0000-0000-000000000008';
+update public.questions set explanation = 'Entwurfserklärung.'
+where id = 'e0000000-0000-0000-0000-000000000101';
+update public.answers set is_correct = not is_correct
+where question_id = 'e0000000-0000-0000-0000-000000000101';
+insert into public.answers (id, question_id, text, is_correct, sort_order) values
+  ('a0000000-0000-0000-0000-000000001013', 'e0000000-0000-0000-0000-000000000101', 'Neu', true, 3);
 delete from public.quizzes where id = 'd0000000-0000-0000-0000-000000000004';
 
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}', true);
 
-select results_eq(
-  $$ select is_correct, points::text
-     from public.submit_answer(current_setting('test.unpub')::uuid,
+-- Re-spec (#76) of the two #47 tests "an attempt started before its quiz was
+-- unpublished can still be answered" and "... can still be finished".
+select throws_ok(
+  $$ select * from public.submit_answer(current_setting('test.unpub')::uuid,
        'e0000000-0000-0000-0000-000000000031', '{a0000000-0000-0000-0000-000000000311}') $$,
-  $$ values (true, '1.00') $$,
-  'an attempt started before its quiz was unpublished can still be answered'
+  'P0001', 'not available',
+  'an attempt whose quiz was unpublished after it started is not available'
 );
 
 select results_eq(
-  $$ select score::text, finished_at is not null from public.attempts
-     where id = current_setting('test.unpub')::uuid $$,
-  $$ values ('1.00', true) $$,
-  'an attempt started before its quiz was unpublished can still be finished'
+  $$ select score::text, finished_at is null,
+            (select count(*)::int from public.attempt_answers
+             where attempt_id = current_setting('test.unpub')::uuid)
+     from public.attempts where id = current_setting('test.unpub')::uuid $$,
+  $$ values ('0.00', true, 0) $$,
+  'the attempt of an unpublished quiz is left unchanged and without answers'
+);
+
+select results_eq(
+  $$ select * from public.test_submit_answer_error(current_setting('test.unpub')::uuid,
+       'e0000000-0000-0000-0000-000000000031', '{a0000000-0000-0000-0000-000000000311}') $$,
+  $$ values ('not available', '', '') $$,
+  'the refusal for an unpublished quiz has the message ''not available'' and no detail or hint'
+);
+
+select throws_ok(
+  $$ select * from public.submit_answer(current_setting('test.cat')::uuid,
+       'e0000000-0000-0000-0000-000000000071', '{a0000000-0000-0000-0000-000000000711}') $$,
+  'P0001', 'not available',
+  'an attempt whose quiz''s category was unpublished after it started is not available'
+);
+
+select throws_ok(
+  $$ select * from public.submit_answer(current_setting('test.moved')::uuid,
+       'e0000000-0000-0000-0000-000000000081', '{a0000000-0000-0000-0000-000000000811}') $$,
+  'P0001', 'not available',
+  'an attempt whose quiz was moved to an unpublished category after it started is not available'
+);
+
+-- A repeated call on the stored answer, with the stored pick and with the
+-- draft's new correct answer: neither may return the draft solution.
+select results_eq(
+  $$ select * from public.test_submit_answer_error(current_setting('test.edited')::uuid,
+       'e0000000-0000-0000-0000-000000000101', '{a0000000-0000-0000-0000-000000001012}')
+     union all
+     select * from public.test_submit_answer_error(current_setting('test.edited')::uuid,
+       'e0000000-0000-0000-0000-000000000101', '{a0000000-0000-0000-0000-000000001013}') $$,
+  $$ values ('not available', '', ''), ('not available', '', '') $$,
+  'a repeated call on an answered question of an unpublished, edited quiz returns no draft solution'
+);
+
+select throws_ok(
+  $$ select * from public.submit_answer(current_setting('test.edited')::uuid,
+       'e0000000-0000-0000-0000-000000000102', '{a0000000-0000-0000-0000-000000001021}') $$,
+  'P0001', 'not available',
+  'an unanswered question of an unpublished, edited quiz is not available'
+);
+
+select results_eq(
+  $$ select a.score::text, a.finished_at is null, aa.question_id, aa.selected_answer_ids,
+            aa.is_correct, aa.points::text
+     from public.attempts a
+     join public.attempt_answers aa on aa.attempt_id = a.id
+     where a.id = current_setting('test.edited')::uuid $$,
+  $$ values ('0.00', true, 'e0000000-0000-0000-0000-000000000101'::uuid,
+             '{a0000000-0000-0000-0000-000000001012}'::uuid[], false, '0.00') $$,
+  'the attempt of an unpublished, edited quiz keeps only its stored answer, score and open state'
+);
+
+-- Re-publishing: the check runs on every call and doesn't latch.
+select throws_ok(
+  $$ select * from public.submit_answer(current_setting('test.repub')::uuid,
+       'e0000000-0000-0000-0000-000000000091', '{a0000000-0000-0000-0000-000000000911}') $$,
+  'P0001', 'not available',
+  'an attempt of a quiz unpublished after it started is not available before it is published again'
+);
+
+reset role;
+update public.quizzes set published = true where id = 'd0000000-0000-0000-0000-000000000009';
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}', true);
+
+select results_eq(
+  $$ select is_correct, points::text, correct_answer_ids, explanation
+     from public.submit_answer(current_setting('test.repub')::uuid,
+       'e0000000-0000-0000-0000-000000000091', '{a0000000-0000-0000-0000-000000000911}') $$,
+  $$ values (true, '1.00', '{a0000000-0000-0000-0000-000000000911}'::uuid[],
+             'Wieder öffentlich.') $$,
+  'once its quiz is published again, the attempt can be answered again'
 );
 
 -- One rejection at the attempt check (bob's attempt) and one at the answer
@@ -916,6 +1081,13 @@ select throws_ok(
   'an anonymous user gets ''not available'' on another user''s attempt'
 );
 
+select throws_ok(
+  $$ select * from public.submit_answer(current_setting('test.guest_unpub')::uuid,
+       'e0000000-0000-0000-0000-000000000031', '{a0000000-0000-0000-0000-000000000311}') $$,
+  'P0001', 'not available',
+  'an anonymous user gets ''not available'' on their attempt of a quiz unpublished after it started'
+);
+
 reset role;
 
 -- admin (carol), treated like a learner in phase 1 ------------------------
@@ -942,6 +1114,13 @@ select throws_ok(
   'an admin gets ''not available'' on another user''s attempt in phase 1'
 );
 
+select throws_ok(
+  $$ select * from public.submit_answer(current_setting('test.admin_unpub')::uuid,
+       'e0000000-0000-0000-0000-000000000031', '{a0000000-0000-0000-0000-000000000311}') $$,
+  'P0001', 'not available',
+  'an admin gets ''not available'' on their attempt of a quiz unpublished after it started'
+);
+
 reset role;
 
 -- Effects on other users' attempts, checked as the owner ------------------
@@ -959,6 +1138,19 @@ select results_eq(
      where attempt_id = current_setting('test.sep')::uuid $$,
   $$ values ('e0000000-0000-0000-0000-000000000011'::uuid) $$,
   'calls by others on alice''s attempt stored nothing'
+);
+
+select results_eq(
+  $$ select
+       (select count(*)::int from public.attempt_answers
+        where attempt_id = any(array[current_setting('test.guest_unpub'), current_setting('test.admin_unpub'),
+                                     current_setting('test.cat'), current_setting('test.moved')]::uuid[])),
+       (select count(*)::int from public.attempts
+        where id = any(array[current_setting('test.guest_unpub'), current_setting('test.admin_unpub'),
+                             current_setting('test.cat'), current_setting('test.moved')]::uuid[])
+          and (score <> 0 or finished_at is not null)) $$,
+  $$ values (0, 0) $$,
+  'refused calls on attempts of hidden quizzes stored nothing and left score and finished_at unchanged'
 );
 
 select * from finish();
