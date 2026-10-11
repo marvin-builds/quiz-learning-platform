@@ -87,6 +87,16 @@ describe('stop-gate hook excusing any re-spec of a committed test', () => {
     expect(result.output?.decision).toBe('block');
     expect(result.output?.reason).toContain('src/sum.test.js');
   });
+
+  it('blocks for a type error in a committed TypeScript test the agent did not change', () => {
+    fixture.write('src/score.ts', "export const score = (): string => 'x';\n");
+
+    const result = stop();
+
+    expect(result.output?.decision).toBe('block');
+    expect(result.output?.reason).toContain('src/score-types.test.ts');
+    expect(result.output?.reason).toContain('TS2322');
+  });
 });
 
 describe('the harness without a test lock', () => {
