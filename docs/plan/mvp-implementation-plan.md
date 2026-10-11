@@ -101,9 +101,12 @@ Defined in `.claude/agents/`:
   through the `gh` CLI. The local Supabase stack is reached through the CLI,
   never the hosted project.
 - **Git worktrees:** one per issue. Sequential (one slice at a time) through
-  phase 1 while the harness matures; from phase 2 on, up to **two** parallel
-  worktree sessions (e.g. a learner slice and an admin slice). Rules for
-  parallel work: migrations get timestamps at merge time, not at creation, and
+  phase 1 while the harness matures; from phase 2 on, an orchestrator session
+  runs several slices in parallel, as many as free RAM, disk and load allow
+  (`scripts/capacity.mjs`, ADR 0003 → Amendment of 2026-10-11, #17). Rules for
+  parallel work: on every rebase onto `main`, a migration older than `main`'s
+  newest gets a new timestamp (`scripts/migration-order.mjs`), one e2e run at
+  a time (`scripts/e2e-lock.mjs`), and
   each worktree runs its own local Supabase stack on separate ports
   (`scripts/stack.mjs`: its own `project_id` and a port block per worktree in
   git-ignored env files, so the committed `supabase/config.toml` stays as CI
@@ -286,7 +289,7 @@ Clarified on 2026-10-03:
 | Issue tracker | GitHub Issues in the project repo; one issue per slice, a milestone per phase |
 | Login | Anonymous + email/password + magic link; OAuth after the MVP |
 | Claude in CI | None; review runs locally before each PR |
-| Parallelism | Up to 2 worktree sessions from phase 2 on; each worktree runs its own local Supabase stack (`scripts/stack.mjs`, #87), so slices that touch the database can run in parallel too. Phase 1 already ran slices in parallel on one shared stack, which mixed their pgTAP data (ADR 0003 → Review) |
+| Parallelism | From phase 2 on, an orchestrator runs slices in parallel as resources allow (#17; first: up to 2 worktree sessions); each worktree runs its own local Supabase stack (`scripts/stack.mjs`, #87), so slices that touch the database can run in parallel too. Phase 1 already ran slices in parallel on one shared stack, which mixed their pgTAP data (ADR 0003 → Review) |
 | Repo | Public GitHub repo `quiz-learning-platform` under the GNU AGPL v3 (decided at gate 1 of #7) |
 
 Clarified on 2026-10-03 (second round):
