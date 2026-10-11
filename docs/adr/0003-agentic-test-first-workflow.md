@@ -403,7 +403,7 @@ review before the merge already read the branch diff, tests included.
   marker and the record of unlocked edits are removed. This supersedes the
   bullets above on the protected-tests hook, unlocking from the chat, "only an
   unlocked edit excuses a changed approved test" and harness turns keeping
-  the unlock; "approved means committed" stays, without the lock.
+  the unlock, and the unlock clause of the test-writer bullet; "approved means committed" stays, without the lock.
 - **A changed approved test is still gate 1 again** (#29 stays). The Stop
   hook lets a committed test with uncommitted content changes be red,
   however it was changed, until it is committed; a red committed test

@@ -36,8 +36,8 @@ number starts the branch name) and `CLAUDE.md` first.
    Report every removed or deleted assertion, loosened matcher, added skip
    or `.only`, dropped case and deleted test file, and whether the issue or an
    approved re-spec (a gate 1 approval, or a decision logged in
-   `.claude/state/decisions.md` in semi-auto runs) explains it. A weakening without such a reason
-   is a blocker.
+   `.claude/state/decisions.md` in semi-auto runs) explains it. A weakening
+   without such a reason is a blocker.
 5. **Project rules.** No hard-coded UI strings; `src/types/database.ts`
    regenerated after schema changes; migrations only in `supabase/migrations/`;
    docs updated when a decision changed.
