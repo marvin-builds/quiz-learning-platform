@@ -33,6 +33,71 @@ export function projectDir(input) {
   return process.env.CLAUDE_PROJECT_DIR || process.cwd();
 }
 
+/** The git top level of the repo that contains `dir`, or undefined. */
+function gitTopLevel(dir) {
+  const top = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd: dir, encoding: 'utf8' });
+  return top.status === 0 && top.stdout.trim() ? top.stdout.trim() : undefined;
+}
+
+/**
+ * The work tree of the edited file: a workflow agent keeps the orchestrator's
+ * checkout as cwd and edits a slice worktree by absolute path. The nearest
+ * existing directory decides, since a new test may open a new directory.
+ * Without an edited file, or outside any repo, it is projectDir().
+ */
+export function editedWorkTree(input) {
+  const filePath = editedPath(input);
+  if (filePath) {
+    let dir = path.dirname(path.resolve(input.cwd ?? process.cwd(), filePath));
+    while (!fs.existsSync(dir) && path.dirname(dir) !== dir) dir = path.dirname(dir);
+    const top = gitTopLevel(dir);
+    if (top) return top;
+  }
+  return projectDir(input);
+}
+
+const SLICE_MARKER = /^Slice worktree: (.+?)\s*$/m;
+
+/**
+ * The work tree named by a `Slice worktree: <absolute path>` line in the first
+ * user entry of a transcript (JSONL): the orchestrator's workflow puts it at
+ * the top of every agent prompt. Undefined when the transcript can't be read,
+ * names nothing, or names no git repo; later entries never count, so a quoted
+ * marker can't redirect the check.
+ */
+export function markedWorkTree(transcriptPath) {
+  let lines;
+  try {
+    lines = fs.readFileSync(transcriptPath, 'utf8').split('\n');
+  } catch {
+    return undefined;
+  }
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      return undefined;
+    }
+    if (entry.type !== 'user') continue;
+    const content = entry.message?.content;
+    const text =
+      typeof content === 'string'
+        ? content
+        : Array.isArray(content)
+          ? content
+              .filter((block) => block?.type === 'text')
+              .map((block) => block.text)
+              .join('\n')
+          : '';
+    const named = text.match(SLICE_MARKER)?.[1];
+    if (!named || !path.isAbsolute(named) || !fs.existsSync(named)) return undefined;
+    return gitTopLevel(named);
+  }
+  return undefined;
+}
+
 /** The path relative to the project, or undefined when it lies outside. */
 export function relativeToProject(dir, filePath) {
   if (!filePath) return undefined;
