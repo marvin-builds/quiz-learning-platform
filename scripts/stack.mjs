@@ -23,6 +23,7 @@ import path from 'node:path';
 const E2E_PORT = 4173;
 const STEP = 100;
 const MAX_SLOT = 100;
+const MAX_ID = 40;
 
 function git(cwd, ...args) {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
@@ -145,7 +146,10 @@ async function main(args) {
     .replace(/[^a-z0-9_-]/g, '-');
   const header = '# Written by scripts/stack.mjs: this worktree runs its own local Supabase stack.';
 
-  const stack = { SUPABASE_PROJECT_ID: `${projectId}-${name}` };
+  // The CLI cuts the id to 40 characters for container and host names; a cut
+  // that ends in a separator gives an invalid hostname (`…-crud-`).
+  const id = `${projectId}-${name}`.slice(0, MAX_ID).replace(/[-_.]+$/, '');
+  const stack = { SUPABASE_PROJECT_ID: id };
   for (const { name: key, port } of ports) stack[key] = port + STEP * slot;
   writeEnv(path.join(top, 'supabase', '.env.local'), header, stack);
 
