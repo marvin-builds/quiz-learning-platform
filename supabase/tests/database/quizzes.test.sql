@@ -1,16 +1,20 @@
--- public.quizzes: structure, constraints and access per role (anon, learner,
--- admin). A quiz is visible only if it and its category are published.
--- Fixtures are created here as the owner, independent of seed.sql, and vanish
--- on rollback. In phase 1 an admin is treated like a learner; phase 2 changes
--- the admin tests on purpose.
+-- public.quizzes: structure, constraints and access per role (anon,
+-- anonymous user, learner, admin). For everyone but an admin a quiz is
+-- visible only if it and its category are published; an admin reads every
+-- quiz (private.is_admin()). Fixtures are created here as the owner,
+-- independent of seed.sql, and vanish on rollback. Nobody writes through the
+-- API yet (phase 2 items 2 to 5).
 begin;
-select plan(45);
+select plan(48);
 
 -- Fixtures ----------------------------------------------------------------
 
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'alice@example.test'),
   ('33333333-3333-3333-3333-333333333333', 'carol@example.test');
+
+insert into auth.users (id, is_anonymous) values
+  ('44444444-4444-4444-4444-444444444444', true);
 
 update public.profiles set role = 'admin' where id = '33333333-3333-3333-3333-333333333333';
 
@@ -183,6 +187,31 @@ select throws_ok(
 
 reset role;
 
+-- anonymous user ----------------------------------------------------------
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub": "44444444-4444-4444-4444-444444444444", "role": "authenticated", "is_anonymous": true}',
+  true);
+
+select results_eq(
+  $$ select id from public.quizzes where id = 'd0000000-0000-0000-0000-000000000001' $$,
+  $$ values ('d0000000-0000-0000-0000-000000000001'::uuid) $$,
+  'an anonymous user sees a published quiz in a published category'
+);
+
+select is_empty(
+  $$ select 1 from public.quizzes where id = 'd0000000-0000-0000-0000-000000000002' $$,
+  'an anonymous user does not see an unpublished quiz'
+);
+
+select is_empty(
+  $$ select 1 from public.quizzes where id = 'd0000000-0000-0000-0000-000000000003' $$,
+  'an anonymous user does not see a published quiz in an unpublished category'
+);
+
+reset role;
+
 -- learner (alice) ---------------------------------------------------------
 
 set local role authenticated;
@@ -230,7 +259,7 @@ select throws_ok(
 
 reset role;
 
--- admin (carol), treated like a learner in phase 1 ------------------------
+-- admin (carol) -----------------------------------------------------------
 
 set local role authenticated;
 select set_config('request.jwt.claims',
@@ -242,37 +271,42 @@ select results_eq(
   $$ values ('d0000000-0000-0000-0000-000000000001'::uuid,
              'c0000000-0000-0000-0000-000000000001'::uuid,
              'Veröffentlichtes Quiz'::text, 'Zum Üben'::text, 1, true) $$,
-  'an admin sees a published quiz in a published category in phase 1'
+  'an admin sees a published quiz in a published category'
 );
 
-select is_empty(
-  $$ select 1 from public.quizzes where id = 'd0000000-0000-0000-0000-000000000002' $$,
-  'an admin does not see an unpublished quiz in phase 1'
+select results_eq(
+  $$ select id, category_id, title, description, sort_order, published from public.quizzes
+     where id = 'd0000000-0000-0000-0000-000000000002' $$,
+  $$ values ('d0000000-0000-0000-0000-000000000002'::uuid,
+             'c0000000-0000-0000-0000-000000000001'::uuid,
+             'Entwurf'::text, null::text, 2, false) $$,
+  'an admin sees an unpublished quiz with all its columns'
 );
 
-select is_empty(
-  $$ select 1 from public.quizzes where id = 'd0000000-0000-0000-0000-000000000003' $$,
-  'an admin does not see a published quiz in an unpublished category in phase 1'
+select results_eq(
+  $$ select id from public.quizzes where id = 'd0000000-0000-0000-0000-000000000003' $$,
+  $$ values ('d0000000-0000-0000-0000-000000000003'::uuid) $$,
+  'an admin sees a published quiz in an unpublished category'
 );
 
 select throws_ok(
   $$ insert into public.quizzes (category_id, title, sort_order, published)
      values ('c0000000-0000-0000-0000-000000000001', 'Neu', 3, true) $$,
   '42501', null,
-  'an admin cannot insert a quiz in phase 1'
+  'an admin cannot insert a quiz through the API yet'
 );
 
 select throws_ok(
   $$ update public.quizzes set title = 'Geändert'
      where id = 'd0000000-0000-0000-0000-000000000001' $$,
   '42501', null,
-  'an admin cannot update a quiz in phase 1'
+  'an admin cannot update a quiz through the API yet'
 );
 
 select throws_ok(
   $$ delete from public.quizzes where id = 'd0000000-0000-0000-0000-000000000001' $$,
   '42501', null,
-  'an admin cannot delete a quiz in phase 1'
+  'an admin cannot delete a quiz through the API yet'
 );
 
 reset role;

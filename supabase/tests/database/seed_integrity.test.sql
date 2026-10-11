@@ -3,8 +3,12 @@
 -- (visible content, an empty category and each kind of hidden content). Read
 -- as the owner, so RLS doesn't filter anything. The shape checks also keep
 -- the integrity checks from passing vacuously on an empty database.
+--
+-- Seed admin: the e2e tests and ui-verifier sign in as admin@example.com with
+-- the password admin-password. seed.sql runs only locally (`db reset`); CI's
+-- `db push` never seeds the hosted project.
 begin;
-select plan(13);
+select plan(19);
 
 -- Integrity ---------------------------------------------------------------
 
@@ -112,6 +116,68 @@ select ok(
     where z.published and c.published
   ),
   'the seed has questions in a visible quiz'
+);
+
+-- Seed admin -------------------------------------------------------------
+
+select results_eq(
+  $$ select count(*)::int from auth.users where email = 'admin@example.com' $$,
+  $$ values (1) $$,
+  'the seed has exactly one user admin@example.com'
+);
+
+select ok(
+  coalesce(
+    (select encrypted_password = extensions.crypt('admin-password', encrypted_password)
+     from auth.users where email = 'admin@example.com'),
+    false
+  ),
+  'the seed admin''s password is admin-password (bcrypt, as GoTrue checks it)'
+);
+
+select ok(
+  coalesce(
+    (select email_confirmed_at is not null
+            and not is_anonymous
+            and aud = 'authenticated'
+            and role = 'authenticated'
+     from auth.users where email = 'admin@example.com'),
+    false
+  ),
+  'the seed admin is a confirmed, non-anonymous authenticated user'
+);
+
+-- GoTrue reads these columns into strings and fails the sign-in with a
+-- server error when one is null, which a hand-written insert leaves them.
+select ok(
+  coalesce(
+    (select confirmation_token is not null
+            and recovery_token is not null
+            and email_change is not null
+            and email_change_token_new is not null
+     from auth.users where email = 'admin@example.com'),
+    false
+  ),
+  'the seed admin''s token columns are empty strings, not null, so GoTrue can read the row'
+);
+
+select ok(
+  exists (
+    select 1
+    from auth.identities i
+    join auth.users u on u.id = i.user_id
+    where u.email = 'admin@example.com' and i.provider = 'email'
+  ),
+  'the seed admin has an email identity'
+);
+
+select results_eq(
+  $$ select p.role::text
+     from public.profiles p
+     join auth.users u on u.id = p.id
+     where u.email = 'admin@example.com' $$,
+  $$ values ('admin'::text) $$,
+  'the seed admin''s profile has role admin'
 );
 
 select * from finish();

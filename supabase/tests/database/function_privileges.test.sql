@@ -72,12 +72,15 @@ select set_eq(
        ('graphql_public.graphql(text, text, jsonb, jsonb)'),
        ('private.is_category_visible(uuid)'),
        ('private.is_quiz_visible(uuid)'),
-       ('private.is_question_visible(uuid)') $$,
+       ('private.is_question_visible(uuid)'),
+       ('private.is_admin()') $$,
   'anon can execute exactly the allow-listed functions'
 );
 
--- A learner and an admin are both the `authenticated` role; phase 1 gives
--- the admin nothing more.
+-- A learner and an admin are both the `authenticated` role, so the admin
+-- gets no function of their own: the admin read policies call
+-- private.is_admin(), which anon and authenticated may execute like the
+-- visibility helpers.
 select set_eq(
   $$ select signature from pg_temp.executable_by_authenticated $$,
   $$ values
@@ -86,6 +89,7 @@ select set_eq(
        ('private.is_category_visible(uuid)'),
        ('private.is_quiz_visible(uuid)'),
        ('private.is_question_visible(uuid)'),
+       ('private.is_admin()'),
        ('public.start_attempt(uuid)'),
        ('public.submit_answer(uuid, uuid, uuid[])') $$,
   'authenticated can execute exactly the allow-listed functions'
@@ -131,7 +135,8 @@ select results_eq(
       ('graphql_public.graphql(text, text, jsonb, jsonb)'),
       ('private.is_category_visible(uuid)'),
       ('private.is_quiz_visible(uuid)'),
-      ('private.is_question_visible(uuid)')
+      ('private.is_question_visible(uuid)'),
+      ('private.is_admin()')
   $$,
   $$ values ('public.function_privileges_probe()'::text) $$,
   'a function granted to anon shows up outside the allow-list'
@@ -166,6 +171,7 @@ select results_eq(
       ('private.is_category_visible(uuid)'),
       ('private.is_quiz_visible(uuid)'),
       ('private.is_question_visible(uuid)'),
+      ('private.is_admin()'),
       ('public.start_attempt(uuid)'),
       ('public.submit_answer(uuid, uuid, uuid[])')
   $$,

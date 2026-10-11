@@ -20,7 +20,8 @@ import en from '@/i18n/locales/en.json';
 // - `from(table)` queries apply `eq`/`in` filters, `order` (also on embedded
 //   tables via `referencedTable`), `maybeSingle`/`single` and embeds, and
 //   return only the selected columns. Selecting `questions.explanation`,
-//   `answers.is_correct` or `*` on those tables fails with 42501.
+//   `answers.is_correct` or `*` on those tables fails with 42501. Filters on
+//   `<embed path>.<column>` and `!inner` embeds work as in PostgREST.
 // - Reads of `attempts` are controlled by `mockRead.attempt`, every other
 //   read is answered from `mockDb`.
 // - `rpc('start_attempt')` creates an attempt (score 0, max_score = number
@@ -41,7 +42,7 @@ type PostgrestError = {
 };
 type Result = { data: unknown; error: PostgrestError | null };
 type ReadState = 'ok' | 'pending' | { error: PostgrestError };
-type Field = { key: string; column: string; embed?: Field[] };
+type Field = { key: string; column: string; inner?: boolean; embed?: Field[] };
 type Order = { column: string; ascending: boolean; referencedTable?: string };
 type Query = {
   table: string;
@@ -52,7 +53,13 @@ type Query = {
 };
 type Session = { access_token: string; user: { id: string; is_anonymous: boolean } };
 
-const mockDb: Record<string, Row[]> = { quizzes: [], questions: [], answers: [], attempts: [] };
+const mockDb: Record<string, Row[]> = {
+  categories: [],
+  quizzes: [],
+  questions: [],
+  answers: [],
+  attempts: [],
+};
 const mockRead: { attempt: ReadState } = { attempt: 'ok' };
 // The max_score start_attempt stores; null: the number of questions.
 const mockMaxScore: { current: number | null } = { current: null };
@@ -66,6 +73,8 @@ const mockSession: Session = {
 };
 
 const PARENT_KEY: Record<string, string> = { questions: 'quiz_id', answers: 'question_id' };
+// To-one embeds: the column of the embedding row that references the embedded one.
+const REFERENCE_KEY: Record<string, string> = { categories: 'category_id' };
 const HIDDEN_COLUMNS: Record<string, string[]> = {
   questions: ['explanation', '*'],
   answers: ['is_correct', '*'],
@@ -91,13 +100,14 @@ function mockSplitTopLevel(select: string): string[] {
 
 function mockParseFields(select: string): Field[] {
   return mockSplitTopLevel(select).map((item) => {
-    const match = /^(?:(\w+):)?([\w*]+)(?:!\w+)?(?:\(([\s\S]*)\))?$/.exec(item);
+    const match = /^(?:(\w+):)?([\w*]+)(?:!(\w+))?(?:\(([\s\S]*)\))?$/.exec(item);
     if (!match) throw new Error(`The fake client can't parse the select item "${item}"`);
-    const [, alias, column, inner] = match;
+    const [, alias, column, hint, body] = match;
     return {
       key: alias ?? column,
       column,
-      embed: inner === undefined ? undefined : mockParseFields(inner),
+      inner: hint === 'inner',
+      embed: body === undefined ? undefined : mockParseFields(body),
     };
   });
 }
@@ -120,23 +130,47 @@ function mockSort(rows: Row[], orders: Order[]): Row[] {
   });
 }
 
-function mockProject(row: Row, fields: Field[], query: Query, path: string[] = []): Row {
+// Whether a row at `path` passes the filters on that path: `id` at the top,
+// `categories.published` for the embedded category.
+function mockMatches(row: Row, query: Query, path: string[]): boolean {
+  return query.filters.every(({ column, values }) => {
+    const segments = column.split('.');
+    const name = segments.pop()!;
+    return segments.join('.') !== path.join('.') || values.includes(row[name]);
+  });
+}
+
+// Null: an `!inner` embed has no row left, so the row itself drops out.
+function mockProject(row: Row, fields: Field[], query: Query, path: string[] = []): Row | null {
   const projected: Row = {};
   for (const field of fields) {
     if (field.embed) {
       const childPath = [...path, field.column];
+      const referenceKey = REFERENCE_KEY[field.column];
+      if (referenceKey) {
+        const referenced = (mockDb[field.column] ?? []).find(
+          (other) => other.id === row[referenceKey] && mockMatches(other, query, childPath),
+        );
+        const embedded = referenced ? mockProject(referenced, field.embed, query, childPath) : null;
+        if (field.inner && !embedded) return null;
+        projected[field.key] = embedded;
+        continue;
+      }
       const key = PARENT_KEY[field.column];
       if (!key) throw new Error(`The fake client can't embed ${field.column}`);
       const children = mockSort(
-        (mockDb[field.column] ?? []).filter((child) => child[key] === row.id),
+        (mockDb[field.column] ?? []).filter(
+          (child) => child[key] === row.id && mockMatches(child, query, childPath),
+        ),
         query.orders.filter(
           (order) =>
             order.referencedTable === childPath.join('.') || order.referencedTable === field.column,
         ),
-      );
-      projected[field.key] = children.map((child) =>
-        mockProject(child, field.embed!, query, childPath),
-      );
+      )
+        .map((child) => mockProject(child, field.embed!, query, childPath))
+        .filter((child): child is Row => child !== null);
+      if (field.inner && children.length === 0) return null;
+      projected[field.key] = children;
     } else if (field.column === '*') {
       Object.assign(projected, row);
     } else {
@@ -160,11 +194,11 @@ function mockRespond(query: Query): Promise<Result> {
     if (state !== 'ok') return Promise.resolve({ data: null, error: state.error });
   }
   const rows = mockSort(
-    (mockDb[query.table] ?? []).filter((row) =>
-      query.filters.every(({ column, values }) => values.includes(row[column])),
-    ),
+    (mockDb[query.table] ?? []).filter((row) => mockMatches(row, query, [])),
     query.orders.filter((order) => !order.referencedTable),
-  ).map((row) => mockProject(row, fields, query));
+  )
+    .map((row) => mockProject(row, fields, query))
+    .filter((row): row is Row => row !== null);
   if (query.mode === 'many') return Promise.resolve({ data: rows, error: null });
   if (rows.length > 1) {
     return Promise.resolve({ data: null, error: { code: 'PGRST116', message: 'multiple rows' } });
@@ -371,6 +405,7 @@ const bratislava = answer(9, danube.id, 'Bratislava', true, 3);
 const budapest = answer(10, danube.id, 'Budapest', true, 4);
 
 function seedTables() {
+  mockDb.categories = [{ id: GEOGRAFIE, name: 'Geografie', sort_order: 1, published: true }];
   mockDb.quizzes = [
     {
       id: QUIZ,
