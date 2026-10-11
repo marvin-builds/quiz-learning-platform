@@ -203,7 +203,15 @@ reset role;
 -- Effects, checked as the owner -------------------------------------------
 
 select results_eq(
-  $$ select id::text, display_name, role::text from public.profiles order by id $$,
+  $$ select id::text, display_name, role::text from public.profiles
+     -- The fixtures and the rejected insert's id, so seed users and leftovers
+     -- of e2e runs don't count.
+     where id in ('11111111-1111-1111-1111-111111111111',
+                  '22222222-2222-2222-2222-222222222222',
+                  '33333333-3333-3333-3333-333333333333',
+                  '44444444-4444-4444-4444-444444444444',
+                  '77777777-7777-7777-7777-777777777777')
+     order by id $$,
   $$ values
        ('11111111-1111-1111-1111-111111111111', 'Alice Liddell', 'learner'),
        ('22222222-2222-2222-2222-222222222222', 'Bob', 'learner'),
