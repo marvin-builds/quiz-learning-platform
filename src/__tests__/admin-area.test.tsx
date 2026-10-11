@@ -415,6 +415,24 @@ describe('admin sign-in screen (/admin/sign-in)', () => {
     expect(mockAuth.passwordSignIns).toEqual([{ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }]);
   });
 
+  it('ignores Enter in the password field while a sign-in is pending', async () => {
+    const pending = deferred();
+    mockAuth.hold = pending.promise;
+    await renderAt('/admin/sign-in');
+    await screen.findByLabelText(text('admin.signIn.email'));
+    await fillIn(ADMIN_EMAIL, ADMIN_PASSWORD);
+    const password = screen.getByLabelText(text('admin.signIn.password'));
+
+    await fireEvent(password, 'submitEditing');
+    await screen.findByText(text('admin.signIn.submitting'));
+    await fireEvent(password, 'submitEditing');
+    await flush();
+
+    expect(mockAuth.passwordSignIns).toHaveLength(1);
+    pending.release();
+    expect(await screen.findByText(dashboardTitle())).toBeOnTheScreen();
+  });
+
   it('signs in with the typed email and password and opens the dashboard', async () => {
     const result = await renderAt('/admin/sign-in');
     await screen.findByLabelText(text('admin.signIn.email'));
