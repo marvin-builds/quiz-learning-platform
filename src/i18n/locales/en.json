@@ -60,5 +60,28 @@
       "playAgain": "Play again",
       "backToCategory": "Back to the category"
     }
+  },
+  "admin": {
+    "signIn": {
+      "title": "Admin sign-in",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in …",
+      "errors": {
+        "invalidCredentials": "Wrong email or password.",
+        "network": "Sign-in failed. Check your connection and try again."
+      }
+    },
+    "guard": {
+      "loading": "Checking access …",
+      "error": "Access could not be checked.",
+      "noAccess": "This account has no access to the admin area."
+    },
+    "dashboard": {
+      "title": "Admin area",
+      "categories": "Categories",
+      "signOut": "Sign out"
+    }
   }
 }
