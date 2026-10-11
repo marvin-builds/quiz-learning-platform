@@ -29,8 +29,15 @@ number starts the branch name) and `CLAUDE.md` first.
 3. **Correctness.** Does the code do what the acceptance criteria say, for
    empty, error and boundary cases? Do the tests prove it, or would they pass
    with a wrong implementation?
-4. **Tests untouched.** Approved tests (committed before the implementation)
-   were not weakened: no deleted assertions, loosened matchers or added skips.
+4. **Changed tests not weakened.** Nothing locks approved tests, so check
+   every committed test the branch changes: test files that exist on
+   `origin/main`, and tests the branch committed and changed later (compare
+   each `Add failing tests for …` commit with `HEAD` and the working tree).
+   Report every removed or deleted assertion, loosened matcher, added skip
+   or `.only`, dropped case and deleted test file, and whether the issue or an
+   approved re-spec (a gate 1 approval, or a decision logged in
+   `.claude/state/decisions.md` in semi-auto runs) explains it. A weakening without such a reason
+   is a blocker.
 5. **Project rules.** No hard-coded UI strings; `src/types/database.ts`
    regenerated after schema changes; migrations only in `supabase/migrations/`;
    docs updated when a decision changed.
