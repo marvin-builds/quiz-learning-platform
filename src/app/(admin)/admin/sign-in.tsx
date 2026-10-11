@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { type ComponentProps, useState } from 'react';
+import { type ComponentProps, type Ref, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, TextInput, View } from 'react-native';
 
@@ -14,6 +14,7 @@ export default function AdminSignInScreen() {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const emailInput = useRef<TextInput>(null);
   const signIn = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
@@ -24,7 +25,13 @@ export default function AdminSignInScreen() {
       queryClient.clear();
       router.replace('/admin');
     },
+    // The disabled button dropped the focus; put it back at the start of
+    // the form, so keyboard users don't lose their place.
+    onError: () => emailInput.current?.focus(),
   });
+  const submit = () => {
+    if (!signIn.isPending) signIn.mutate();
+  };
 
   return (
     <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="px-4 py-8">
@@ -34,6 +41,7 @@ export default function AdminSignInScreen() {
           {t('admin.signIn.title')}
         </Text>
         <Field
+          ref={emailInput}
           id="admin-sign-in-email"
           label={t('admin.signIn.email')}
           value={email}
@@ -48,6 +56,8 @@ export default function AdminSignInScreen() {
           onChangeText={setPassword}
           autoComplete="current-password"
           secureTextEntry
+          returnKeyType="go"
+          onSubmitEditing={submit}
         />
         {signIn.isError ? (
           <Text role="alert" className="text-base text-red-700">
@@ -57,7 +67,7 @@ export default function AdminSignInScreen() {
         <Button
           label={signIn.isPending ? t('admin.signIn.submitting') : t('admin.signIn.submit')}
           disabled={signIn.isPending}
-          onPress={() => signIn.mutate()}
+          onPress={submit}
         />
       </View>
     </ScrollView>
@@ -69,9 +79,15 @@ function Field({
   id,
   label,
   ...inputProps
-}: { id: string; label: string } & Pick<
+}: { id: string; label: string; ref?: Ref<TextInput> } & Pick<
   ComponentProps<typeof TextInput>,
-  'value' | 'onChangeText' | 'autoComplete' | 'keyboardType' | 'secureTextEntry'
+  | 'value'
+  | 'onChangeText'
+  | 'autoComplete'
+  | 'keyboardType'
+  | 'secureTextEntry'
+  | 'returnKeyType'
+  | 'onSubmitEditing'
 >) {
   return (
     <View className="gap-1">
