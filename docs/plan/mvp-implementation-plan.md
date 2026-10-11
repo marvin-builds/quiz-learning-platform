@@ -70,8 +70,10 @@ In `.claude/settings.json`:
 |---|---|---|
 | `PostToolUse` on Edit/Write | Prettier + ESLint on the file, `tsc --noEmit` (incremental) | Errors are fed straight back to the agent |
 | `PostToolUse` on Edit/Write of `supabase/migrations/*` | `supabase db reset` + `supabase test db` | Schema and RLS errors surface immediately |
-| `PreToolUse` on Edit/Write of approved test files | Block, unless the task is explicitly "change tests" | Stops the agent from weakening tests to get green |
 | `Stop` | `jest --onlyChanged` + typecheck; exit 2 if red | The agent can't end its turn with failing tests |
+
+Approved tests aren't locked by a hook (ADR 0003, amendment 2026-10-11): the
+`reviewer` checks every changed committed test for weakening.
 
 Plus a permission allowlist for the safe commands (`npm test`, `npx tsc`,
 `supabase start/db reset/test db`, `npx playwright test`) so loops run without
