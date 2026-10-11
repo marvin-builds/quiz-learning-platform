@@ -1,17 +1,22 @@
--- public.questions: structure, constraints and access per role (anon, learner,
--- admin). A question is visible only if its quiz is visible (the quiz and its
--- category are published). `explanation` is part of the solution: no API role
--- may select it, only check_answer() returns it. Fixtures are created here as
--- the owner, independent of seed.sql, and vanish on rollback. In phase 1 an
--- admin is treated like a learner; phase 2 changes the admin tests on purpose.
+-- public.questions: structure, constraints and access per role (anon,
+-- anonymous user, learner, admin). For everyone but an admin a question is
+-- visible only if its quiz is visible (the quiz and its category are
+-- published); an admin reads every question (private.is_admin()).
+-- `explanation` is part of the solution: no API role may select it, not even
+-- an admin (this slice grants row visibility only; the editor slices decide
+-- how an admin reads it), only submit_answer() returns it. Fixtures are
+-- created here as the owner, independent of seed.sql, and vanish on rollback.
 begin;
-select plan(64);
+select plan(69);
 
 -- Fixtures ----------------------------------------------------------------
 
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'alice@example.test'),
   ('33333333-3333-3333-3333-333333333333', 'carol@example.test');
+
+insert into auth.users (id, is_anonymous) values
+  ('44444444-4444-4444-4444-444444444444', true);
 
 update public.profiles set role = 'admin' where id = '33333333-3333-3333-3333-333333333333';
 
@@ -254,6 +259,37 @@ select throws_ok(
 
 reset role;
 
+-- anonymous user ----------------------------------------------------------
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub": "44444444-4444-4444-4444-444444444444", "role": "authenticated", "is_anonymous": true}',
+  true);
+
+select results_eq(
+  $$ select id from public.questions where id = 'e0000000-0000-0000-0000-000000000001' $$,
+  $$ values ('e0000000-0000-0000-0000-000000000001'::uuid) $$,
+  'an anonymous user sees a question of a visible quiz'
+);
+
+select is_empty(
+  $$ select 1 from public.questions where id = 'e0000000-0000-0000-0000-000000000002' $$,
+  'an anonymous user does not see a question of an unpublished quiz'
+);
+
+select is_empty(
+  $$ select 1 from public.questions where id = 'e0000000-0000-0000-0000-000000000003' $$,
+  'an anonymous user does not see a question of a published quiz in an unpublished category'
+);
+
+select throws_ok(
+  $$ select explanation from public.questions $$,
+  '42501', null,
+  'an anonymous user cannot select questions.explanation'
+);
+
+reset role;
+
 -- learner (alice) ---------------------------------------------------------
 
 set local role authenticated;
@@ -327,7 +363,7 @@ select throws_ok(
 
 reset role;
 
--- admin (carol), treated like a learner in phase 1 ------------------------
+-- admin (carol) -----------------------------------------------------------
 
 set local role authenticated;
 select set_config('request.jwt.claims',
@@ -341,61 +377,73 @@ select results_eq(
              'd0000000-0000-0000-0000-000000000001'::uuid,
              'Welche Farbe hat der Himmel?'::text, 'fragen/himmel.png'::text,
              'Ein blauer Himmel'::text, true, 1, true) $$,
-  'an admin sees a question of a visible quiz without explanation in phase 1'
+  'an admin sees a question of a visible quiz without explanation'
 );
 
-select is_empty(
-  $$ select 1 from public.questions where id = 'e0000000-0000-0000-0000-000000000002' $$,
-  'an admin does not see a question of an unpublished quiz in phase 1'
+select results_eq(
+  $$ select id, quiz_id, text, multiple_correct, sort_order
+     from public.questions where id = 'e0000000-0000-0000-0000-000000000002' $$,
+  $$ values ('e0000000-0000-0000-0000-000000000002'::uuid,
+             'd0000000-0000-0000-0000-000000000002'::uuid,
+             'Frage im Entwurf?'::text, false, 1) $$,
+  'an admin sees a question of an unpublished quiz'
 );
 
-select is_empty(
-  $$ select 1 from public.questions where id = 'e0000000-0000-0000-0000-000000000003' $$,
-  'an admin does not see a question of a published quiz in an unpublished category in phase 1'
+select results_eq(
+  $$ select id from public.questions where id = 'e0000000-0000-0000-0000-000000000003' $$,
+  $$ values ('e0000000-0000-0000-0000-000000000003'::uuid) $$,
+  'an admin sees a question of a published quiz in an unpublished category'
 );
 
 select throws_ok(
   $$ select explanation from public.questions $$,
   '42501', null,
-  'an admin cannot select questions.explanation in phase 1'
+  'an admin still cannot select questions.explanation'
+);
+
+select throws_ok(
+  $$ select explanation from public.questions
+     where id = 'e0000000-0000-0000-0000-000000000002' $$,
+  '42501', null,
+  'an admin cannot select the explanation of a question in an unpublished quiz either'
 );
 
 select throws_ok(
   $$ select * from public.questions $$,
   '42501', null,
-  'an admin cannot select * from questions in phase 1'
+  'an admin still cannot select * from questions'
 );
 
 select throws_ok(
   $$ select id from public.questions where explanation is not null $$,
   '42501', null,
-  'an admin cannot filter questions on explanation in phase 1'
+  'an admin still cannot filter questions on explanation'
 );
 
 select throws_ok(
   $$ select to_jsonb(q) from public.questions q $$,
   '42501', null,
-  'an admin cannot read explanation through a whole-row reference in phase 1'
+  'an admin still cannot read explanation through a whole-row reference'
 );
 
 select throws_ok(
   $$ insert into public.questions (quiz_id, text, sort_order)
      values ('d0000000-0000-0000-0000-000000000001', 'Neu?', 3) $$,
   '42501', null,
-  'an admin cannot insert a question in phase 1'
+  'an admin cannot insert a question through the API yet'
 );
 
 select throws_ok(
   $$ update public.questions set text = 'Geändert?'
      where id = 'e0000000-0000-0000-0000-000000000001' $$,
   '42501', null,
-  'an admin cannot update a question in phase 1'
+  'an admin cannot update a question through the API yet'
 );
 
 select throws_ok(
   $$ delete from public.questions where id = 'e0000000-0000-0000-0000-000000000001' $$,
   '42501', null,
-  'an admin cannot delete a question in phase 1'
+  'an admin cannot delete a question through the API yet'
 );
 
 reset role;

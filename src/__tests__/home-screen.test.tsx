@@ -9,13 +9,15 @@ import { renderWithQueryClient } from '@/test-utils/render-with-query-client';
 
 // Boundaries: the Supabase client (network) and the router (navigation).
 // The fake records each `supabase.from(table)` query and answers with the
-// rows of `mockResponse`, in the order given.
+// rows of `mockResponse` that pass its `eq` filters, in the order given. It
+// returns drafts like the database does to an admin.
 
 type PostgrestError = { message: string; code: string };
 type Query = {
   table: string;
   select?: string;
   orders: [string, Record<string, unknown> | undefined][];
+  filters: [string, unknown][];
 };
 
 const mockResponse: { current: { data: unknown; error: PostgrestError | null } } = {
@@ -24,7 +26,7 @@ const mockResponse: { current: { data: unknown; error: PostgrestError | null } }
 const mockQueries: Query[] = [];
 
 function mockQueryBuilder(table: string) {
-  const query: Query = { table, orders: [] };
+  const query: Query = { table, orders: [], filters: [] };
   mockQueries.push(query);
   const builder = {
     select(columns?: string) {
@@ -35,6 +37,10 @@ function mockQueryBuilder(table: string) {
       query.orders.push([column, options]);
       return builder;
     },
+    eq(column: string, value: unknown) {
+      query.filters.push([column, value]);
+      return builder;
+    },
     abortSignal() {
       return builder;
     },
@@ -42,7 +48,13 @@ function mockQueryBuilder(table: string) {
       onFulfilled: (value: { data: unknown; error: PostgrestError | null }) => T,
       onRejected?: (reason: unknown) => T,
     ) {
-      return Promise.resolve(mockResponse.current).then(onFulfilled, onRejected);
+      const { data, error } = mockResponse.current;
+      const rows = Array.isArray(data)
+        ? data.filter((row: Record<string, unknown>) =>
+            query.filters.every(([column, value]) => row[column] === value),
+          )
+        : data;
+      return Promise.resolve({ data: rows, error }).then(onFulfilled, onRejected);
     },
   };
   return builder;
@@ -70,18 +82,21 @@ jest.mock('expo-router', () => {
 const categories = [
   {
     id: '10000000-0000-4000-8000-000000000002',
+    published: true,
     name: 'Naturwissenschaften',
     description: 'Chemie, Physik und Biologie',
     sort_order: 1,
   },
   {
     id: '10000000-0000-4000-8000-000000000001',
+    published: true,
     name: 'Geografie',
     description: 'Länder, Städte und Flüsse',
     sort_order: 2,
   },
   {
     id: '10000000-0000-4000-8000-000000000003',
+    published: true,
     name: 'Geschichte',
     description: 'Von der Antike bis heute',
     sort_order: 3,
@@ -179,6 +194,24 @@ describe('<HomeScreen /> category list', () => {
         ),
       ),
     ).toBe(true);
+  });
+
+  // RLS returns drafts to an admin, so the learner area filters them itself.
+  it('lists only published categories, even when the database returns drafts', async () => {
+    const draft = {
+      id: '10000000-0000-4000-8000-000000000004',
+      published: false,
+      name: 'Entwurf Astronomie',
+      description: 'Noch nicht veröffentlicht',
+      sort_order: 4,
+    };
+    mockResponse.current = { data: [...categories, draft], error: null };
+
+    await renderWithQueryClient(<HomeScreen />);
+
+    expect(await screen.findByText(categories[0].name)).toBeOnTheScreen();
+    expect(screen.queryByText(draft.name)).not.toBeOnTheScreen();
+    expect(screen.queryByText(draft.description)).not.toBeOnTheScreen();
   });
 
   it('selects explicit columns, never *', async () => {

@@ -10,8 +10,10 @@ import { renderWithQueryClient } from '@/test-utils/render-with-query-client';
 // Boundaries: the Supabase client (network) and the router (navigation).
 // The fake answers `supabase.from(table)` queries like PostgREST would: it
 // applies `eq` filters, `maybeSingle`/`single`, embeds `quizzes(...)` in a
-// category select, and rejects a non-UUID id with error 22P02. It returns the
-// rows in the order given, so the screen must keep the order it receives.
+// category select (a filter on `quizzes.<column>` filters the embedded
+// quizzes only, as in PostgREST), and rejects a non-UUID id with error 22P02.
+// It returns drafts like the database does to an admin, and the rows in the
+// order given, so the screen must keep the order it receives.
 
 type Row = Record<string, unknown>;
 type PostgrestError = { message: string; code: string };
@@ -54,13 +56,22 @@ function mockRespond(query: Query): Promise<{ data: unknown; error: PostgrestErr
     const response = mockResponses[table];
     return response && response !== 'pending' && 'rows' in response ? response.rows : [];
   };
-  let rows = rowsOf(query.table).filter((row) =>
-    query.filters.every(([column, value]) => !(column in row) || row[column] === value),
-  );
+  // The filters on `path` (`''` for the queried table, `'quizzes'` for the
+  // embedded quizzes); a row without the column passes, as before.
+  const matches = (row: Row, path: string) =>
+    query.filters.every(([column, value]) => {
+      const dot = column.lastIndexOf('.');
+      const [prefix, name] =
+        dot === -1 ? ['', column] : [column.slice(0, dot), column.slice(dot + 1)];
+      return prefix !== path || !(name in row) || row[name] === value;
+    });
+  let rows = rowsOf(query.table).filter((row) => matches(row, ''));
   if (embedsQuizzes) {
     rows = rows.map((row) => ({
       ...row,
-      quizzes: rowsOf('quizzes').filter((quiz) => quiz.category_id === row.id),
+      quizzes: rowsOf('quizzes').filter(
+        (quiz) => quiz.category_id === row.id && matches(quiz, 'quizzes'),
+      ),
     }));
   }
 
@@ -150,7 +161,12 @@ jest.mock('expo-router', () => {
 const GEOGRAFIE = '10000000-0000-4000-8000-000000000001';
 const OTHER_CATEGORY = '10000000-0000-4000-8000-000000000002';
 
-const category = { id: GEOGRAFIE, name: 'Geografie', description: 'Länder und Städte' };
+const category = {
+  id: GEOGRAFIE,
+  name: 'Geografie',
+  description: 'Länder und Städte',
+  published: true,
+};
 const quizzes = [
   {
     id: '20000000-0000-4000-8000-000000000002',
@@ -158,6 +174,7 @@ const quizzes = [
     title: 'Hauptstädte Europas',
     description: 'Kennst du die Hauptstädte?',
     sort_order: 1,
+    published: true,
   },
   {
     id: '20000000-0000-4000-8000-000000000001',
@@ -165,6 +182,7 @@ const quizzes = [
     title: 'Berge der Alpen',
     description: 'Gipfel und Pässe',
     sort_order: 2,
+    published: true,
   },
 ];
 const quizOfOtherCategory = {
@@ -173,6 +191,7 @@ const quizOfOtherCategory = {
   title: 'Chemie-Grundlagen',
   description: 'Elemente',
   sort_order: 1,
+  published: true,
 };
 
 const keys = [
@@ -375,6 +394,50 @@ describe('<CategoryScreen />', () => {
     expect(await screen.findByText(i18n.t('category.notFound'))).toBeOnTheScreen();
     expect(linkPathOf(screen.getByText(i18n.t('category.backToCategories')))).toBe('/');
     expectOnlyStatus('notFound');
+  });
+
+  // RLS returns drafts to an admin, so the learner area filters them itself.
+  it('shows the not-found state for an unpublished category, even when the database returns it', async () => {
+    mockResponses.categories = { rows: [{ ...category, published: false }] };
+    mockResponses.quizzes = { rows: quizzes };
+
+    await renderWithQueryClient(<CategoryScreen />);
+
+    expect(await screen.findByText(i18n.t('category.notFound'))).toBeOnTheScreen();
+    expect(screen.queryByText(category.name)).not.toBeOnTheScreen();
+    expect(screen.queryByText(quizzes[0].title)).not.toBeOnTheScreen();
+    expectOnlyStatus('notFound');
+  });
+
+  it('shows only the published quizzes, even when the database returns drafts', async () => {
+    const draft = {
+      id: '20000000-0000-4000-8000-000000000004',
+      category_id: GEOGRAFIE,
+      title: 'Entwurf Flüsse',
+      description: 'Noch nicht veröffentlicht',
+      sort_order: 3,
+      published: false,
+    };
+    mockResponses.categories = { rows: [category] };
+    mockResponses.quizzes = { rows: [...quizzes, draft] };
+
+    await renderWithQueryClient(<CategoryScreen />);
+
+    expect(await screen.findByText(quizzes[0].title)).toBeOnTheScreen();
+    expect(screen.getByText(quizzes[1].title)).toBeOnTheScreen();
+    expect(screen.queryByText(draft.title)).not.toBeOnTheScreen();
+    expect(screen.queryByText(draft.description)).not.toBeOnTheScreen();
+  });
+
+  it('shows the empty state when the category has only draft quizzes', async () => {
+    mockResponses.categories = { rows: [category] };
+    mockResponses.quizzes = { rows: quizzes.map((quiz) => ({ ...quiz, published: false })) };
+
+    await renderWithQueryClient(<CategoryScreen />);
+
+    expect(await screen.findByText(i18n.t('category.empty'))).toBeOnTheScreen();
+    expect(screen.queryByText(quizzes[0].title)).not.toBeOnTheScreen();
+    expectOnlyStatus('empty');
   });
 
   it('shows the not-found state for a category id that is not a UUID', async () => {

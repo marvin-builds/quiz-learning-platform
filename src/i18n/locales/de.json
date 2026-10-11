@@ -60,5 +60,29 @@
       "playAgain": "Nochmal spielen",
       "backToCategory": "Zurück zur Kategorie"
     }
+  },
+  "admin": {
+    "signIn": {
+      "title": "Admin-Anmeldung",
+      "email": "E-Mail",
+      "password": "Passwort",
+      "submit": "Anmelden",
+      "submitting": "Anmeldung läuft …",
+      "errors": {
+        "invalidCredentials": "E-Mail oder Passwort ist falsch.",
+        "network": "Die Anmeldung ist fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut."
+      }
+    },
+    "guard": {
+      "loading": "Zugang wird geprüft …",
+      "error": "Der Zugang konnte nicht geprüft werden.",
+      "noAccess": "Dieses Konto hat keinen Zugang zum Admin-Bereich.",
+      "retry": "Erneut versuchen"
+    },
+    "dashboard": {
+      "title": "Admin-Bereich",
+      "categories": "Kategorien",
+      "signOut": "Abmelden"
+    }
   }
 }

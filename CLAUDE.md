@@ -46,6 +46,8 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
   the `quiz-images` bucket and upload `supabase/seed-images/` (only with
   Storage running). Never run `supabase seed buckets --linked`: it would
   upload the seed images to the hosted project
+- Local seed admin: `admin@example.com` / `admin-password` (`supabase/seed.sql`),
+  for `/admin/sign-in`, the e2e tests and `ui-verifier`; local only
 - `npm run db:types`: regenerate `src/types/database.ts` from the local
   database; run it after every schema change
 

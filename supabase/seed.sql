@@ -89,3 +89,26 @@ update public.answers
 set image_path = '39c5ec8d-57d6-4ab5-8ff7-f32a80a0a25d.png',
     image_alt = 'Mit Helium gefüllter Ballon'
 where id = '40000000-0000-4000-8000-000000000011';
+
+-- Admin (e2e tests and ui-verifier): admin@example.com / admin-password.
+-- GoTrue fails the sign-in on null token columns, so they are empty strings.
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  confirmation_token, recovery_token, email_change, email_change_token_new,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  '00000000-0000-0000-0000-000000000000', '50000000-0000-4000-8000-000000000001',
+  'authenticated', 'authenticated', 'admin@example.com',
+  extensions.crypt('admin-password', extensions.gen_salt('bf')), now(),
+  '', '', '', '',
+  '{"provider": "email", "providers": ["email"]}', '{}', now(), now()
+);
+
+insert into auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+values (
+  '50000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000001',
+  '{"sub": "50000000-0000-4000-8000-000000000001", "email": "admin@example.com", "email_verified": true}',
+  'email', now(), now(), now()
+);
+
+update public.profiles set role = 'admin' where id = '50000000-0000-4000-8000-000000000001';
