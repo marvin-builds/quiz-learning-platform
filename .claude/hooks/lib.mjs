@@ -56,14 +56,29 @@ export function editedWorkTree(input) {
   return projectDir(input);
 }
 
-const SLICE_MARKER = /^Slice worktree: (.+?)\s*$/m;
+const SLICE_MARKER = /^\s*Slice worktree: (.+?)\s*$/m;
+// The Workflow tool's agents start with two harness entries: the human's
+// request, relayed, then the script's prompt, each line indented.
+const RELAYED_REQUEST = '[Workflow harness — user request]';
+const COMPUTED_TASK = '[Workflow harness — computed task]';
+
+function entryText(content) {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .filter((block) => block?.type === 'text')
+    .map((block) => block.text)
+    .join('\n');
+}
 
 /**
- * The work tree named by a `Slice worktree: <absolute path>` line in the first
- * user entry of a transcript (JSONL): the orchestrator's workflow puts it at
- * the top of every agent prompt. Undefined when the transcript can't be read,
- * names nothing, or names no git repo; later entries never count, so a quoted
- * marker can't redirect the check.
+ * The work tree named by a `Slice worktree: <absolute path>` line in the
+ * agent's task: its first user entry, or for a workflow agent the computed
+ * task that follows the relayed request. The orchestrator's workflow puts the
+ * line at the top of every agent prompt. Undefined when the transcript can't
+ * be read, names nothing, or names no git repo; the relayed request and later
+ * entries never count, so neither the human's words nor a quoted marker can
+ * redirect the check.
  */
 export function markedWorkTree(transcriptPath) {
   let lines;
@@ -72,6 +87,7 @@ export function markedWorkTree(transcriptPath) {
   } catch {
     return undefined;
   }
+  let relayed = false;
   for (const line of lines) {
     if (!line.trim()) continue;
     let entry;
@@ -81,16 +97,12 @@ export function markedWorkTree(transcriptPath) {
       return undefined;
     }
     if (entry.type !== 'user') continue;
-    const content = entry.message?.content;
-    const text =
-      typeof content === 'string'
-        ? content
-        : Array.isArray(content)
-          ? content
-              .filter((block) => block?.type === 'text')
-              .map((block) => block.text)
-              .join('\n')
-          : '';
+    const text = entryText(entry.message?.content);
+    if (!relayed && text.startsWith(RELAYED_REQUEST)) {
+      relayed = true;
+      continue;
+    }
+    if (relayed && !text.startsWith(COMPUTED_TASK)) return undefined;
     const named = text.match(SLICE_MARKER)?.[1];
     if (!named || !path.isAbsolute(named) || !fs.existsSync(named)) return undefined;
     return gitTopLevel(named);
