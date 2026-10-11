@@ -144,4 +144,6 @@ to check** (every medium or low confidence entry of every slice's decision
 log, with options, reason and reversal cost), then per slice: the PR link,
 status, CI, open points, and which issues its merge unblocks. Then wait for
 my merges; after "merged", run `feature-slice` step 8 for that slice from
-the main checkout.
+the main checkout, remove its branch from `ai-push-branches`, and move its
+children onto `main` (Stacked branches); a child without commits of its own
+yet simply becomes a slice on `main`.
