@@ -40,7 +40,7 @@ if (!issue || !WT || !branch)
 // checks this worktree, not the orchestrator's checkout (.claude/hooks/lib.mjs).
 const HEAD = `Slice worktree: ${WT}
 
-You work on issue #${issue}, branch ${branch}, in the worktree above. Your cwd is the orchestrator's checkout and \`cd\` doesn't persist between Bash calls: use absolute paths for files, \`git -C ${WT} …\` for git, and \`cd ${WT} && …\` within one command for npm/npx. Never touch another checkout. The branch is compared with ${base} (\`git -C ${WT} diff ${base}...HEAD\`). Judgment calls the issue, docs and tests don't settle go into ${WT}/.claude/state/decisions.md (decision, where it lands, options, confidence high/medium/low, reversal cost) as you make them.${notes ? `\n\nNotes from the orchestrator:\n${notes}` : ''}`;
+You work on issue #${issue}, branch ${branch}, in the worktree above. Your cwd is the orchestrator's checkout and \`cd\` doesn't persist between Bash calls: use absolute paths for files, \`git -C ${WT} …\` for git, and \`cd ${WT} && …\` within one command for npm/npx. Never touch another checkout. The branch is compared with ${base} (\`git -C ${WT} diff ${base}...HEAD\`). Judgment calls the issue, docs and tests don't settle go into ${WT}/.claude/state/decisions.md (decision, where it lands, options, confidence high/medium/low, reversal cost) as you make them; if you can't write files there (test-writer, reviewer), put them in your result instead and a later step logs them.${notes ? `\n\nNotes from the orchestrator:\n${notes}` : ''}`;
 
 const STATUS = { type: 'string', enum: ['ok', 'needs-human', 'stuck'] };
 const FINDINGS = {
@@ -176,6 +176,9 @@ if (run === 'all' || run === 'red') {
     if (review.blockers || !tests.failsForRightReason)
       return stop('needs-human', 'test-review', review.findings);
   }
+  // The test-writer itself asks for the human (a re-spec it can't settle,
+  // an ambiguity), or is stuck.
+  if (tests.status !== 'ok') return stop(tests.status, 'tests', tests.designChoices);
   report.gate1 = tests.gate1;
   report.dbSecurity = spec.dbSecurity;
   report.ui = spec.ui;
