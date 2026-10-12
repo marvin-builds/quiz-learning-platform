@@ -192,7 +192,8 @@
         "delete": "Delete {{name}}"
       },
       "errors": {
-        "delete": "The question could not be deleted. Please try again."
+        "delete": "The question could not be deleted. Please try again.",
+        "deleteLastPublished": "The last question of a published quiz can't be deleted. Unpublish the quiz first."
       },
       "form": {
         "createTitle": "New question",
@@ -201,6 +202,13 @@
         "text": "Question",
         "explanation": "Explanation (optional, shown only after answering)",
         "multipleCorrect": "Several answers correct",
+        "answers": {
+          "title": "Answers",
+          "text": "Answer {{number}}",
+          "correct": "Answer {{number}} is correct",
+          "remove": "Remove answer {{number}}",
+          "add": "Add answer"
+        },
         "save": "Save",
         "saving": "Saving …",
         "notFound": "This question doesn't exist (any more).",
@@ -208,7 +216,12 @@
         "errors": {
           "save": "The question could not be saved. Please try again.",
           "textRequired": "Enter a question.",
-          "load": "The data could not be loaded."
+          "load": "The data could not be loaded.",
+          "answersTooFew": "A question needs at least two answers.",
+          "correctMissing": "Mark at least one answer as correct.",
+          "singleChoiceOneCorrect": "With single choice only one answer may be correct. Keep only one marked or allow several correct answers.",
+          "answerTextRequired": "Enter a text for the answer.",
+          "rules": "The question was not saved: it needs at least two answers with text and at least one correct one, exactly one for single choice."
         }
       },
       "deleteDialog": {

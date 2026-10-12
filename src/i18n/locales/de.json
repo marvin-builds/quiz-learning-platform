@@ -192,7 +192,8 @@
         "delete": "{{name}} löschen"
       },
       "errors": {
-        "delete": "Die Frage konnte nicht gelöscht werden. Versuche es erneut."
+        "delete": "Die Frage konnte nicht gelöscht werden. Versuche es erneut.",
+        "deleteLastPublished": "Die letzte Frage eines veröffentlichten Quiz kann nicht gelöscht werden. Ziehe das Quiz zuerst zurück."
       },
       "form": {
         "createTitle": "Neue Frage",
@@ -201,6 +202,13 @@
         "text": "Frage",
         "explanation": "Erklärung (optional, erst nach dem Antworten sichtbar)",
         "multipleCorrect": "Mehrere Antworten richtig",
+        "answers": {
+          "title": "Antworten",
+          "text": "Antwort {{number}}",
+          "correct": "Antwort {{number}} ist richtig",
+          "remove": "Antwort {{number}} entfernen",
+          "add": "Antwort hinzufügen"
+        },
         "save": "Speichern",
         "saving": "Wird gespeichert …",
         "notFound": "Diese Frage gibt es nicht (mehr).",
@@ -208,7 +216,12 @@
         "errors": {
           "save": "Die Frage konnte nicht gespeichert werden. Versuche es erneut.",
           "textRequired": "Gib eine Frage ein.",
-          "load": "Die Daten konnten nicht geladen werden."
+          "load": "Die Daten konnten nicht geladen werden.",
+          "answersTooFew": "Eine Frage braucht mindestens zwei Antworten.",
+          "correctMissing": "Markiere mindestens eine Antwort als richtig.",
+          "singleChoiceOneCorrect": "Bei Einfachauswahl darf nur eine Antwort richtig sein. Lass nur eine markiert oder erlaube mehrere richtige Antworten.",
+          "answerTextRequired": "Gib einen Text für die Antwort ein.",
+          "rules": "Die Frage wurde nicht gespeichert: Sie braucht mindestens zwei Antworten mit Text und mindestens eine richtige, bei Einfachauswahl genau eine."
         }
       },
       "deleteDialog": {
