@@ -6,9 +6,8 @@ import { AdminNotFound } from '@/components/admin-list';
 import { FormScreen } from '@/components/form-screen';
 import { QuestionForm } from '@/components/question-form';
 import { ErrorState, StatusMessage } from '@/components/status';
-import { saveQuestion } from '@/lib/admin-questions';
+import { saveFailureKey, saveQuestion } from '@/lib/admin-questions';
 import { adminKey, adminQuizKey, fetchAdminQuiz } from '@/lib/admin-quizzes';
-import { isRuleViolation } from '@/lib/admin-rows';
 import type { QuestionWithAnswersValues } from '@/lib/question-schema';
 
 export default function NewQuestionScreen() {
@@ -51,15 +50,7 @@ export default function NewQuestionScreen() {
       ) : (
         <QuestionForm
           pending={create.isPending}
-          failure={
-            create.isError
-              ? t(
-                  isRuleViolation(create.error)
-                    ? 'admin.questions.form.errors.rules'
-                    : 'admin.questions.form.errors.save',
-                )
-              : null
-          }
+          failure={create.isError ? t(saveFailureKey(create.error)) : null}
           onSubmit={(values) => create.mutate(values)}
         />
       )}

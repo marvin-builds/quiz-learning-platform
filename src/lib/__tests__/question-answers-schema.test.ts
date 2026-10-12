@@ -77,9 +77,12 @@ describe('questionWithAnswersSchema', () => {
     ]);
 
     expect(result.success).toBe(true);
+    // Re-spec (#83): an answer sent without an image comes back with
+    // image_path, image_alt and image_file null (no image).
+    const noImage = { image_path: null, image_alt: null, image_file: null };
     expect(result.data?.answers).toEqual([
-      { id: null, text: 'Paris', is_correct: true },
-      { id: null, text: 'Lyon', is_correct: false },
+      { id: null, text: 'Paris', is_correct: true, ...noImage },
+      { id: null, text: 'Lyon', is_correct: false, ...noImage },
     ]);
   });
 
@@ -108,7 +111,10 @@ describe('questionWithAnswersSchema', () => {
     ]);
   });
 
-  it('returns only id, text and is_correct for each answer, never sort_order, images or question_id', () => {
+  // Re-spec (#83): answers and the question now carry their images
+  // (image_path, image_alt, image_file; question-images-schema.test.ts), so
+  // the allowed keys gain those three. sort_order and question_id stay out.
+  it('returns only id, text, is_correct and the image fields for each answer, never sort_order or question_id', () => {
     const result = questionWithAnswersSchema.safeParse({
       text: QUESTION,
       explanation: null,
@@ -128,10 +134,20 @@ describe('questionWithAnswersSchema', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(Object.keys(result.data?.answers[0] ?? {}).sort()).toEqual(['id', 'is_correct', 'text']);
+    expect(Object.keys(result.data?.answers[0] ?? {}).sort()).toEqual([
+      'id',
+      'image_alt',
+      'image_file',
+      'image_path',
+      'is_correct',
+      'text',
+    ]);
     expect(Object.keys(result.data ?? {}).sort()).toEqual([
       'answers',
       'explanation',
+      'image_alt',
+      'image_file',
+      'image_path',
       'multiple_correct',
       'text',
     ]);

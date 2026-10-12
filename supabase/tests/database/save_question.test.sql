@@ -31,8 +31,16 @@
 -- for single choice, and every answer text non-blank.
 -- Fixtures are created here as the owner, independent of seed.sql, and
 -- vanish on rollback.
+--
+-- Re-spec (#83): save_question also writes images, the question's through
+-- two trailing parameters image_path and image_alt (default null, no image)
+-- and each answer's through image_path and image_alt in its `answers`
+-- element (save_question_images.test.sql). Only the catalog checks change:
+-- the signature gains (text, text), the argument names gain image_path and
+-- image_alt, and the six-argument overload must be gone. The calls below
+-- name their arguments and send no image, so they stay as they were.
 begin;
-select plan(71);
+select plan(72);
 
 -- Fixtures ----------------------------------------------------------------
 
@@ -161,25 +169,30 @@ $fn$;
 -- Structure and privileges (catalog) ----------------------------------------
 
 select has_function('public', 'save_question',
-  array['uuid', 'uuid', 'text', 'text', 'boolean', 'jsonb'],
-  'public.save_question(uuid, uuid, text, text, boolean, jsonb) exists');
+  array['uuid', 'uuid', 'text', 'text', 'boolean', 'jsonb', 'text', 'text'],
+  'public.save_question(uuid, uuid, text, text, boolean, jsonb, text, text) exists');
 
 select results_eq(
   $$ select a.name::text collate "default"
      from pg_proc p,
           unnest(p.proargnames) with ordinality as a(name, n)
-     where p.oid = to_regprocedure('public.save_question(uuid, uuid, text, text, boolean, jsonb)')
+     where p.oid = to_regprocedure('public.save_question(uuid, uuid, text, text, boolean, jsonb, text, text)')
      order by a.n $$,
   $$ values ('quiz_id'::text), ('question_id'::text), ('text'::text), ('explanation'::text),
-            ('multiple_correct'::text), ('answers'::text) $$,
-  'save_question takes quiz_id, question_id, text, explanation, multiple_correct and answers by name'
+            ('multiple_correct'::text), ('answers'::text), ('image_path'::text),
+            ('image_alt'::text) $$,
+  'save_question takes quiz_id, question_id, text, explanation, multiple_correct, answers, image_path and image_alt by name'
 );
+
+select hasnt_function('public', 'save_question',
+  array['uuid', 'uuid', 'text', 'text', 'boolean', 'jsonb'],
+  'the six-argument save_question without images is gone, not left behind as an overload');
 
 select ok(
   coalesce((
     select not p.prosecdef
     from pg_proc p
-    where p.oid = to_regprocedure('public.save_question(uuid, uuid, text, text, boolean, jsonb)')
+    where p.oid = to_regprocedure('public.save_question(uuid, uuid, text, text, boolean, jsonb, text, text)')
   ), false),
   'save_question is security invoker, so the grants and RLS of questions and answers apply'
 );
@@ -188,21 +201,21 @@ select ok(
   coalesce((
     select not p.proretset and p.prorettype = 'uuid'::regtype
     from pg_proc p
-    where p.oid = to_regprocedure('public.save_question(uuid, uuid, text, text, boolean, jsonb)')
+    where p.oid = to_regprocedure('public.save_question(uuid, uuid, text, text, boolean, jsonb, text, text)')
   ), false),
   'save_question returns only the question''s id, no row with a solution in it'
 );
 
 select ok(
   coalesce(not has_function_privilege('anon',
-    to_regprocedure('public.save_question(uuid, uuid, text, text, boolean, jsonb)'), 'execute'),
+    to_regprocedure('public.save_question(uuid, uuid, text, text, boolean, jsonb, text, text)'), 'execute'),
     false),
   'anon cannot execute save_question'
 );
 
 select ok(
   coalesce(has_function_privilege('authenticated',
-    to_regprocedure('public.save_question(uuid, uuid, text, text, boolean, jsonb)'), 'execute'),
+    to_regprocedure('public.save_question(uuid, uuid, text, text, boolean, jsonb, text, text)'), 'execute'),
     false),
   'authenticated can execute save_question (grants and RLS decide who may write)'
 );
@@ -213,7 +226,7 @@ select ok(
       select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl
       where acl.grantee = 0 and acl.privilege_type = 'EXECUTE')
     from pg_proc p
-    where p.oid = to_regprocedure('public.save_question(uuid, uuid, text, text, boolean, jsonb)')
+    where p.oid = to_regprocedure('public.save_question(uuid, uuid, text, text, boolean, jsonb, text, text)')
   ), false),
   'PUBLIC cannot execute save_question'
 );

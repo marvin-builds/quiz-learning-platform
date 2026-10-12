@@ -203,12 +203,26 @@
         "text": "Question",
         "explanation": "Explanation (optional, shown only after answering)",
         "multipleCorrect": "Several answers correct",
+        "image": {
+          "pick": "Choose image",
+          "replace": "Replace image",
+          "remove": "Remove image",
+          "alt": "Alt text of the image",
+          "preview": "Preview of the image"
+        },
         "answers": {
           "title": "Answers",
           "text": "Answer {{number}}",
           "correct": "Answer {{number}} is correct",
           "remove": "Remove answer {{number}}",
-          "add": "Add answer"
+          "add": "Add answer",
+          "image": {
+            "pick": "Choose image for answer {{number}}",
+            "replace": "Replace image of answer {{number}}",
+            "remove": "Remove image of answer {{number}}",
+            "alt": "Alt text of the image of answer {{number}}",
+            "preview": "Preview of the image of answer {{number}}"
+          }
         },
         "save": "Save",
         "saving": "Saving …",
@@ -222,7 +236,11 @@
           "correctMissing": "Mark at least one answer as correct.",
           "singleChoiceOneCorrect": "With single choice only one answer may be correct. Keep only one marked or allow several correct answers.",
           "answerTextRequired": "Enter a text for the answer.",
-          "rules": "The question was not saved: it needs at least two answers with text and at least one correct one, exactly one for single choice."
+          "rules": "The question was not saved: it needs at least two answers with text and at least one correct one, exactly one for single choice, and alt text for every image.",
+          "imageAltRequired": "Describe the image in an alt text.",
+          "imageTooLarge": "The image is larger than 5 MB. Choose a smaller image.",
+          "imageType": "Choose a PNG, JPEG or WebP image.",
+          "imageUpload": "The image could not be uploaded. It must be a PNG, JPEG or WebP image of up to 5 MB. Please try again."
         }
       },
       "deleteDialog": {
