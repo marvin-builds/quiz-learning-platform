@@ -15,7 +15,7 @@ import en from '@/i18n/locales/en.json';
 //   included, each with its published state, a publish/unpublish action, an
 //   edit link and a delete action with an in-app confirmation dialog; with
 //   loading, empty and error-with-retry states.
-// - `/admin/categories/new` and `/admin/categories/<id>`: the create and edit
+// - `/admin/categories/new` and `/admin/categories/<id>/edit`: the create and edit
 //   form (name, description, published), with a pending state while saving
 //   and an error that keeps the input.
 //
@@ -639,13 +639,13 @@ describe('category list (/admin/categories)', () => {
     expect(await screen.findByText(text('admin.categories.form.createTitle'))).toBeOnTheScreen();
   });
 
-  it('opens the edit form of a category at /admin/categories/<id>', async () => {
+  it('opens the edit form of a category at /admin/categories/<id>/edit', async () => {
     const result = await renderAt('/admin/categories');
     await screen.findByText('Musik');
 
     await fireEvent.press(control(label('admin.categories.actions.edit', { name: 'Musik' })));
 
-    await waitFor(() => expect(result.getPathname()).toBe(`/admin/categories/${MUSIK.id}`));
+    await waitFor(() => expect(result.getPathname()).toBe(`/admin/categories/${MUSIK.id}/edit`));
     expect(await screen.findByText(text('admin.categories.form.editTitle'))).toBeOnTheScreen();
   });
 });
@@ -768,9 +768,9 @@ describe('create form (/admin/categories/new)', () => {
   });
 });
 
-describe('edit form (/admin/categories/<id>)', () => {
+describe('edit form (/admin/categories/<id>/edit)', () => {
   it('shows an unpublished category with its values', async () => {
-    await renderAt(`/admin/categories/${MUSIK.id}`);
+    await renderAt(`/admin/categories/${MUSIK.id}/edit`);
 
     await waitFor(() => expect(nameField().props.value).toBe('Musik'));
     expect(descriptionField().props.value).toBe('Komponisten und Instrumente');
@@ -778,7 +778,7 @@ describe('edit form (/admin/categories/<id>)', () => {
   });
 
   it('saves the changes to that category only, without sort_order', async () => {
-    await renderAt(`/admin/categories/${MUSIK.id}`);
+    await renderAt(`/admin/categories/${MUSIK.id}/edit`);
     await waitFor(() => expect(nameField().props.value).toBe('Musik'));
 
     await fillForm({ name: 'Musikgeschichte', description: '', published: true });
@@ -813,7 +813,7 @@ describe('edit form (/admin/categories/<id>)', () => {
 
   it('shows a pending state while saving', async () => {
     mockServer.update = 'pending';
-    await renderAt(`/admin/categories/${MUSIK.id}`);
+    await renderAt(`/admin/categories/${MUSIK.id}/edit`);
     await waitFor(() => expect(nameField().props.value).toBe('Musik'));
 
     await fillForm({ name: 'Musikgeschichte' });
@@ -825,21 +825,21 @@ describe('edit form (/admin/categories/<id>)', () => {
 
   it('keeps the input and shows an error when the server fails', async () => {
     mockServer.update = { error: NETWORK_ERROR };
-    const result = await renderAt(`/admin/categories/${MUSIK.id}`);
+    const result = await renderAt(`/admin/categories/${MUSIK.id}/edit`);
     await waitFor(() => expect(nameField().props.value).toBe('Musik'));
 
     await fillForm({ name: 'Musikgeschichte', description: 'Neu', published: true });
     await fireEvent.press(saveButton());
 
     expect(await screen.findByText(text('admin.categories.form.errors.save'))).toBeOnTheScreen();
-    expect(result.getPathname()).toBe(`/admin/categories/${MUSIK.id}`);
+    expect(result.getPathname()).toBe(`/admin/categories/${MUSIK.id}/edit`);
     expect(nameField().props.value).toBe('Musikgeschichte');
     expect(descriptionField().props.value).toBe('Neu');
     expect(isChecked(publishedControl())).toBe(true);
   });
 
   it('rejects a blank name with a translated message and sends nothing', async () => {
-    await renderAt(`/admin/categories/${MUSIK.id}`);
+    await renderAt(`/admin/categories/${MUSIK.id}/edit`);
     await waitFor(() => expect(nameField().props.value).toBe('Musik'));
 
     await fillForm({ name: '\n' });
@@ -854,7 +854,7 @@ describe('edit form (/admin/categories/<id>)', () => {
 
   it('shows a not-found state and no form for an unknown category', async () => {
     // e.g. deleted in another tab
-    await renderAt('/admin/categories/10000000-0000-4000-8000-0000000000ff');
+    await renderAt('/admin/categories/10000000-0000-4000-8000-0000000000ff/edit');
 
     expect(await screen.findByText(text('admin.categories.form.notFound'))).toBeOnTheScreen();
     await flush();
@@ -865,7 +865,7 @@ describe('edit form (/admin/categories/<id>)', () => {
 
   it('shows an error with a retry, and no form, when the category cannot be read', async () => {
     mockServer.select = { error: NETWORK_ERROR };
-    await renderAt(`/admin/categories/${MUSIK.id}`);
+    await renderAt(`/admin/categories/${MUSIK.id}/edit`);
 
     expect(await screen.findByText(text('admin.categories.form.errors.load'))).toBeOnTheScreen();
     expect(screen.queryByLabelText(text('admin.categories.form.name'))).toBeNull();
