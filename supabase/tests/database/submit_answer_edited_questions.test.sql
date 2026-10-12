@@ -44,7 +44,8 @@ $fn$;
 grant execute on function pg_temp.checked(text) to authenticated;
 
 -- An answer's id by its question's and its own text, read as the owner, or
--- null while the question doesn't exist.
+-- null while the question doesn't exist. Both lookups are scoped to this
+-- file's quiz, so seed.sql questions with the same text never match.
 create function pg_temp.answer(question_text text, answer_text text)
 returns uuid
 language sql
@@ -52,7 +53,8 @@ stable
 as $fn$
   select a.id from public.answers a
   join public.questions q on q.id = a.question_id
-  where q.text = question_text and a.text = answer_text
+  where q.quiz_id = 'd0000000-0000-0000-0000-000000000001'
+    and q.text = question_text and a.text = answer_text
 $fn$;
 
 grant execute on function pg_temp.answer(text, text) to authenticated;
@@ -62,7 +64,8 @@ returns uuid
 language sql
 stable
 as $fn$
-  select q.id from public.questions q where q.text = question_text
+  select q.id from public.questions q
+  where q.quiz_id = 'd0000000-0000-0000-0000-000000000001' and q.text = question_text
 $fn$;
 
 grant execute on function pg_temp.question(text) to authenticated;
