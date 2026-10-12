@@ -97,6 +97,10 @@ export default function AdminQuestionsScreen() {
               label={t('admin.questions.create')}
               href={`/admin/quizzes/${quizId}/questions/new`}
             />
+            <RowLink
+              label={t('admin.questions.preview', { name: list.data.quiz.title })}
+              href={`/admin/quizzes/${quizId}/preview`}
+            />
             {remove.isError ? (
               <ErrorText
                 text={t(
