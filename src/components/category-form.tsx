@@ -1,8 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
+import { ErrorText } from '@/components/admin-list';
 import { Button } from '@/components/status';
 import { SwitchField } from '@/components/switch-field';
 import { TextField } from '@/components/text-field';
@@ -53,9 +54,7 @@ export function CategoryForm({ initial, pending, failed, onSubmit }: Props) {
       />
       {nameError ? (
         // The schema's messages are keys of admin.categories.form.errors.
-        <Text role="alert" className="text-base text-red-700">
-          {t(nameError as 'admin.categories.form.errors.nameRequired')}
-        </Text>
+        <ErrorText text={t(nameError as 'admin.categories.form.errors.nameRequired')} />
       ) : null}
       <Controller
         control={control}
@@ -82,11 +81,7 @@ export function CategoryForm({ initial, pending, failed, onSubmit }: Props) {
           />
         )}
       />
-      {failed ? (
-        <Text role="alert" className="text-base text-red-700">
-          {t('admin.categories.form.errors.save')}
-        </Text>
-      ) : null}
+      {failed ? <ErrorText text={t('admin.categories.form.errors.save')} /> : null}
       <Button
         label={pending ? t('admin.categories.form.saving') : t('admin.categories.form.save')}
         disabled={pending}
