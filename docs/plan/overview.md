@@ -72,8 +72,9 @@ Supabase: Postgres + row-level security · Auth · Storage (images) · Realtime 
   directly. `start_attempt` reuses the user's empty unfinished attempt on
   the same quiz and refuses a new one while the user has 20 unfinished
   attempts from the last 24 hours, so one session can't pile up rows by
-  starting quizzes (finished attempts and new anonymous sign-ups are still
-  only bounded by the API and auth rate limits).
+  starting quizzes (finished attempts are not bounded, so one user can still
+  add rows by finishing short quizzes; new anonymous sign-ups are bounded
+  only by the auth rate limit).
 
 **Anonymous play:** uses Supabase anonymous sign-in. When the learner
 registers, the identity is linked to a real account and their progress is kept.
