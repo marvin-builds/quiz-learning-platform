@@ -16,9 +16,11 @@ number starts the branch name) and `CLAUDE.md` first.
 ## Check, in this order
 
 1. **Solutions stay hidden.** No select, view, policy, RPC or client query
-   exposes `answers.is_correct` or `questions.explanation` except through
-   `submit_answer`, and only after the answer is recorded. Nothing lets the
-   client write a score. Check grants and `security definer` functions too.
+   exposes `answers.is_correct` or `questions.explanation` to a learner
+   except through `submit_answer`, and only after the answer is recorded.
+   Admins also read them through the admin-only `admin_question`, which must
+   refuse every other caller. Nothing lets the client write a score. Check
+   grants and `security definer` functions too.
 2. **RLS.** Every new table has RLS enabled. Every policy has a positive and a
    negative pgTAP test for `anon`, learner and admin. Missing negative tests
    are findings.
