@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import {
@@ -361,6 +361,54 @@ async function pressByKeyboard(control: Locator, key: 'Enter' | ' ') {
   await control.press(key === ' ' ? 'Space' : 'Enter');
 }
 
+// Re-spec (#84, N3): the category list is global, and a reorder from a list
+// with the same members is accepted (last write wins), so the phone and
+// desktop projects, which run in separate worker processes, could revert
+// each other's category move. This exclusive lock file (created with 'wx')
+// serializes that step across processes. A holder whose process is gone
+// leaves a stale lock, which is taken over; the wait is bounded.
+const CATEGORY_LOCK = path.join(__dirname, '..', 'test-results', 'category-reorder.lock');
+
+async function acquireCategoryLock(): Promise<() => void> {
+  mkdirSync(path.dirname(CATEGORY_LOCK), { recursive: true });
+  const deadline = Date.now() + 120_000;
+  for (;;) {
+    try {
+      writeFileSync(CATEGORY_LOCK, String(process.pid), { flag: 'wx' });
+      return () => {
+        if (readLockHolder() === process.pid) rmSync(CATEGORY_LOCK, { force: true });
+      };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    }
+    const holder = readLockHolder();
+    if (holder !== null && !isAlive(holder)) {
+      rmSync(CATEGORY_LOCK, { force: true });
+      continue;
+    }
+    if (Date.now() > deadline) throw new Error(`category lock still held by pid ${holder}`);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+
+function readLockHolder(): number | null {
+  try {
+    const pid = Number(readFileSync(CATEGORY_LOCK, 'utf8'));
+    return Number.isInteger(pid) && pid > 0 ? pid : null;
+  } catch {
+    return null;
+  }
+}
+
+function isAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
 // 1. Flow B --------------------------------------------------------------------------
 
 test('flow B: an admin creates, publishes and previews a quiz with an image, and a learner plays it; axe passes on every admin screen', async ({
@@ -673,111 +721,126 @@ test('an admin reorders categories, quizzes, questions and answers by keyboard, 
     page.getByText(text('admin.dashboard.title'), { exact: true }).first(),
   ).toBeVisible();
 
-  // Categories: move the second up until it is above the first. Other runs
-  // may have put categories in between, so it may take more than one move.
-  // A concurrent writer can make a move stale: the database refuses it, the
-  // translated error shows, and the test reloads and presses again. Each
-  // move waits until the list shows the second above its old neighbour.
-  await page.goto('/admin/categories');
-  const moveSecondUp = button(page, 'admin.categories.actions.moveUp', { name: second });
-  const refused = page.getByText(text('admin.categories.errors.reorder'), { exact: true });
-  //
-  // Re-spec (#84, N3): the other project reorders the same global list at the
-  // same time, and a reorder from a list with the same members is accepted
-  // (last write wins), so its write can put the second back where it was.
-  // Once this press's reorder_categories call has answered, "neither moved
-  // nor refused" (the database has the old neighbour above the second again)
-  // counts like a refusal: reload and press again, within the same 10 tries.
-  let outcome = 'pending';
-  for (let attempts = 0; attempts < 10; attempts += 1) {
-    if (outcome === 'reverted' || (await refused.count()) > 0) await page.reload();
-    const [top] = await orderOf(page, [first, second]);
-    if (top === second) break;
-    const names = await categoryNamesInOrder(request);
-    const above = names[names.indexOf(second) - 1];
-    let answered = false;
-    page
-      .waitForResponse((response) => response.url().includes('/rest/v1/rpc/reorder_categories'))
-      .then(
-        () => (answered = true),
-        () => undefined,
-      );
-    await pressByKeyboard(moveSecondUp, 'Enter');
-    outcome = 'pending';
-    await expect
-      .poll(async () => {
-        if ((await refused.count()) > 0) outcome = 'refused';
-        else if ((await orderOf(page, [above, second]))[0] === second) outcome = 'moved';
-        else if (answered) {
-          const now = await categoryNamesInOrder(request);
-          if (now.indexOf(above) < now.indexOf(second)) outcome = 'reverted';
-        }
-        return outcome;
-      })
-      .not.toBe('pending');
-    if (outcome === 'moved') await expect(moveSecondUp).toBeFocused();
-  }
-  expect(await orderOf(page, [first, second])).toEqual([second, first]);
-  await expect(refused).toHaveCount(0);
-  await expectNoSeriousAxeViolations(page);
-
-  // Quizzes: the third moves up one, with Space; focus stays on its button.
-  await page.goto(`/admin/categories/${firstId}`);
-  await expect(button(page, 'admin.quizzes.actions.moveUp', { name: quizNames[0] })).toBeDisabled();
-  await expect(
-    button(page, 'admin.quizzes.actions.moveDown', { name: quizNames[2] }),
-  ).toBeDisabled();
-  const moveThirdQuizUp = button(page, 'admin.quizzes.actions.moveUp', { name: quizNames[2] });
-  await pressByKeyboard(moveThirdQuizUp, ' ');
-  await expect
-    .poll(() => orderOf(page, quizNames))
-    .toEqual([quizNames[0], quizNames[2], quizNames[1]]);
-  await expect(moveThirdQuizUp).toBeFocused();
-  await expect(
-    button(page, 'admin.quizzes.actions.moveDown', { name: quizNames[1] }),
-  ).toBeDisabled();
-  await expectNoSeriousAxeViolations(page);
-
-  // Questions: the third moves up one, with Enter.
-  await page.goto(`/admin/quizzes/${quizIds[0]}`);
-  const moveThirdQuestionUp = button(page, 'admin.questions.actions.moveUp', {
-    name: questions[2],
-  });
-  await pressByKeyboard(moveThirdQuestionUp, 'Enter');
-  await expect
-    .poll(() => orderOf(page, questions))
-    .toEqual([questions[0], questions[2], questions[1]]);
-  await expect(moveThirdQuestionUp).toBeFocused();
-  await expectNoSeriousAxeViolations(page);
-
-  // Answers: in the first question's form, the third answer moves up one;
-  // focus stays on its button, now named with its new number; then save.
-  await link(page, 'admin.questions.actions.edit', { name: questions[0] }).click();
-  await expect(
-    page.getByLabel(text('admin.questions.form.answers.text', { number: 3 }), { exact: true }),
-  ).toHaveValue('Drei');
-  await pressByKeyboard(
-    button(page, 'admin.questions.form.answers.moveUp', { number: 3 }),
-    'Enter',
-  );
-  await expect(
-    page.getByLabel(text('admin.questions.form.answers.text', { number: 2 }), { exact: true }),
-  ).toHaveValue('Drei');
-  await expect(button(page, 'admin.questions.form.answers.moveUp', { number: 2 })).toBeFocused();
-  await expect(button(page, 'admin.questions.form.answers.moveUp', { number: 1 })).toBeDisabled();
-  await expectNoSeriousAxeViolations(page);
-  await button(page, 'admin.questions.form.save').click();
-  await expect(page).toHaveURL(new RegExp(`/admin/quizzes/${quizIds[0]}/?$`));
-
-  // No drag interaction anywhere on the lists: nothing is draggable.
-  await page.goto(`/admin/categories/${firstId}`);
-  await expect(page.locator('[draggable="true"]')).toHaveCount(0);
-
-  // A learner in a fresh browser sees the new order everywhere.
+  // Re-spec (#84, N3): hold the category lock from loading the category
+  // list through the learner's check of the category order, so no other
+  // project's category reorder can interleave and revert this one. The
+  // learner's browser opens first, so its clean-up wraps the lock.
   const learner = await newVisitor(browser, testInfo);
   try {
-    await learner.goto('/');
-    expect(await orderOf(learner, [first, second])).toEqual([second, first]);
+    const releaseCategoryLock = await acquireCategoryLock();
+    try {
+      // Categories: move the second up until it is above the first. Other runs
+      // may have put categories in between, so it may take more than one move.
+      // A concurrent writer can make a move stale: the database refuses it, the
+      // translated error shows, and the test reloads and presses again. Each
+      // move waits until the list shows the second above its old neighbour.
+      await page.goto('/admin/categories');
+      const moveSecondUp = button(page, 'admin.categories.actions.moveUp', { name: second });
+      const refused = page.getByText(text('admin.categories.errors.reorder'), { exact: true });
+      //
+      // Re-spec (#84, N3): the other project reorders the same global list at the
+      // same time, and a reorder from a list with the same members is accepted
+      // (last write wins), so its write can put the second back where it was.
+      // Once this press's reorder_categories call has answered, "neither moved
+      // nor refused" (the database has the old neighbour above the second again)
+      // counts like a refusal: reload and press again, within the same 10 tries.
+      let outcome = 'pending';
+      for (let attempts = 0; attempts < 10; attempts += 1) {
+        if (outcome === 'reverted' || (await refused.count()) > 0) await page.reload();
+        const [top] = await orderOf(page, [first, second]);
+        if (top === second) break;
+        const names = await categoryNamesInOrder(request);
+        const above = names[names.indexOf(second) - 1];
+        let answered = false;
+        page
+          .waitForResponse((response) => response.url().includes('/rest/v1/rpc/reorder_categories'))
+          .then(
+            () => (answered = true),
+            () => undefined,
+          );
+        await pressByKeyboard(moveSecondUp, 'Enter');
+        outcome = 'pending';
+        await expect
+          .poll(async () => {
+            if ((await refused.count()) > 0) outcome = 'refused';
+            else if ((await orderOf(page, [above, second]))[0] === second) outcome = 'moved';
+            else if (answered) {
+              const now = await categoryNamesInOrder(request);
+              if (now.indexOf(above) < now.indexOf(second)) outcome = 'reverted';
+            }
+            return outcome;
+          })
+          .not.toBe('pending');
+        if (outcome === 'moved') await expect(moveSecondUp).toBeFocused();
+      }
+      expect(await orderOf(page, [first, second])).toEqual([second, first]);
+      await expect(refused).toHaveCount(0);
+      await expectNoSeriousAxeViolations(page);
+
+      // Quizzes: the third moves up one, with Space; focus stays on its button.
+      await page.goto(`/admin/categories/${firstId}`);
+      await expect(
+        button(page, 'admin.quizzes.actions.moveUp', { name: quizNames[0] }),
+      ).toBeDisabled();
+      await expect(
+        button(page, 'admin.quizzes.actions.moveDown', { name: quizNames[2] }),
+      ).toBeDisabled();
+      const moveThirdQuizUp = button(page, 'admin.quizzes.actions.moveUp', { name: quizNames[2] });
+      await pressByKeyboard(moveThirdQuizUp, ' ');
+      await expect
+        .poll(() => orderOf(page, quizNames))
+        .toEqual([quizNames[0], quizNames[2], quizNames[1]]);
+      await expect(moveThirdQuizUp).toBeFocused();
+      await expect(
+        button(page, 'admin.quizzes.actions.moveDown', { name: quizNames[1] }),
+      ).toBeDisabled();
+      await expectNoSeriousAxeViolations(page);
+
+      // Questions: the third moves up one, with Enter.
+      await page.goto(`/admin/quizzes/${quizIds[0]}`);
+      const moveThirdQuestionUp = button(page, 'admin.questions.actions.moveUp', {
+        name: questions[2],
+      });
+      await pressByKeyboard(moveThirdQuestionUp, 'Enter');
+      await expect
+        .poll(() => orderOf(page, questions))
+        .toEqual([questions[0], questions[2], questions[1]]);
+      await expect(moveThirdQuestionUp).toBeFocused();
+      await expectNoSeriousAxeViolations(page);
+
+      // Answers: in the first question's form, the third answer moves up one;
+      // focus stays on its button, now named with its new number; then save.
+      await link(page, 'admin.questions.actions.edit', { name: questions[0] }).click();
+      await expect(
+        page.getByLabel(text('admin.questions.form.answers.text', { number: 3 }), { exact: true }),
+      ).toHaveValue('Drei');
+      await pressByKeyboard(
+        button(page, 'admin.questions.form.answers.moveUp', { number: 3 }),
+        'Enter',
+      );
+      await expect(
+        page.getByLabel(text('admin.questions.form.answers.text', { number: 2 }), { exact: true }),
+      ).toHaveValue('Drei');
+      await expect(
+        button(page, 'admin.questions.form.answers.moveUp', { number: 2 }),
+      ).toBeFocused();
+      await expect(
+        button(page, 'admin.questions.form.answers.moveUp', { number: 1 }),
+      ).toBeDisabled();
+      await expectNoSeriousAxeViolations(page);
+      await button(page, 'admin.questions.form.save').click();
+      await expect(page).toHaveURL(new RegExp(`/admin/quizzes/${quizIds[0]}/?$`));
+
+      // No drag interaction anywhere on the lists: nothing is draggable.
+      await page.goto(`/admin/categories/${firstId}`);
+      await expect(page.locator('[draggable="true"]')).toHaveCount(0);
+
+      // A learner in a fresh browser sees the new order everywhere.
+      await learner.goto('/');
+      expect(await orderOf(learner, [first, second])).toEqual([second, first]);
+    } finally {
+      releaseCategoryLock();
+    }
 
     await learner.getByRole('link', { name: new RegExp(escape(first)) }).click();
     await expect
