@@ -108,7 +108,12 @@ export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
           <SwitchField
             label={t('admin.questions.form.multipleCorrect')}
             value={field.value}
-            onChange={field.onChange}
+            onChange={(value) => {
+              field.onChange(value);
+              // The single-choice rule reports on `answers`: after a save
+              // attempt, check it again so no outdated message stays.
+              if (formState.isSubmitted) void trigger('answers');
+            }}
           />
         )}
       />
