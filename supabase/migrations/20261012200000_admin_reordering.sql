@@ -27,6 +27,23 @@
 -- non-admin whatever the list, and an admin for a list that breaks the
 -- contract. They return nothing, so no solution can leak through them.
 
+-- Whether `list` names every id of `current` exactly once and nothing else.
+-- false for a null or empty list (an unknown parent has no children, so any
+-- list for it is refused too).
+create function internal.is_full_list(list uuid[], current uuid[])
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select coalesce(pg_catalog.cardinality(is_full_list.list), 0) > 0
+     and pg_catalog.array_position(is_full_list.list, null) is null
+     and pg_catalog.cardinality(is_full_list.list) = pg_catalog.cardinality(is_full_list.current)
+     and (select count(distinct l) from pg_catalog.unnest(is_full_list.list) l)
+         = pg_catalog.cardinality(is_full_list.list)
+     and is_full_list.list operator(pg_catalog.@>) is_full_list.current;
+$$;
+
 create function public.reorder_categories(category_ids uuid[])
 returns void
 language plpgsql
@@ -113,23 +130,6 @@ begin
   from pg_catalog.unnest(reorder_questions.question_ids) with ordinality as o(id, position)
   where q.id = o.id;
 end;
-$$;
-
--- Whether `list` names every id of `current` exactly once and nothing else.
--- false for a null or empty list (an unknown parent has no children, so any
--- list for it is refused too).
-create function internal.is_full_list(list uuid[], current uuid[])
-returns boolean
-language sql
-immutable
-set search_path = ''
-as $$
-  select coalesce(pg_catalog.cardinality(is_full_list.list), 0) > 0
-     and pg_catalog.array_position(is_full_list.list, null) is null
-     and pg_catalog.cardinality(is_full_list.list) = pg_catalog.cardinality(is_full_list.current)
-     and (select count(distinct l) from pg_catalog.unnest(is_full_list.list) l)
-         = pg_catalog.cardinality(is_full_list.list)
-     and is_full_list.list operator(pg_catalog.@>) is_full_list.current;
 $$;
 
 grant execute on function public.reorder_categories(uuid[]) to authenticated;
