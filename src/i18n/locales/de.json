@@ -152,7 +152,8 @@
       },
       "errors": {
         "toggle": "Der Status konnte nicht geändert werden. Versuche es erneut.",
-        "delete": "Das Quiz konnte nicht gelöscht werden. Versuche es erneut."
+        "delete": "Das Quiz konnte nicht gelöscht werden. Versuche es erneut.",
+        "publishRules": "Das Quiz kann erst veröffentlicht werden, wenn es Fragen hat und jede Frage mindestens zwei Antworten mit mindestens einer richtigen hat (bei Einfachauswahl genau einer)."
       },
       "form": {
         "createTitle": "Neues Quiz",

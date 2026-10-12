@@ -8,6 +8,7 @@ import { QuizForm } from '@/components/quiz-form';
 import { ErrorState, StatusMessage } from '@/components/status';
 import { adminCategoryKey, fetchAdminCategory } from '@/lib/admin-categories';
 import { adminKey, createQuiz } from '@/lib/admin-quizzes';
+import { isRuleViolation } from '@/lib/admin-rows';
 import type { QuizValues } from '@/lib/quiz-schema';
 
 export default function NewQuizScreen() {
@@ -50,7 +51,16 @@ export default function NewQuizScreen() {
       ) : (
         <QuizForm
           pending={create.isPending}
-          failed={create.isError}
+          failure={
+            create.isError
+              ? t(
+                  // The database refuses to publish a quiz that breaks its rules.
+                  isRuleViolation(create.error)
+                    ? 'admin.quizzes.errors.publishRules'
+                    : 'admin.quizzes.form.errors.save',
+                )
+              : null
+          }
           onSubmit={(values) => create.mutate(values)}
         />
       )}
