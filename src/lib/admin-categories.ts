@@ -35,11 +35,12 @@ export async function fetchAdminCategory(id: string) {
 }
 
 export async function createCategory(values: CategoryValues) {
-  // The generated insert type requires sort_order, which has no column
-  // default: the trigger categories_assign_sort_order fills it in, and the
-  // column grants refuse it from the client.
-  const row = values as TablesInsert<'categories'>;
-  const { error } = await supabase.from('categories').insert(row);
+  // Checked against the generated insert type without sort_order, which the
+  // trigger categories_assign_sort_order fills in (the column grants refuse
+  // it from the client). The generated type still requires it because the
+  // column has no default, so only that one property is cast away.
+  const row: Omit<TablesInsert<'categories'>, 'sort_order'> = values;
+  const { error } = await supabase.from('categories').insert(row as TablesInsert<'categories'>);
   if (error) throw error;
 }
 
