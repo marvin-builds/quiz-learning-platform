@@ -31,17 +31,12 @@ import de from '@/i18n/locales/de.json';
 // client's public URL. Texts come from de.json, so a missing key fails with
 // its name.
 
-jest.mock(
-  'expo-image-picker',
-  () => ({
-    launchImageLibraryAsync: jest.fn(),
-    requestMediaLibraryPermissionsAsync: jest.fn(() =>
-      Promise.resolve({ granted: true, status: 'granted', canAskAgain: true, expires: 'never' }),
-    ),
-  }),
-  // Not installed before #83 adds it; the mock stands in either way.
-  { virtual: true },
-);
+jest.mock('expo-image-picker', () => ({
+  launchImageLibraryAsync: jest.fn(),
+  requestMediaLibraryPermissionsAsync: jest.fn(() =>
+    Promise.resolve({ granted: true, status: 'granted', canAskAgain: true, expires: 'never' }),
+  ),
+}));
 
 jest.mock('@/lib/supabase', () => ({
   supabase: {

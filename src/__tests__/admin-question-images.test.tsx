@@ -45,17 +45,12 @@ import en from '@/i18n/locales/en.json';
 // fails every such request, `mockServer['storage.upload#<n>']` only the
 // n-th upload (1-based). Every request is logged in order in `mockLog`.
 
-jest.mock(
-  'expo-image-picker',
-  () => ({
-    launchImageLibraryAsync: jest.fn(),
-    requestMediaLibraryPermissionsAsync: jest.fn(() =>
-      Promise.resolve({ granted: true, status: 'granted', canAskAgain: true, expires: 'never' }),
-    ),
-  }),
-  // Not installed before #83 adds it; the mock stands in either way.
-  { virtual: true },
-);
+jest.mock('expo-image-picker', () => ({
+  launchImageLibraryAsync: jest.fn(),
+  requestMediaLibraryPermissionsAsync: jest.fn(() =>
+    Promise.resolve({ granted: true, status: 'granted', canAskAgain: true, expires: 'never' }),
+  ),
+}));
 
 const picker = jest.requireMock('expo-image-picker') as { launchImageLibraryAsync: jest.Mock };
 
