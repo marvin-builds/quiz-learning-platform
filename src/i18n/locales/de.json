@@ -83,6 +83,51 @@
       "title": "Admin-Bereich",
       "categories": "Kategorien",
       "signOut": "Abmelden"
+    },
+    "categories": {
+      "title": "Kategorien",
+      "loading": "Kategorien werden geladen …",
+      "empty": "Noch keine Kategorien.",
+      "error": "Die Kategorien konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "create": "Neue Kategorie",
+      "status": {
+        "published": "Veröffentlicht",
+        "draft": "Entwurf"
+      },
+      "actions": {
+        "edit": "{{name}} bearbeiten",
+        "publish": "{{name}} veröffentlichen",
+        "unpublish": "{{name}} zurückziehen",
+        "delete": "{{name}} löschen"
+      },
+      "errors": {
+        "toggle": "Der Status konnte nicht geändert werden. Versuche es erneut.",
+        "delete": "Die Kategorie konnte nicht gelöscht werden. Versuche es erneut."
+      },
+      "form": {
+        "createTitle": "Neue Kategorie",
+        "editTitle": "Kategorie bearbeiten",
+        "loading": "Kategorie wird geladen …",
+        "name": "Name",
+        "description": "Beschreibung (optional)",
+        "published": "Veröffentlicht",
+        "save": "Speichern",
+        "saving": "Wird gespeichert …",
+        "notFound": "Diese Kategorie gibt es nicht (mehr).",
+        "back": "Zurück zu den Kategorien",
+        "errors": {
+          "save": "Die Kategorie konnte nicht gespeichert werden. Versuche es erneut.",
+          "nameRequired": "Gib einen Namen ein.",
+          "load": "Die Kategorie konnte nicht geladen werden."
+        }
+      },
+      "deleteDialog": {
+        "title": "{{name}} löschen?",
+        "message": "Die Kategorie „{{name}}“ wird mit allen ihren Quizzen, Fragen und Antworten gelöscht. Bereits gespielte Ergebnisse bleiben mit ihrer Punktzahl erhalten.",
+        "confirm": "Löschen",
+        "cancel": "Abbrechen"
+      }
     }
   }
 }

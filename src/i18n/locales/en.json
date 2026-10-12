@@ -83,6 +83,51 @@
       "title": "Admin area",
       "categories": "Categories",
       "signOut": "Sign out"
+    },
+    "categories": {
+      "title": "Categories",
+      "loading": "Loading categories …",
+      "empty": "No categories yet.",
+      "error": "The categories could not be loaded.",
+      "retry": "Try again",
+      "create": "New category",
+      "status": {
+        "published": "Published",
+        "draft": "Draft"
+      },
+      "actions": {
+        "edit": "Edit {{name}}",
+        "publish": "Publish {{name}}",
+        "unpublish": "Unpublish {{name}}",
+        "delete": "Delete {{name}}"
+      },
+      "errors": {
+        "toggle": "The status could not be changed. Try again.",
+        "delete": "The category could not be deleted. Try again."
+      },
+      "form": {
+        "createTitle": "New category",
+        "editTitle": "Edit category",
+        "loading": "Loading the category …",
+        "name": "Name",
+        "description": "Description (optional)",
+        "published": "Published",
+        "save": "Save",
+        "saving": "Saving …",
+        "notFound": "This category doesn't exist (any more).",
+        "back": "Back to the categories",
+        "errors": {
+          "save": "The category could not be saved. Try again.",
+          "nameRequired": "Enter a name.",
+          "load": "The category could not be loaded."
+        }
+      },
+      "deleteDialog": {
+        "title": "Delete {{name}}?",
+        "message": "The category “{{name}}” is deleted with all its quizzes, questions and answers. Results already played keep their score.",
+        "confirm": "Delete",
+        "cancel": "Cancel"
+      }
     }
   }
 }
