@@ -466,3 +466,11 @@ the loop.
   escalation note, red verification, a spec conflict, or red CI after one
   fix attempt; the other slices keep running. Issues labelled `manual` are
   skipped.
+
+### Note (2026-10-12): CLAUDE.md names admin_answers
+
+Issue #82. The never-break rule "Learners never see the solutions" in
+`CLAUDE.md` now names `admin_answers(question_id)` next to
+`admin_question(question_id)` as the admin's read of the solutions
+([ADR 0002 addendum](0002-supabase-backend.md#addendum-2026-10-12-answers-their-rules-and-admin_answers)).
+This is a rule wording update, not a workflow change.

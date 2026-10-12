@@ -23,6 +23,7 @@ import {
   fetchCategoryQuizzes,
   updateQuiz,
 } from '@/lib/admin-quizzes';
+import { isRuleViolation } from '@/lib/admin-rows';
 
 type Quiz = NonNullable<Awaited<ReturnType<typeof fetchCategoryQuizzes>>>['quizzes'][number];
 
@@ -98,7 +99,16 @@ export default function AdminQuizzesScreen() {
               label={t('admin.quizzes.create')}
               href={`/admin/categories/${categoryId}/quizzes/new`}
             />
-            {toggle.isError ? <ErrorText text={t('admin.quizzes.errors.toggle')} /> : null}
+            {toggle.isError ? (
+              <ErrorText
+                text={t(
+                  // The database refuses to publish a quiz that breaks its rules.
+                  isRuleViolation(toggle.error)
+                    ? 'admin.quizzes.errors.publishRules'
+                    : 'admin.quizzes.errors.toggle',
+                )}
+              />
+            ) : null}
             {remove.isError ? <ErrorText text={t('admin.quizzes.errors.delete')} /> : null}
             {list.data.quizzes.length === 0 ? (
               <StatusMessage text={t('admin.quizzes.empty')} />

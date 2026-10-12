@@ -6,9 +6,10 @@ import { AdminNotFound } from '@/components/admin-list';
 import { FormScreen } from '@/components/form-screen';
 import { QuestionForm } from '@/components/question-form';
 import { ErrorState, StatusMessage } from '@/components/status';
-import { createQuestion } from '@/lib/admin-questions';
+import { saveQuestion } from '@/lib/admin-questions';
 import { adminKey, adminQuizKey, fetchAdminQuiz } from '@/lib/admin-quizzes';
-import type { QuestionValues } from '@/lib/question-schema';
+import { isRuleViolation } from '@/lib/admin-rows';
+import type { QuestionWithAnswersValues } from '@/lib/question-schema';
 
 export default function NewQuestionScreen() {
   const { t } = useTranslation();
@@ -23,7 +24,7 @@ export default function NewQuestionScreen() {
     gcTime: 0,
   });
   const create = useMutation({
-    mutationFn: (values: QuestionValues) => createQuestion(quizId, values),
+    mutationFn: (values: QuestionWithAnswersValues) => saveQuestion(quizId, null, values),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: adminKey });
       router.replace(`/admin/quizzes/${quizId}`);
@@ -50,7 +51,15 @@ export default function NewQuestionScreen() {
       ) : (
         <QuestionForm
           pending={create.isPending}
-          failed={create.isError}
+          failure={
+            create.isError
+              ? t(
+                  isRuleViolation(create.error)
+                    ? 'admin.questions.form.errors.rules'
+                    : 'admin.questions.form.errors.save',
+                )
+              : null
+          }
           onSubmit={(values) => create.mutate(values)}
         />
       )}

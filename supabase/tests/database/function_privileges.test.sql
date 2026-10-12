@@ -82,6 +82,11 @@ select set_eq(
 -- like the visibility helpers. admin_question() (#81) is the admin's read of
 -- questions.explanation: authenticated may execute it, and the function
 -- itself refuses everyone but an admin (admin_question.test.sql).
+-- admin_answers() (#82) is the admin's read of answers.is_correct, refused
+-- to everyone but an admin the same way (admin_answers.test.sql).
+-- save_question() (#82) is the admin's save of a question with its answers
+-- in one transaction; it is security invoker, so the grants and RLS of
+-- questions and answers decide who may write (save_question.test.sql).
 select set_eq(
   $$ select signature from pg_temp.executable_by_authenticated $$,
   $$ values
@@ -93,7 +98,9 @@ select set_eq(
        ('private.is_admin()'),
        ('public.start_attempt(uuid)'),
        ('public.submit_answer(uuid, uuid, uuid[])'),
-       ('public.admin_question(uuid)') $$,
+       ('public.admin_question(uuid)'),
+       ('public.admin_answers(uuid)'),
+       ('public.save_question(uuid, uuid, text, text, boolean, jsonb)') $$,
   'authenticated can execute exactly the allow-listed functions'
 );
 
@@ -176,7 +183,9 @@ select results_eq(
       ('private.is_admin()'),
       ('public.start_attempt(uuid)'),
       ('public.submit_answer(uuid, uuid, uuid[])'),
-      ('public.admin_question(uuid)')
+      ('public.admin_question(uuid)'),
+      ('public.admin_answers(uuid)'),
+      ('public.save_question(uuid, uuid, text, text, boolean, jsonb)')
   $$,
   $$ values ('public.function_privileges_authenticated_probe()'::text) $$,
   'a function granted to authenticated shows up outside its allow-list'

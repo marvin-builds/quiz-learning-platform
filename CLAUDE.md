@@ -163,7 +163,8 @@ automatically:
   reaches them only through
   `submit_answer(attempt_id, question_id, answer_ids[])`, which records the
   answer before it reveals anything; an admin also through the admin-only
-  `admin_question(question_id)`, which refuses everyone else. Scores are
+  `admin_question(question_id)` and `admin_answers(question_id)`, which
+  refuse everyone else. Scores are
   computed in the database; the client can't write them.
 - **No hosted Supabase access from the dev machine.** Local stack only;
   migrations reach the hosted project through CI.
