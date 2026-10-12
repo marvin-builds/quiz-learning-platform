@@ -119,10 +119,11 @@ enabled = true
 file_size_limit = "50MiB"
 
 # Images of questions and answers, readable by anyone through their public
-# URL; nobody can write them yet (no policies on storage.objects). `supabase
-# start` and `db reset` create it and upload the seed images locally. `config
-# push` doesn't create buckets, so the migration ..._create_quiz_images_bucket
-# does on the hosted project: keep both in step (tests/repo checks they match).
+# URL; only admins upload, replace and remove them (Storage policies in the
+# migration ..._admin_image_uploads). `supabase start` and `db reset` create
+# it and upload the seed images locally. `config push` doesn't create buckets,
+# so the migration ..._create_quiz_images_bucket does on the hosted project:
+# keep both in step (tests/repo checks they match).
 [storage.buckets.quiz-images]
 public = true
 file_size_limit = "5MiB"
