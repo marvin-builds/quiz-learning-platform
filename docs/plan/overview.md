@@ -76,7 +76,11 @@ Supabase: Postgres + row-level security · Auth · Storage (images) · Realtime 
   transaction. The database keeps the answer rules (at least two answers, at
   least one correct, exactly one for single choice) and publishes a quiz
   only while it has questions that keep them
-  (see the [ADR 0002 addendum](../adr/0002-supabase-backend.md#addendum-2026-10-12-answers-their-rules-and-admin_answers)).
+  (see the [ADR 0002 addendum](../adr/0002-supabase-backend.md#addendum-2026-10-12-answers-their-rules-and-admin_answers)). They reorder categories, quizzes and questions through the
+  admin-only `reorder_categories(category_ids)`,
+  `reorder_quizzes(category_id, quiz_ids)` and
+  `reorder_questions(quiz_id, question_ids)`, each with the full ordered
+  list, and a question's answers through `save_question(...)`.
 - Users can only read their own attempts. Attempts are created by
   `start_attempt(quiz_id)` and filled by `submit_answer`, never written
   directly. `start_attempt` reuses the user's empty unfinished attempt on
