@@ -281,7 +281,7 @@ for (let round = 1; round <= 3; round++) {
 
 const final = await work(
   'final',
-  `Final state of the slice, for the orchestrator's PR: run \`cd ${WT} && npm run -s check\` and \`git -C ${WT} status --short\` (must be clean: commit leftovers by concern, or report them), and \`git -C ${WT} log --oneline ${base}..HEAD\`. List every commit of the branch in COMMITS and the check result in SUMMARY.`,
+  `Final state of the slice, for the orchestrator's PR: run \`cd ${WT} && npm run -s check\`, and \`npm run test:e2e\` there when a commit after the verify step touched the app or e2e/ (fix what is red by concern), and \`git -C ${WT} status --short\` (must be clean: commit leftovers by concern, or report them), and \`git -C ${WT} log --oneline ${base}..HEAD\`. List every commit of the branch in COMMITS and the check result in SUMMARY.`,
   { phase: 'Review' },
 );
 return {
