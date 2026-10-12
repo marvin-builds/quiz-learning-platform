@@ -2,6 +2,7 @@
 // before expo-router loads it.
 import { renderRouter } from 'expo-router/testing-library';
 
+import { focusManager } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 
 import i18n from '@/i18n';
@@ -993,6 +994,41 @@ describe('the preview (/admin/quizzes/<quizId>/preview)', () => {
 
     expect(await screen.findByText(text('admin.preview.loading'))).toBeOnTheScreen();
     expect(marker()).toBeOnTheScreen();
+  });
+});
+
+describe('the preview after its question list changes', () => {
+  afterEach(() => {
+    focusManager.setFocused(undefined);
+  });
+
+  it('stays on the last question when a question was deleted elsewhere and the list is read again', async () => {
+    await renderAt(previewUrl(QUIZ));
+    await screen.findByText(FRANCE_TEXT);
+    await fireEvent.press(nextButton());
+    await flush();
+    await screen.findByText(FLAG_TEXT);
+    await fireEvent.press(nextButton());
+    await flush();
+    await screen.findByText(RHINE_TEXT);
+
+    // Deleted in another tab; the list is stale after a minute and read
+    // again when the window regains focus.
+    mockDb.questions = mockDb.questions.filter((question) => question.id !== RHINE);
+    mockDb.answers = mockDb.answers.filter((row) => row.question_id !== RHINE);
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(61_000);
+    });
+    await act(async () => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    await flush();
+
+    expect(await screen.findByText(FLAG_TEXT)).toBeOnTheScreen();
+    expect(screen.getByText(progress(2, 2))).toBeOnTheScreen();
+    expect(screen.queryByText(RHINE_TEXT)).toBeNull();
+    expect(screen.queryByText(text('admin.preview.loading'))).toBeNull();
   });
 });
 
