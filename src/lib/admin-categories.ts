@@ -43,12 +43,25 @@ export async function createCategory(values: CategoryValues) {
   if (error) throw error;
 }
 
+// RLS turns a write on a row that is gone (or one the user may no longer
+// make) into a success with no rows. An admin sees every row, so no row back
+// means nothing was written, which has to fail like an error.
+function requireWritten(data: unknown[] | null) {
+  if (!data || data.length === 0) throw new Error('No category was written');
+}
+
 export async function updateCategory(id: string, values: Partial<CategoryValues>) {
-  const { error } = await supabase.from('categories').update(values).eq('id', id);
+  const { data, error } = await supabase
+    .from('categories')
+    .update(values)
+    .eq('id', id)
+    .select('id');
   if (error) throw error;
+  requireWritten(data);
 }
 
 export async function deleteCategory(id: string) {
-  const { error } = await supabase.from('categories').delete().eq('id', id);
+  const { data, error } = await supabase.from('categories').delete().eq('id', id).select('id');
   if (error) throw error;
+  requireWritten(data);
 }
