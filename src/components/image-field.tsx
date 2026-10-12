@@ -17,7 +17,8 @@ type Labels = { pick: string; replace: string; remove: string; alt: string; prev
  * The image of a question or an answer in the question form: pick one from
  * the device (checked against the bucket's limits at once; a refused file
  * is never taken), preview it, replace or remove it, and write its alt text.
- * A taken file gets a new object name; the upload happens on save.
+ * A taken file gets a new object name; the upload happens on save, which
+ * gives each attempt a fresh name (saveQuestion).
  */
 export function ImageField({
   id,
