@@ -26,6 +26,8 @@ export const meta = {
 //   notes     the orchestrator's readings or answers to pass on (optional)
 //   ui        whether the slice changes screens; the red run finds out, so
 //             the orchestrator passes the red report's `ui` to a green run
+//   criteria  the issue's acceptance criteria as text, for the ui-verifier,
+//             which has no shell to read the issue
 const {
   issue,
   worktree: WT,
@@ -35,6 +37,7 @@ const {
   ports = {},
   notes = '',
   ui,
+  criteria = '',
 } = args;
 if (!issue || !WT || !branch)
   throw new Error('slice workflow needs args.issue, args.worktree and args.branch');
@@ -248,7 +251,7 @@ if (report.ui) {
   if (ui.status === 'ok') {
     await step(
       'ui-verifier',
-      `Check the running app at http://localhost:${web} at phone and desktop width against the acceptance criteria of issue #${issue} (gh issue view ${issue}). If the Playwright MCP tools aren't available to you, say so as your only finding.`,
+      `Check the running app at http://localhost:${web} at phone and desktop width against the acceptance criteria of issue #${issue}${criteria ? `:\n${criteria}\n` : ' (the orchestrator passed none: check against the notes above and say so).'} If the Playwright MCP tools aren't available to you, say so as your only finding.`,
       { phase: 'Verify', agentType: 'ui-verifier' },
     );
   }
