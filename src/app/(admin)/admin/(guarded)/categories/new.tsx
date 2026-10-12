@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
-import { CategoryFormScreen } from '@/components/category-form-screen';
+import { FormScreen } from '@/components/form-screen';
 import { CategoryForm } from '@/components/category-form';
 import { adminCategoriesKey, createCategory } from '@/lib/admin-categories';
 
@@ -18,12 +18,12 @@ export default function NewCategoryScreen() {
   });
 
   return (
-    <CategoryFormScreen title={t('admin.categories.form.createTitle')}>
+    <FormScreen title={t('admin.categories.form.createTitle')}>
       <CategoryForm
         pending={create.isPending}
         failed={create.isError}
         onSubmit={(values) => create.mutate(values)}
       />
-    </CategoryFormScreen>
+    </FormScreen>
   );
 }
