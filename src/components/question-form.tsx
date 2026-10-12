@@ -3,7 +3,7 @@ import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 
-import { ErrorText, RowAction } from '@/components/admin-list';
+import { ErrorText, MoveActions, RowAction } from '@/components/admin-list';
 import { CheckboxField } from '@/components/checkbox-field';
 import { ImageField } from '@/components/image-field';
 import { Button } from '@/components/status';
@@ -226,15 +226,12 @@ export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
                     />
                   )}
                 />
-                <RowAction
-                  label={t('admin.questions.form.answers.moveUp', { number })}
-                  onPress={() => answers.move(index, index - 1)}
-                  disabled={index === 0}
-                />
-                <RowAction
-                  label={t('admin.questions.form.answers.moveDown', { number })}
-                  onPress={() => answers.move(index, index + 1)}
-                  disabled={index === answers.fields.length - 1}
+                <MoveActions
+                  index={index}
+                  count={answers.fields.length}
+                  upLabel={t('admin.questions.form.answers.moveUp', { number })}
+                  downLabel={t('admin.questions.form.answers.moveDown', { number })}
+                  onMove={answers.move}
                 />
                 <RowAction
                   label={t('admin.questions.form.answers.remove', { number })}
