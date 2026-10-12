@@ -244,7 +244,9 @@ still in their history.
 
 - Web deploy (static export of the Expo web build; host to be chosen)
 - Hosted Supabase project in Frankfurt, migrations applied by CI, DPA signed
-- Impressum, privacy policy, minimal error monitoring (e.g. Sentry)
+- Impressum, privacy policy (stating that anonymous users and their progress
+  are deleted after 90 days without activity, #75), minimal error monitoring
+  (e.g. Sentry)
 - Pre-release security audit (see "Security reviews" below)
 
 ### Security reviews
