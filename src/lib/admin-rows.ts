@@ -19,3 +19,11 @@ export function requireWritten(data: unknown[] | null) {
  */
 export const isRuleViolation = (error: unknown) =>
   (error as { code?: unknown } | null)?.code === '23514';
+
+/** The ids in a new order: the one at `from` moved to `to`. */
+export function movedIds(rows: { id: string }[], from: number, to: number): string[] {
+  const ids = rows.map((row) => row.id);
+  const [moved] = ids.splice(from, 1);
+  ids.splice(to, 0, moved);
+  return ids;
+}

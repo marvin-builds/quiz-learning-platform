@@ -100,11 +100,14 @@
         "quizzes": "Quizze in {{name}}",
         "publish": "{{name}} veröffentlichen",
         "unpublish": "{{name}} zurückziehen",
-        "delete": "{{name}} löschen"
+        "delete": "{{name}} löschen",
+        "moveUp": "{{name}} nach oben verschieben",
+        "moveDown": "{{name}} nach unten verschieben"
       },
       "errors": {
         "toggle": "Der Status konnte nicht geändert werden. Versuche es erneut.",
-        "delete": "Die Kategorie konnte nicht gelöscht werden. Versuche es erneut."
+        "delete": "Die Kategorie konnte nicht gelöscht werden. Versuche es erneut.",
+        "reorder": "Die Reihenfolge konnte nicht geändert werden. Die Liste zeigt die gespeicherte Reihenfolge. Versuche es erneut."
       },
       "form": {
         "createTitle": "Neue Kategorie",
@@ -148,12 +151,15 @@
         "edit": "{{name}} bearbeiten",
         "publish": "{{name}} veröffentlichen",
         "unpublish": "{{name}} zurückziehen",
-        "delete": "{{name}} löschen"
+        "delete": "{{name}} löschen",
+        "moveUp": "{{name}} nach oben verschieben",
+        "moveDown": "{{name}} nach unten verschieben"
       },
       "errors": {
         "toggle": "Der Status konnte nicht geändert werden. Versuche es erneut.",
         "delete": "Das Quiz konnte nicht gelöscht werden. Versuche es erneut.",
-        "publishRules": "Das Quiz kann erst veröffentlicht werden, wenn es Fragen hat und jede Frage mindestens zwei Antworten mit mindestens einer richtigen hat (bei Einfachauswahl genau einer)."
+        "publishRules": "Das Quiz kann erst veröffentlicht werden, wenn es Fragen hat und jede Frage mindestens zwei Antworten mit mindestens einer richtigen hat (bei Einfachauswahl genau einer).",
+        "reorder": "Die Reihenfolge konnte nicht geändert werden. Die Liste zeigt die gespeicherte Reihenfolge. Versuche es erneut."
       },
       "form": {
         "createTitle": "Neues Quiz",
@@ -190,11 +196,14 @@
       "create": "Neue Frage",
       "actions": {
         "edit": "{{name}} bearbeiten",
-        "delete": "{{name}} löschen"
+        "delete": "{{name}} löschen",
+        "moveUp": "{{name}} nach oben verschieben",
+        "moveDown": "{{name}} nach unten verschieben"
       },
       "errors": {
         "delete": "Die Frage konnte nicht gelöscht werden. Versuche es erneut.",
-        "deleteLastPublished": "Die letzte Frage eines veröffentlichten Quiz kann nicht gelöscht werden. Ziehe das Quiz zuerst zurück."
+        "deleteLastPublished": "Die letzte Frage eines veröffentlichten Quiz kann nicht gelöscht werden. Ziehe das Quiz zuerst zurück.",
+        "reorder": "Die Reihenfolge konnte nicht geändert werden. Die Liste zeigt die gespeicherte Reihenfolge. Versuche es erneut."
       },
       "form": {
         "createTitle": "Neue Frage",
