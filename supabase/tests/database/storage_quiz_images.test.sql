@@ -1,9 +1,21 @@
--- storage.objects and storage.buckets for the quiz-images bucket: nobody
--- writes to it through the API in phase 1 (anon, an anonymous user, a learner,
--- an admin), and nobody can list its objects: the images are read through the
--- bucket's public URL, which needs no select policy, while a select policy
--- would let list() reveal every file name. Uploads by admins come with
--- phase 2.
+-- storage.objects and storage.buckets for the quiz-images bucket: anon, an
+-- anonymous user and a learner can't write to it through the API, and can't
+-- list its objects: the images are read through the bucket's public URL,
+-- which needs no select policy, while a select policy would let list()
+-- reveal every file name.
+--
+-- Re-spec (#83): an admin uploads, replaces and removes images, so the admin
+-- can insert, update and delete objects in quiz-images, and only there, and
+-- only under a name the app chose: a lowercase UUID with .png, .jpg, .jpeg or
+-- .webp at the bucket root (no folder, no '..', no original file name). An
+-- update can't move an object to another bucket or rename it to any other
+-- name. The admin can also select (list) them: Storage's remove() deletes
+-- with RETURNING, so without a select policy it reports success and deletes
+-- nothing (tried against the local stack while writing this test). Listing
+-- stays closed for anon, an anonymous user and a learner. Nobody, the admin
+-- included, may change or delete a bucket row or create a bucket. The admin
+-- assertions were 'cannot ... in phase 1'; the others are unchanged. A
+-- second bucket (other-bucket) holds the negatives outside quiz-images.
 --
 -- Without a policy, RLS hides every row, so an update or delete changes
 -- nothing rather than raising; those tests check as the owner that the row is
@@ -20,7 +32,7 @@
 -- images, and reset before each role, so one role's failure doesn't carry
 -- over to the next. Everything vanishes on rollback.
 begin;
-select plan(35);
+select plan(49);
 
 -- Fixtures ----------------------------------------------------------------
 
@@ -72,6 +84,17 @@ begin
     set bucket_id = excluded.bucket_id,
         name = excluded.name,
         metadata = excluded.metadata;
+  -- Another bucket with an object of its own, for the admin's negatives.
+  insert into storage.buckets (id, name, public)
+  values ('other-bucket', 'other-bucket', true)
+  on conflict (id) do nothing;
+  insert into storage.objects (id, bucket_id, name, metadata)
+  values ('0b000000-0000-4000-8000-000000000002', 'other-bucket',
+          'c3a5b4d2-1e2f-4a6b-8c7d-8e9f0a1b2c3d.png', '{"mimetype": "image/png"}')
+  on conflict (id) do update
+    set bucket_id = excluded.bucket_id,
+        name = excluded.name,
+        metadata = excluded.metadata;
 exception when foreign_key_violation then
   null;
 end;
@@ -107,13 +130,13 @@ select is_empty(
 
 select throws_ok(
   $$ insert into storage.objects (bucket_id, name) values
-       ('quiz-images', '6e1f0c2a-anon-4a5b-8c9d-00000000000a.png') $$,
+       ('quiz-images', '6e1f0c2a-1111-4a5b-8c9d-000000000001.png') $$,
   '42501', null,
   'anon cannot insert an object into quiz-images'
 );
 
 select pg_temp.attempt(
-  $$ update storage.objects set name = 'geaendert-anon.png', metadata = '{}'
+  $$ update storage.objects set name = '6e1f0c2a-1111-4a5b-8c9d-0000000000a1.png', metadata = '{}'
      where id = '0b000000-0000-4000-8000-000000000001' $$);
 select pg_temp.attempt(
   $$ delete from storage.objects where id = '0b000000-0000-4000-8000-000000000001' $$);
@@ -148,7 +171,7 @@ select results_eq(
 
 select is_empty(
   $$ select 1 from storage.objects
-     where bucket_id = 'quiz-images' and name like '6e1f0c2a-anon-%' $$,
+     where bucket_id = 'quiz-images' and name like '6e1f0c2a-1111-%' $$,
   'the object anon tried to insert does not exist'
 );
 
@@ -174,7 +197,7 @@ select throws_ok(
 );
 
 select pg_temp.attempt(
-  $$ update storage.objects set name = 'geaendert-gast.png', metadata = '{}'
+  $$ update storage.objects set name = '6e1f0c2a-2222-4a5b-8c9d-0000000000a2.png', metadata = '{}'
      where id = '0b000000-0000-4000-8000-000000000001' $$);
 select pg_temp.attempt(
   $$ delete from storage.objects where id = '0b000000-0000-4000-8000-000000000001' $$);
@@ -235,7 +258,7 @@ select throws_ok(
 );
 
 select pg_temp.attempt(
-  $$ update storage.objects set name = 'geaendert-lernend.png', metadata = '{}'
+  $$ update storage.objects set name = '6e1f0c2a-3333-4a5b-8c9d-0000000000a3.png', metadata = '{}'
      where id = '0b000000-0000-4000-8000-000000000001' $$);
 select pg_temp.attempt(
   $$ delete from storage.objects where id = '0b000000-0000-4000-8000-000000000001' $$);
@@ -274,7 +297,9 @@ select is_empty(
   'the object a learner tried to insert does not exist'
 );
 
--- admin (carol): no uploads in phase 1 ------------------------------------
+-- admin (carol): uploads, replaces and removes images in quiz-images ------
+-- Re-spec (#83): was 'an admin cannot list / insert / update / delete ... in
+-- phase 1'. The bucket-row denials and the bucket creation stay refused.
 
 select pg_temp.reset_fixture();
 
@@ -282,24 +307,108 @@ set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
 
+select results_eq(
+  $$ select name from storage.objects
+     where bucket_id = 'quiz-images' and id = '0b000000-0000-4000-8000-000000000001' $$,
+  $$ values ('b2f4a3c1-0d1e-4f5a-9b6c-7d8e9f0a1b2c.png'::text) $$,
+  'an admin can select the objects of quiz-images (Storage''s remove() needs it)'
+);
+
 select is_empty(
-  $$ select name from storage.objects where bucket_id = 'quiz-images' $$,
-  'an admin cannot list the objects of quiz-images in phase 1'
+  $$ select name from storage.objects where bucket_id = 'other-bucket' $$,
+  'an admin cannot list the objects of another bucket'
+);
+
+select lives_ok(
+  $$ insert into storage.objects (bucket_id, name, owner, owner_id) values
+       ('quiz-images', '6e1f0c2a-4444-4a5b-8c9d-000000000004.png',
+        '33333333-3333-3333-3333-333333333333', '33333333-3333-3333-3333-333333333333') $$,
+  'an admin can insert an object with a UUID name into quiz-images'
+);
+
+select lives_ok(
+  $$ insert into storage.objects (bucket_id, name, owner, owner_id) values
+       ('quiz-images', '6e1f0c2a-4444-4a5b-8c9d-000000000005.jpg',
+        '33333333-3333-3333-3333-333333333333', '33333333-3333-3333-3333-333333333333'),
+       ('quiz-images', '6e1f0c2a-4444-4a5b-8c9d-000000000006.jpeg',
+        '33333333-3333-3333-3333-333333333333', '33333333-3333-3333-3333-333333333333'),
+       ('quiz-images', '6e1f0c2a-4444-4a5b-8c9d-000000000007.webp',
+        '33333333-3333-3333-3333-333333333333', '33333333-3333-3333-3333-333333333333') $$,
+  'an admin can insert objects named <uuid>.jpg, .jpeg and .webp into quiz-images'
 );
 
 select throws_ok(
   $$ insert into storage.objects (bucket_id, name, owner, owner_id) values
-       ('quiz-images', '6e1f0c2a-4444-4a5b-8c9d-000000000004.png',
+       ('other-bucket', '6e1f0c2a-4444-4a5b-8c9d-000000000008.png',
         '33333333-3333-3333-3333-333333333333', '33333333-3333-3333-3333-333333333333') $$,
   '42501', null,
-  'an admin cannot insert an object into quiz-images in phase 1'
+  'an admin cannot insert an object into another bucket'
+);
+
+select throws_ok(
+  $$ insert into storage.objects (bucket_id, name, owner, owner_id) values
+       ('quiz-images', 'periodensystem.png',
+        '33333333-3333-3333-3333-333333333333', '33333333-3333-3333-3333-333333333333') $$,
+  '42501', null,
+  'an admin cannot insert an object under its original file name'
+);
+
+select throws_ok(
+  $$ insert into storage.objects (bucket_id, name, owner, owner_id) values
+       ('quiz-images', 'ordner/6e1f0c2a-4444-4a5b-8c9d-000000000009.png',
+        '33333333-3333-3333-3333-333333333333', '33333333-3333-3333-3333-333333333333') $$,
+  '42501', null,
+  'an admin cannot insert an object into a folder of quiz-images'
+);
+
+select throws_ok(
+  $$ insert into storage.objects (bucket_id, name, owner, owner_id) values
+       ('quiz-images', '../6e1f0c2a-4444-4a5b-8c9d-00000000000a.png',
+        '33333333-3333-3333-3333-333333333333', '33333333-3333-3333-3333-333333333333') $$,
+  '42501', null,
+  'an admin cannot insert an object whose name climbs out with ..'
+);
+
+select throws_ok(
+  $$ insert into storage.objects (bucket_id, name, owner, owner_id) values
+       ('quiz-images', '6e1f0c2a-4444-4a5b-8c9d-00000000000b.html',
+        '33333333-3333-3333-3333-333333333333', '33333333-3333-3333-3333-333333333333') $$,
+  '42501', null,
+  'an admin cannot insert an object with an extension other than png, jpg, jpeg or webp'
+);
+
+select throws_ok(
+  $$ update storage.objects set bucket_id = 'other-bucket'
+     where id = '0b000000-0000-4000-8000-000000000001' $$,
+  '42501', null,
+  'an admin cannot move an object of quiz-images into another bucket'
+);
+
+select throws_ok(
+  $$ update storage.objects set name = 'geaendert-admin.png'
+     where id = '0b000000-0000-4000-8000-000000000001' $$,
+  '42501', null,
+  'an admin cannot rename an object of quiz-images to a non-UUID name'
+);
+
+select throws_ok(
+  $$ update storage.objects set name = '../b2f4a3c1-0d1e-4f5a-9b6c-7d8e9f0a1b2c.png'
+     where id = '0b000000-0000-4000-8000-000000000001' $$,
+  '42501', null,
+  'an admin cannot rename an object of quiz-images to a name with ..'
+);
+
+select lives_ok(
+  $$ update storage.objects set metadata = '{"mimetype": "image/webp"}'
+     where id = '0b000000-0000-4000-8000-000000000001' $$,
+  'an admin can update an object in quiz-images'
 );
 
 select pg_temp.attempt(
-  $$ update storage.objects set name = 'geaendert-admin.png', metadata = '{}'
-     where id = '0b000000-0000-4000-8000-000000000001' $$);
+  $$ update storage.objects set name = '6e1f0c2a-4444-4a5b-8c9d-0000000000a4.png', metadata = '{}'
+     where id = '0b000000-0000-4000-8000-000000000002' $$);
 select pg_temp.attempt(
-  $$ delete from storage.objects where id = '0b000000-0000-4000-8000-000000000001' $$);
+  $$ delete from storage.objects where id = '0b000000-0000-4000-8000-000000000002' $$);
 select pg_temp.attempt(
   $$ update storage.buckets
      set public = false, file_size_limit = 1, allowed_mime_types = array['text/html']
@@ -310,29 +419,62 @@ select pg_temp.attempt(
 select throws_ok(
   $$ insert into storage.buckets (id, name, public) values ('admin-bucket', 'admin-bucket', true) $$,
   '42501', null,
-  'an admin cannot create a bucket in phase 1'
+  'an admin cannot create a bucket'
 );
 
 reset role;
 
 select results_eq(
-  $$ select name, metadata from storage.objects
+  $$ select bucket_id, name, metadata from storage.objects
      where id = '0b000000-0000-4000-8000-000000000001' $$,
-  $$ values ('b2f4a3c1-0d1e-4f5a-9b6c-7d8e9f0a1b2c.png'::text, '{"mimetype": "image/png"}'::jsonb) $$,
-  'an admin can neither update nor delete an object in quiz-images in phase 1'
+  $$ values ('quiz-images'::text, 'b2f4a3c1-0d1e-4f5a-9b6c-7d8e9f0a1b2c.png'::text,
+             '{"mimetype": "image/webp"}'::jsonb) $$,
+  'an admin''s update of an object in quiz-images goes through, in its bucket and under its name'
+);
+
+select results_eq(
+  $$ select name, metadata from storage.objects
+     where id = '0b000000-0000-4000-8000-000000000002' $$,
+  $$ values ('c3a5b4d2-1e2f-4a6b-8c7d-8e9f0a1b2c3d.png'::text, '{"mimetype": "image/png"}'::jsonb) $$,
+  'an admin can neither update nor delete an object in another bucket'
 );
 
 select results_eq(
   $$ select public, file_size_limit, array(select unnest(allowed_mime_types) order by 1)
      from storage.buckets where id = 'quiz-images' $$,
   $$ values (true, 5242880::bigint, array['image/jpeg', 'image/png', 'image/webp']) $$,
-  'an admin can neither change nor delete the quiz-images bucket in phase 1'
+  'an admin can neither change nor delete the quiz-images bucket'
+);
+
+select results_eq(
+  $$ select name from storage.objects
+     where bucket_id = 'quiz-images' and name like '6e1f0c2a-4444-%' order by name $$,
+  $$ values ('6e1f0c2a-4444-4a5b-8c9d-000000000004.png'::text),
+            ('6e1f0c2a-4444-4a5b-8c9d-000000000005.jpg'::text),
+            ('6e1f0c2a-4444-4a5b-8c9d-000000000006.jpeg'::text),
+            ('6e1f0c2a-4444-4a5b-8c9d-000000000007.webp'::text) $$,
+  'the objects the admin inserted with UUID names exist'
 );
 
 select is_empty(
   $$ select 1 from storage.objects
-     where bucket_id = 'quiz-images' and name like '6e1f0c2a-4444-%' $$,
-  'the object an admin tried to insert does not exist'
+     where name in ('periodensystem.png', 'ordner/6e1f0c2a-4444-4a5b-8c9d-000000000009.png',
+                    '../6e1f0c2a-4444-4a5b-8c9d-00000000000a.png',
+                    '6e1f0c2a-4444-4a5b-8c9d-00000000000b.html',
+                    '6e1f0c2a-4444-4a5b-8c9d-000000000008.png') $$,
+  'no object exists under a name or in a bucket the admin was refused'
+);
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+select pg_temp.attempt(
+  $$ delete from storage.objects where id = '0b000000-0000-4000-8000-000000000001' $$);
+reset role;
+
+select is_empty(
+  $$ select 1 from storage.objects where id = '0b000000-0000-4000-8000-000000000001' $$,
+  'an admin can delete an object in quiz-images'
 );
 
 -- Effects, checked as the owner -------------------------------------------
