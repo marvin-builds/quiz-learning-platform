@@ -20,7 +20,7 @@ export const adminAnswersKey = (questionId: string) =>
 export const adminQuizQuestionsKey = (quizId: string) =>
   [...adminQuizKey(quizId), 'questions'] as const;
 
-/** A quiz and its questions by sort_order, without explanations; null when the quiz doesn't exist. */
+/** A quiz and its questions by sort_order and then id, without explanations; null when the quiz doesn't exist. */
 export async function fetchQuizQuestions(quizId: string) {
   if (!isUuid(quizId)) return null;
   const [quiz, questions] = await Promise.all([
@@ -29,7 +29,8 @@ export async function fetchQuizQuestions(quizId: string) {
       .from('questions')
       .select('id, text, sort_order')
       .eq('quiz_id', quizId)
-      .order('sort_order', { ascending: true }),
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true }),
   ]);
   if (questions.error) throw questions.error;
   return quiz && { quiz, questions: questions.data };
