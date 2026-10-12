@@ -1,11 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { type ComponentProps, type Ref, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { ScrollView, Text, type TextInput, View } from 'react-native';
 
 import { PageTitle } from '@/components/page-title';
 import { Button } from '@/components/status';
+import { TextField } from '@/components/text-field';
 import { signInErrorOf } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 
@@ -40,21 +41,25 @@ export default function AdminSignInScreen() {
         <Text role="heading" className="text-2xl font-bold text-gray-900">
           {t('admin.signIn.title')}
         </Text>
-        <Field
+        <TextField
           ref={emailInput}
           id="admin-sign-in-email"
           label={t('admin.signIn.email')}
           value={email}
           onChangeText={setEmail}
           autoComplete="email"
+          autoCapitalize="none"
+          autoCorrect={false}
           keyboardType="email-address"
         />
-        <Field
+        <TextField
           id="admin-sign-in-password"
           label={t('admin.signIn.password')}
           value={password}
           onChangeText={setPassword}
           autoComplete="current-password"
+          autoCapitalize="none"
+          autoCorrect={false}
           secureTextEntry
           returnKeyType="go"
           onSubmitEditing={submit}
@@ -71,36 +76,5 @@ export default function AdminSignInScreen() {
         />
       </View>
     </ScrollView>
-  );
-}
-
-/** A text input with a visible label that is also its accessible name. */
-function Field({
-  id,
-  label,
-  ...inputProps
-}: { id: string; label: string; ref?: Ref<TextInput> } & Pick<
-  ComponentProps<typeof TextInput>,
-  | 'value'
-  | 'onChangeText'
-  | 'autoComplete'
-  | 'keyboardType'
-  | 'secureTextEntry'
-  | 'returnKeyType'
-  | 'onSubmitEditing'
->) {
-  return (
-    <View className="gap-1">
-      <Text nativeID={id} className="text-base font-semibold text-gray-900">
-        {label}
-      </Text>
-      <TextInput
-        {...inputProps}
-        aria-labelledby={id}
-        autoCapitalize="none"
-        autoCorrect={false}
-        className="rounded-lg border border-gray-500 bg-white px-3 py-2 text-base text-gray-900"
-      />
-    </View>
   );
 }
