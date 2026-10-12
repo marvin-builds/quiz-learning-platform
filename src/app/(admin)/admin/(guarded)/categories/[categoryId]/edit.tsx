@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
 
+import { AdminNotFound } from '@/components/admin-list';
 import { CategoryForm } from '@/components/category-form';
-import { CategoryFormScreen } from '@/components/category-form-screen';
+import { FormScreen } from '@/components/form-screen';
 import { ErrorState, StatusMessage } from '@/components/status';
 import {
   adminCategoriesKey,
@@ -39,7 +39,7 @@ export default function EditCategoryScreen() {
   });
 
   return (
-    <CategoryFormScreen title={t('admin.categories.form.editTitle')}>
+    <FormScreen title={t('admin.categories.form.editTitle')}>
       {category.isPending ? (
         <StatusMessage text={t('admin.categories.form.loading')} />
       ) : category.isError ? (
@@ -50,16 +50,11 @@ export default function EditCategoryScreen() {
           retryDisabled={category.isFetching}
         />
       ) : category.data === null ? (
-        <View className="items-center">
-          <StatusMessage text={t('admin.categories.form.notFound')} />
-          <Link href="/admin/categories" asChild>
-            <Pressable role="link">
-              <Text className="text-base font-semibold text-blue-700 underline">
-                {t('admin.categories.form.back')}
-              </Text>
-            </Pressable>
-          </Link>
-        </View>
+        <AdminNotFound
+          message={t('admin.categories.form.notFound')}
+          backLabel={t('admin.categories.form.back')}
+          href="/admin/categories"
+        />
       ) : (
         <CategoryForm
           initial={category.data}
@@ -68,6 +63,6 @@ export default function EditCategoryScreen() {
           onSubmit={(values) => update.mutate(values)}
         />
       )}
-    </CategoryFormScreen>
+    </FormScreen>
   );
 }
