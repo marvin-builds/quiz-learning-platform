@@ -97,6 +97,7 @@
       },
       "actions": {
         "edit": "{{name}} bearbeiten",
+        "quizzes": "Quizze in {{name}}",
         "publish": "{{name}} veröffentlichen",
         "unpublish": "{{name}} zurückziehen",
         "delete": "{{name}} löschen"
@@ -125,6 +126,94 @@
       "deleteDialog": {
         "title": "{{name}} löschen?",
         "message": "Die Kategorie „{{name}}“ wird mit allen ihren Quizzen, Fragen und Antworten gelöscht. Bereits gespielte Ergebnisse bleiben mit ihrer Punktzahl erhalten.",
+        "confirm": "Löschen",
+        "cancel": "Abbrechen"
+      }
+    },
+    "quizzes": {
+      "title": "Quizze in {{name}}",
+      "loading": "Quizze werden geladen …",
+      "empty": "Noch keine Quizze in dieser Kategorie.",
+      "error": "Die Quizze konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "notFound": "Diese Kategorie gibt es nicht (mehr).",
+      "back": "Zurück zu den Kategorien",
+      "create": "Neues Quiz",
+      "status": {
+        "published": "Veröffentlicht",
+        "draft": "Entwurf"
+      },
+      "actions": {
+        "questions": "Fragen von {{name}}",
+        "edit": "{{name}} bearbeiten",
+        "publish": "{{name}} veröffentlichen",
+        "unpublish": "{{name}} zurückziehen",
+        "delete": "{{name}} löschen"
+      },
+      "errors": {
+        "toggle": "Der Status konnte nicht geändert werden. Versuche es erneut.",
+        "delete": "Das Quiz konnte nicht gelöscht werden. Versuche es erneut."
+      },
+      "form": {
+        "createTitle": "Neues Quiz",
+        "editTitle": "Quiz bearbeiten",
+        "loading": "Wird geladen …",
+        "title": "Titel",
+        "description": "Beschreibung (optional)",
+        "published": "Veröffentlicht",
+        "save": "Speichern",
+        "saving": "Wird gespeichert …",
+        "notFound": "Dieses Quiz gibt es nicht (mehr).",
+        "back": "Zurück zu den Kategorien",
+        "errors": {
+          "save": "Das Quiz konnte nicht gespeichert werden. Versuche es erneut.",
+          "titleRequired": "Gib einen Titel ein.",
+          "load": "Die Daten konnten nicht geladen werden."
+        }
+      },
+      "deleteDialog": {
+        "title": "{{name}} löschen?",
+        "message": "Das Quiz „{{name}}“ wird mit allen seinen Fragen und Antworten gelöscht. Bereits gespielte Ergebnisse bleiben mit ihrer Punktzahl erhalten.",
+        "confirm": "Löschen",
+        "cancel": "Abbrechen"
+      }
+    },
+    "questions": {
+      "title": "Fragen in {{name}}",
+      "loading": "Fragen werden geladen …",
+      "empty": "Noch keine Fragen in diesem Quiz.",
+      "error": "Die Fragen konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "notFound": "Dieses Quiz gibt es nicht (mehr).",
+      "back": "Zurück zu den Kategorien",
+      "create": "Neue Frage",
+      "actions": {
+        "edit": "{{name}} bearbeiten",
+        "delete": "{{name}} löschen"
+      },
+      "errors": {
+        "delete": "Die Frage konnte nicht gelöscht werden. Versuche es erneut."
+      },
+      "form": {
+        "createTitle": "Neue Frage",
+        "editTitle": "Frage bearbeiten",
+        "loading": "Wird geladen …",
+        "text": "Frage",
+        "explanation": "Erklärung (optional, erst nach dem Antworten sichtbar)",
+        "multipleCorrect": "Mehrere Antworten richtig",
+        "save": "Speichern",
+        "saving": "Wird gespeichert …",
+        "notFound": "Diese Frage gibt es nicht (mehr).",
+        "back": "Zurück zu den Fragen",
+        "errors": {
+          "save": "Die Frage konnte nicht gespeichert werden. Versuche es erneut.",
+          "textRequired": "Gib eine Frage ein.",
+          "load": "Die Daten konnten nicht geladen werden."
+        }
+      },
+      "deleteDialog": {
+        "title": "Frage löschen?",
+        "message": "Die Frage „{{name}}“ wird mit ihren Antworten gelöscht, auch mit den bereits gegebenen Antworten der Lernenden. Abgeschlossene Ergebnisse behalten ihre Punktzahl.",
         "confirm": "Löschen",
         "cancel": "Abbrechen"
       }
