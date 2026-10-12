@@ -5,7 +5,7 @@ import { Image, View } from 'react-native';
 import { ErrorText, RowAction } from '@/components/admin-list';
 import { TextField } from '@/components/text-field';
 import { imageTypeOfName, newImageName, quizImageUrl } from '@/lib/images';
-import { pickImage } from '@/lib/pick-image';
+import { pickImage, releaseImage } from '@/lib/pick-image';
 import { imageFileSchema, type ImageFile } from '@/lib/question-schema';
 
 // The file checks' messages (imageFileSchema) are keys of admin.questions.form.errors.
@@ -18,7 +18,8 @@ type Labels = { pick: string; replace: string; remove: string; alt: string; prev
  * the device (checked against the bucket's limits at once; a refused file
  * is never taken), preview it, replace or remove it, and write its alt text.
  * A taken file gets a new object name; the upload happens on save, which
- * gives each attempt a fresh name (saveQuestion).
+ * gives each attempt a fresh name (saveQuestion). A replaced or removed
+ * file is released (on the web, its object URL revoked).
  */
 export function ImageField({
   id,
@@ -62,6 +63,7 @@ export function ImageField({
       return;
     }
     setPickError(null);
+    if (file) releaseImage(file.uri);
     onPicked(newImageName(mimeType), parsed.data);
   };
 
@@ -87,6 +89,7 @@ export function ImageField({
             label={labels.remove}
             onPress={() => {
               setPickError(null);
+              if (file) releaseImage(file.uri);
               onRemove();
             }}
             destructive

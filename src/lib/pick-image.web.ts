@@ -36,3 +36,12 @@ export function pickImage(): Promise<PickedImage | null> {
     input.click();
   });
 }
+
+/**
+ * Lets go of a picked file the form no longer holds: revokes its object URL,
+ * which otherwise keeps the file (up to 5 MiB) in memory until the page
+ * closes. Any other URI isn't the picker's.
+ */
+export function releaseImage(uri: string) {
+  if (uri.startsWith('blob:')) URL.revokeObjectURL(uri);
+}
