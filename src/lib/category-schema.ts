@@ -1,10 +1,6 @@
 import { z } from 'zod';
 
-// The database's rule for names (categories_name_check): not empty once
-// spaces, tabs and line breaks are trimmed. The schema must never be looser.
-const BLANK = /^[ \t\r\n]*$/;
-
-const NAME_REQUIRED = 'admin.categories.form.errors.nameRequired';
+import { optionalText, requiredText } from '@/lib/text-schema';
 
 /**
  * What the admin may write for a category: name, description and published,
@@ -12,13 +8,8 @@ const NAME_REQUIRED = 'admin.categories.form.errors.nameRequired';
  * description is stored as null. Messages are i18next keys.
  */
 export const categorySchema = z.object({
-  name: z.string({ error: NAME_REQUIRED }).refine((name) => !BLANK.test(name), NAME_REQUIRED),
-  description: z
-    .string()
-    .nullish()
-    .transform((description) =>
-      description == null || BLANK.test(description) ? null : description,
-    ),
+  name: requiredText('admin.categories.form.errors.nameRequired'),
+  description: optionalText(),
   published: z.boolean(),
 });
 

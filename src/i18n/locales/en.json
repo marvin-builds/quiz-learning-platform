@@ -97,6 +97,7 @@
       },
       "actions": {
         "edit": "Edit {{name}}",
+        "quizzes": "Quizzes in {{name}}",
         "publish": "Publish {{name}}",
         "unpublish": "Unpublish {{name}}",
         "delete": "Delete {{name}}"
@@ -125,6 +126,94 @@
       "deleteDialog": {
         "title": "Delete {{name}}?",
         "message": "The category “{{name}}” is deleted with all its quizzes, questions and answers. Results already played keep their score.",
+        "confirm": "Delete",
+        "cancel": "Cancel"
+      }
+    },
+    "quizzes": {
+      "title": "Quizzes in {{name}}",
+      "loading": "Loading quizzes …",
+      "empty": "No quizzes in this category yet.",
+      "error": "The quizzes could not be loaded.",
+      "retry": "Try again",
+      "notFound": "This category doesn't exist (any more).",
+      "back": "Back to the categories",
+      "create": "New quiz",
+      "status": {
+        "published": "Published",
+        "draft": "Draft"
+      },
+      "actions": {
+        "questions": "Questions of {{name}}",
+        "edit": "Edit {{name}}",
+        "publish": "Publish {{name}}",
+        "unpublish": "Unpublish {{name}}",
+        "delete": "Delete {{name}}"
+      },
+      "errors": {
+        "toggle": "The status could not be changed. Please try again.",
+        "delete": "The quiz could not be deleted. Please try again."
+      },
+      "form": {
+        "createTitle": "New quiz",
+        "editTitle": "Edit quiz",
+        "loading": "Loading …",
+        "title": "Title",
+        "description": "Description (optional)",
+        "published": "Published",
+        "save": "Save",
+        "saving": "Saving …",
+        "notFound": "This quiz doesn't exist (any more).",
+        "back": "Back to the categories",
+        "errors": {
+          "save": "The quiz could not be saved. Please try again.",
+          "titleRequired": "Enter a title.",
+          "load": "The data could not be loaded."
+        }
+      },
+      "deleteDialog": {
+        "title": "Delete {{name}}?",
+        "message": "The quiz “{{name}}” is deleted with all its questions and answers. Results already played keep their score.",
+        "confirm": "Delete",
+        "cancel": "Cancel"
+      }
+    },
+    "questions": {
+      "title": "Questions in {{name}}",
+      "loading": "Loading questions …",
+      "empty": "No questions in this quiz yet.",
+      "error": "The questions could not be loaded.",
+      "retry": "Try again",
+      "notFound": "This quiz doesn't exist (any more).",
+      "back": "Back to the categories",
+      "create": "New question",
+      "actions": {
+        "edit": "Edit {{name}}",
+        "delete": "Delete {{name}}"
+      },
+      "errors": {
+        "delete": "The question could not be deleted. Please try again."
+      },
+      "form": {
+        "createTitle": "New question",
+        "editTitle": "Edit question",
+        "loading": "Loading …",
+        "text": "Question",
+        "explanation": "Explanation (optional, shown only after answering)",
+        "multipleCorrect": "Several answers correct",
+        "save": "Save",
+        "saving": "Saving …",
+        "notFound": "This question doesn't exist (any more).",
+        "back": "Back to the questions",
+        "errors": {
+          "save": "The question could not be saved. Please try again.",
+          "textRequired": "Enter a question.",
+          "load": "The data could not be loaded."
+        }
+      },
+      "deleteDialog": {
+        "title": "Delete question?",
+        "message": "The question “{{name}}” is deleted with its answers, including the answers learners have already given to it. Finished results keep their score.",
         "confirm": "Delete",
         "cancel": "Cancel"
       }
