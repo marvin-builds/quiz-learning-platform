@@ -23,17 +23,26 @@ export async function fetchCategoryWithQuizzes(categoryId: string) {
   // A malformed id can't name a category, so it needn't reach Postgres.
   if (!UUID.test(categoryId)) return null;
 
-  const { data, error } = await supabase
-    .from('categories')
-    .select('id, name, description, quizzes(id, title, description)')
-    .eq('id', categoryId)
-    .eq('published', true)
-    .eq('quizzes.published', true)
-    .order('sort_order', { referencedTable: 'quizzes', ascending: true })
-    .order('id', { referencedTable: 'quizzes', ascending: true })
-    .maybeSingle();
-  if (error) throw error;
-  return data;
+  // Two reads in parallel, like the admin's list: the quizzes by sort_order,
+  // equal positions by id.
+  const [category, quizzes] = await Promise.all([
+    supabase
+      .from('categories')
+      .select('id, name, description')
+      .eq('id', categoryId)
+      .eq('published', true)
+      .maybeSingle(),
+    supabase
+      .from('quizzes')
+      .select('id, title, description')
+      .eq('category_id', categoryId)
+      .eq('published', true)
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true }),
+  ]);
+  if (category.error) throw category.error;
+  if (quizzes.error) throw quizzes.error;
+  return category.data && { ...category.data, quizzes: quizzes.data };
 }
 
 /**
