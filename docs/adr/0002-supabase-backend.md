@@ -75,7 +75,12 @@ by the client can be faked. Planning phase 1, I chose a server-authoritative
 flow instead, like an endpoint of a classic backend:
 
 - `start_attempt(quiz_id)` creates an attempt for the signed-in (possibly
-  anonymous) user.
+  anonymous) user. Since #74 it returns the user's newest unfinished attempt
+  on that quiz instead while it has no answers and still matches the quiz,
+  and refuses to create one (`not available`) while the user has 20
+  unfinished attempts started in the last 24 hours (`internal.attempt_limits()`);
+  a per-user advisory lock serialises concurrent calls. Not bounded: finished
+  attempts, and anonymous sign-ups up to the auth rate limit.
 - `submit_answer(attempt_id, question_id, answer_ids[])` stores the first
   submission per question, scores it in SQL, and only then returns
   correctness, the correct answer ids, the explanation and the points. A

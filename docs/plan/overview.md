@@ -69,7 +69,11 @@ Supabase: Postgres + row-level security · Auth · Storage (images) · Realtime 
 - Admins have full write access.
 - Users can only read their own attempts. Attempts are created by
   `start_attempt(quiz_id)` and filled by `submit_answer`, never written
-  directly.
+  directly. `start_attempt` reuses the user's empty unfinished attempt on
+  the same quiz and refuses a new one while the user has 20 unfinished
+  attempts from the last 24 hours, so one session can't pile up rows by
+  starting quizzes (finished attempts and new anonymous sign-ups are still
+  only bounded by the API and auth rate limits).
 
 **Anonymous play:** uses Supabase anonymous sign-in. When the learner
 registers, the identity is linked to a real account and their progress is kept.
