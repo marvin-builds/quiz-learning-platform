@@ -48,7 +48,10 @@ Supabase: Postgres + row-level security · Auth · Storage (images) · Realtime 
 
 **Data model (Postgres tables, created through SQL migrations in git):**
 
-- `profiles`: id (→ auth.users), display_name, role (`learner` | `admin`)
+- `profiles`: id (→ auth.users), display_name, role (`learner` | `admin`);
+  display_name is null or 1 to 50 characters, not blank, without control or
+  bidi characters (a check constraint; sign-up stores a name that breaks it
+  as null). A screen that edits the name must use the same limit
 - `categories`: name, description, sort_order, published
 - `quizzes`: category_id, title, description, sort_order, published
 - `questions`: quiz_id, text, image_path, image_alt, multiple_correct, explanation, sort_order
