@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
 import AdminCategoriesScreen from '@/app/(admin)/admin/(guarded)/categories';
@@ -36,7 +36,13 @@ const isDisabled = (element: ReturnType<typeof publish>) =>
   Boolean(element.props['aria-disabled'] ?? element.props.accessibilityState?.disabled);
 
 it('keeps every row disabled whose toggle is still running', async () => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // gcTime Infinity: no garbage-collection timers left behind to keep Jest running.
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Infinity },
+      mutations: { gcTime: Infinity },
+    },
+  });
   await render(
     <QueryClientProvider client={client}>
       <AdminCategoriesScreen />
@@ -47,8 +53,11 @@ it('keeps every row disabled whose toggle is still running', async () => {
   await fireEvent.press(publish('Geografie'));
   await fireEvent.press(publish('Musik'));
 
-  expect(isDisabled(publish('Musik'))).toBe(true);
-  expect(isDisabled(publish('Geografie'))).toBe(true);
+  // The mutation cache notifies asynchronously, so wait for both rows.
+  await waitFor(() => {
+    expect(isDisabled(publish('Musik'))).toBe(true);
+    expect(isDisabled(publish('Geografie'))).toBe(true);
+  });
 
   await act(async () => {
     for (const resolve of mockPending.splice(0)) resolve();
