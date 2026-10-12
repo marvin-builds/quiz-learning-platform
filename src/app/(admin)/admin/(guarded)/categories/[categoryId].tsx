@@ -24,6 +24,10 @@ export default function EditCategoryScreen() {
     // The admin is waiting to edit: show the error and its retry at once
     // rather than after the default retries with backoff.
     retry: false,
+    // The form takes its values once, when it mounts, so it must never mount
+    // with a cached row that a publish or delete on the list has outdated:
+    // drop the row when the form closes and read it again on every visit.
+    gcTime: 0,
   });
   const update = useMutation({
     mutationFn: (values: CategoryValues) => updateCategory(categoryId, values),
