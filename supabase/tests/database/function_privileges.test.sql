@@ -77,10 +77,11 @@ select set_eq(
   'anon can execute exactly the allow-listed functions'
 );
 
--- A learner and an admin are both the `authenticated` role, so the admin
--- gets no function of their own: the admin read policies call
--- private.is_admin(), which anon and authenticated may execute like the
--- visibility helpers.
+-- A learner and an admin are both the `authenticated` role. The admin read
+-- policies call private.is_admin(), which anon and authenticated may execute
+-- like the visibility helpers. admin_question() (#81) is the admin's read of
+-- questions.explanation: authenticated may execute it, and the function
+-- itself refuses everyone but an admin (admin_question.test.sql).
 select set_eq(
   $$ select signature from pg_temp.executable_by_authenticated $$,
   $$ values
@@ -91,7 +92,8 @@ select set_eq(
        ('private.is_question_visible(uuid)'),
        ('private.is_admin()'),
        ('public.start_attempt(uuid)'),
-       ('public.submit_answer(uuid, uuid, uuid[])') $$,
+       ('public.submit_answer(uuid, uuid, uuid[])'),
+       ('public.admin_question(uuid)') $$,
   'authenticated can execute exactly the allow-listed functions'
 );
 
@@ -173,7 +175,8 @@ select results_eq(
       ('private.is_question_visible(uuid)'),
       ('private.is_admin()'),
       ('public.start_attempt(uuid)'),
-      ('public.submit_answer(uuid, uuid, uuid[])')
+      ('public.submit_answer(uuid, uuid, uuid[])'),
+      ('public.admin_question(uuid)')
   $$,
   $$ values ('public.function_privileges_authenticated_probe()'::text) $$,
   'a function granted to authenticated shows up outside its allow-list'

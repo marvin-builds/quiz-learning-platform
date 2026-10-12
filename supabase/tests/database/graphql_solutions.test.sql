@@ -18,7 +18,7 @@
 -- then gets data (the camelCase ones once inflection is on too); they come
 -- last because pg_graphql caches its schema per transaction.
 begin;
-select plan(43);
+select plan(48);
 
 -- Fixtures: a learner and an admin; the content is seed.sql's.
 insert into auth.users (id, email) values
@@ -122,6 +122,22 @@ as $$
 $$;
 
 grant execute on function pg_temp.check_cases(text) to anon, authenticated;
+
+-- Whether pg_graphql answered that the Query type has no such field, so a
+-- test can tell an absent field from one that exists and refuses. The
+-- project's pg_graphql serves no introspection, so the error message is the
+-- only way to ask.
+create function pg_temp.unknown_field(result jsonb, field text)
+returns boolean
+language sql
+immutable
+as $$
+  select coalesce(
+    result -> 'errors' -> 0 ->> 'message' = format('Unknown field "%s" on type Query', field),
+    false)
+$$;
+
+grant execute on function pg_temp.unknown_field(jsonb, text) to anon, authenticated;
 grant execute on function pg_temp.probe_cases(text) to anon;
 
 -- anon --------------------------------------------------------------------
@@ -140,6 +156,43 @@ select set_config('request.jwt.claims',
   '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}', true);
 
 select * from pg_temp.check_cases('a learner');
+
+-- The admin's read of the explanation (#81) is a public function that
+-- authenticated may execute, and pg_graphql exposes such functions as query
+-- fields: a learner must get no data through it, under either spelling.
+-- Seed question "Frankreich" has an explanation.
+select ok(
+  pg_temp.rejected(graphql_public.graphql(query => $q$
+    { admin_question(question_id: "30000000-0000-4000-8000-000000000001") { explanation } } $q$)),
+  'a learner cannot read an explanation through admin_question in GraphQL'
+);
+
+select ok(
+  pg_temp.rejected(graphql_public.graphql(query => $q$
+    { adminQuestion(questionId: "30000000-0000-4000-8000-000000000001") { explanation } } $q$)),
+  'a learner cannot read an explanation through adminQuestion in GraphQL'
+);
+
+select ok(
+  graphql_public.graphql(query => $q$
+    { admin_question(question_id: "30000000-0000-4000-8000-000000000001") { id text explanation } } $q$)::text
+    not like '%Paris ist seit dem Mittelalter%',
+  'no GraphQL answer to a learner carries the explanation admin_question would return'
+);
+
+-- The rejections above would also pass for an unknown field, so this pins
+-- that the field is absent, under either spelling (returns table(...) is a
+-- shape pg_graphql doesn't expose); the probe at the end shows that a public
+-- function the role may execute is not an unknown field.
+select ok(
+  pg_temp.unknown_field(graphql_public.graphql(query => $q$
+    { admin_question(question_id: "30000000-0000-4000-8000-000000000001") { explanation } } $q$),
+    'admin_question')
+  and pg_temp.unknown_field(graphql_public.graphql(query => $q$
+    { adminQuestion(questionId: "30000000-0000-4000-8000-000000000001") { explanation } } $q$),
+    'adminQuestion'),
+  'GraphQL has no admin_question field for a learner, under either spelling'
+);
 
 reset role;
 
@@ -173,6 +226,28 @@ set local role anon;
 select set_config('request.jwt.claims', '{"role": "anon"}', true);
 
 select * from pg_temp.probe_cases('camel');
+
+reset role;
+
+-- A public function a role may execute is a Query field pg_graphql answers,
+-- not an unknown one, so the learner's admin_question check above can fail.
+-- Inflection is on here, hence the camelCase name.
+create function public.graphql_probe()
+returns text
+language sql
+stable
+as $$ select 'probe' $$;
+
+grant execute on function public.graphql_probe() to anon;
+
+set local role anon;
+select set_config('request.jwt.claims', '{"role": "anon"}', true);
+
+select ok(
+  not pg_temp.unknown_field(graphql_public.graphql(query => '{ graphqlProbe }'), 'graphqlProbe')
+  and graphql_public.graphql(query => '{ graphqlProbe }') -> 'data' ->> 'graphqlProbe' = 'probe',
+  'the absent-field check reports a function GraphQL exposes to the role'
+);
 
 reset role;
 
