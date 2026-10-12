@@ -215,6 +215,8 @@
           "text": "Antwort {{number}}",
           "correct": "Antwort {{number}} ist richtig",
           "remove": "Antwort {{number}} entfernen",
+          "moveUp": "Antwort {{number}} nach oben verschieben",
+          "moveDown": "Antwort {{number}} nach unten verschieben",
           "add": "Antwort hinzufügen",
           "image": {
             "pick": "Bild für Antwort {{number}} auswählen",

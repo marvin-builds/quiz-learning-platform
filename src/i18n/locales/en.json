@@ -215,6 +215,8 @@
           "text": "Answer {{number}}",
           "correct": "Answer {{number}} is correct",
           "remove": "Remove answer {{number}}",
+          "moveUp": "Move answer {{number}} up",
+          "moveDown": "Move answer {{number}} down",
           "add": "Add answer",
           "image": {
             "pick": "Choose image for answer {{number}}",

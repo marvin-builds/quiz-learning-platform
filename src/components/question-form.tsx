@@ -48,7 +48,8 @@ type ErrorKey = `admin.questions.form.errors.${
 
 /**
  * The create and edit form of a question: text, explanation, multiple_correct,
- * its image and its answers inline (add, edit, remove, mark correct, image).
+ * its image and its answers inline (add, edit, remove, move, mark correct,
+ * image).
  * A picked image's file comes with the values, for the screen to upload.
  * Validates with the shared schema before anything is sent and shows the
  * answer rules next to the answers; the input stays when saving fails.
@@ -224,6 +225,16 @@ export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
                       }}
                     />
                   )}
+                />
+                <RowAction
+                  label={t('admin.questions.form.answers.moveUp', { number })}
+                  onPress={() => answers.move(index, index - 1)}
+                  disabled={index === 0}
+                />
+                <RowAction
+                  label={t('admin.questions.form.answers.moveDown', { number })}
+                  onPress={() => answers.move(index, index + 1)}
+                  disabled={index === answers.fields.length - 1}
                 />
                 <RowAction
                   label={t('admin.questions.form.answers.remove', { number })}
