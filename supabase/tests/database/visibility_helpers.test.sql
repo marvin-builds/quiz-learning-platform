@@ -10,7 +10,7 @@
 -- cover every function in `private`, so further helpers are held to the same
 -- rules without editing this file.
 begin;
-select plan(29);
+select plan(30);
 
 -- Fixtures ----------------------------------------------------------------
 
@@ -78,30 +78,52 @@ select is_definer('private', 'is_quiz_visible', '{uuid}'::name[],
   'private.is_quiz_visible(uuid) is security definer');
 
 -- Every function in `private` ---------------------------------------------
+-- Except the stale-anonymous-user cleanup (#75) and its retention period:
+-- they run only as pg_cron's job owner, so they are not RLS helpers and get
+-- the opposite rule, no execute for anon or authenticated (checked below and
+-- in delete_stale_anonymous_users_callers.test.sql).
+
+create temporary view rls_helpers as
+  select p.oid, p.prosecdef, p.proconfig
+  from pg_proc p
+  where p.pronamespace = 'private'::regnamespace
+    and p.proname not in ('delete_stale_anonymous_users', 'anonymous_retention_period');
 
 select is_empty(
   $$ select p.oid::regprocedure::text
-     from pg_proc p
-     where p.pronamespace = 'private'::regnamespace
-       and not p.prosecdef $$,
+     from pg_temp.rls_helpers p
+     where not p.prosecdef $$,
   'every function in private is security definer'
 );
 
 select is_empty(
   $$ select p.oid::regprocedure::text
-     from pg_proc p
-     where p.pronamespace = 'private'::regnamespace
-       and not coalesce(p.proconfig @> array['search_path=""'], false) $$,
+     from pg_temp.rls_helpers p
+     where not coalesce(p.proconfig @> array['search_path=""'], false) $$,
   'every function in private sets search_path to the empty string'
 );
 
 select is_empty(
   $$ select p.oid::regprocedure::text
-     from pg_proc p
-     where p.pronamespace = 'private'::regnamespace
-       and not (has_function_privilege('anon', p.oid, 'execute')
+     from pg_temp.rls_helpers p
+     where not (has_function_privilege('anon', p.oid, 'execute')
                 and has_function_privilege('authenticated', p.oid, 'execute')) $$,
   'anon and authenticated may execute every function in private'
+);
+
+-- The two exceptions exist and neither API role may execute them, so the
+-- exclusion above can't hide a granted function.
+select results_eq(
+  $$ select p.proname::text collate "default",
+            has_function_privilege('anon', p.oid, 'execute'),
+            has_function_privilege('authenticated', p.oid, 'execute')
+     from pg_proc p
+     where p.pronamespace = 'private'::regnamespace
+       and p.proname in ('delete_stale_anonymous_users', 'anonymous_retention_period')
+     order by 1 $$,
+  $$ values ('anonymous_retention_period'::text, false, false),
+            ('delete_stale_anonymous_users'::text, false, false) $$,
+  'the cleanup job''s functions in private exist and are not executable by anon or authenticated'
 );
 
 -- Sanity: the catalog checks above see the helpers, so they can't pass
