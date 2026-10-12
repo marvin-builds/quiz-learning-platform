@@ -681,18 +681,37 @@ test('an admin reorders categories, quizzes, questions and answers by keyboard, 
   await page.goto('/admin/categories');
   const moveSecondUp = button(page, 'admin.categories.actions.moveUp', { name: second });
   const refused = page.getByText(text('admin.categories.errors.reorder'), { exact: true });
+  //
+  // Re-spec (#84, N3): the other project reorders the same global list at the
+  // same time, and a reorder from a list with the same members is accepted
+  // (last write wins), so its write can put the second back where it was.
+  // Once this press's reorder_categories call has answered, "neither moved
+  // nor refused" (the database has the old neighbour above the second again)
+  // counts like a refusal: reload and press again, within the same 10 tries.
+  let outcome = 'pending';
   for (let attempts = 0; attempts < 10; attempts += 1) {
-    if ((await refused.count()) > 0) await page.reload();
+    if (outcome === 'reverted' || (await refused.count()) > 0) await page.reload();
     const [top] = await orderOf(page, [first, second]);
     if (top === second) break;
     const names = await categoryNamesInOrder(request);
     const above = names[names.indexOf(second) - 1];
+    let answered = false;
+    page
+      .waitForResponse((response) => response.url().includes('/rest/v1/rpc/reorder_categories'))
+      .then(
+        () => (answered = true),
+        () => undefined,
+      );
     await pressByKeyboard(moveSecondUp, 'Enter');
-    let outcome = 'pending';
+    outcome = 'pending';
     await expect
       .poll(async () => {
         if ((await refused.count()) > 0) outcome = 'refused';
         else if ((await orderOf(page, [above, second]))[0] === second) outcome = 'moved';
+        else if (answered) {
+          const now = await categoryNamesInOrder(request);
+          if (now.indexOf(above) < now.indexOf(second)) outcome = 'reverted';
+        }
         return outcome;
       })
       .not.toBe('pending');
