@@ -7,6 +7,7 @@ import { FormScreen } from '@/components/form-screen';
 import { QuizForm } from '@/components/quiz-form';
 import { ErrorState, StatusMessage } from '@/components/status';
 import { adminKey, adminQuizKey, fetchAdminQuiz, updateQuiz } from '@/lib/admin-quizzes';
+import { isRuleViolation } from '@/lib/admin-rows';
 import type { QuizValues } from '@/lib/quiz-schema';
 
 export default function EditQuizScreen() {
@@ -52,7 +53,16 @@ export default function EditQuizScreen() {
         <QuizForm
           initial={quiz.data}
           pending={update.isPending}
-          failed={update.isError}
+          failure={
+            update.isError
+              ? t(
+                  // The database refuses to publish a quiz that breaks its rules.
+                  isRuleViolation(update.error)
+                    ? 'admin.quizzes.errors.publishRules'
+                    : 'admin.quizzes.form.errors.save',
+                )
+              : null
+          }
           onSubmit={(values) => update.mutate(values)}
         />
       )}

@@ -10,6 +10,7 @@ import { PageTitle } from '@/components/page-title';
 import { ErrorState, StatusMessage } from '@/components/status';
 import { adminQuizQuestionsKey, deleteQuestion, fetchQuizQuestions } from '@/lib/admin-questions';
 import { adminKey } from '@/lib/admin-quizzes';
+import { isRuleViolation } from '@/lib/admin-rows';
 
 type Question = NonNullable<Awaited<ReturnType<typeof fetchQuizQuestions>>>['questions'][number];
 
@@ -73,7 +74,16 @@ export default function AdminQuestionsScreen() {
               label={t('admin.questions.create')}
               href={`/admin/quizzes/${quizId}/questions/new`}
             />
-            {remove.isError ? <ErrorText text={t('admin.questions.errors.delete')} /> : null}
+            {remove.isError ? (
+              <ErrorText
+                text={t(
+                  // The database keeps a published quiz from losing its last question.
+                  isRuleViolation(remove.error)
+                    ? 'admin.questions.errors.deleteLastPublished'
+                    : 'admin.questions.errors.delete',
+                )}
+              />
+            ) : null}
             {list.data.questions.length === 0 ? (
               <StatusMessage text={t('admin.questions.empty')} />
             ) : (

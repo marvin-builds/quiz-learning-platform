@@ -276,6 +276,15 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      admin_answers: {
+        Args: { question_id: string };
+        Returns: {
+          id: string;
+          is_correct: boolean;
+          sort_order: number;
+          text: string;
+        }[];
+      };
       admin_question: {
         Args: { question_id: string };
         Returns: {
@@ -287,6 +296,17 @@ export type Database = {
         }[];
       };
       health_check: { Args: Record<PropertyKey, never>; Returns: string };
+      save_question: {
+        Args: {
+          answers: Json;
+          explanation: string;
+          multiple_correct: boolean;
+          question_id: string;
+          quiz_id: string;
+          text: string;
+        };
+        Returns: string;
+      };
       start_attempt: { Args: { quiz_id: string }; Returns: string };
       submit_answer: {
         Args: { answer_ids: string[]; attempt_id: string; question_id: string };

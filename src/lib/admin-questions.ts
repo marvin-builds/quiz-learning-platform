@@ -1,15 +1,18 @@
 import { isUuid, requireWritten } from '@/lib/admin-rows';
 import { adminKey, adminQuizKey, fetchAdminQuiz } from '@/lib/admin-quizzes';
-import type { QuestionValues } from '@/lib/question-schema';
+import type { QuestionWithAnswersValues } from '@/lib/question-schema';
 import { supabase } from '@/lib/supabase';
-import type { TablesInsert } from '@/types/database';
+import type { Database } from '@/types/database';
 
-// The admin's reads and writes of questions (#81). questions.explanation is
-// a solution column that no role may select, admins included: the edit form
-// reads it through the admin-only function admin_question(), and writes send
-// it without asking for it back (they return only the id).
+// The admin's reads and writes of questions (#81) and their answers (#82).
+// questions.explanation and answers.is_correct are solution columns that no
+// role may select, admins included: the edit form reads them through the
+// admin-only functions admin_question() and admin_answers(), and saves go
+// through save_question(), which returns only the question's id.
 
 export const adminQuestionKey = (id: string) => [...adminKey, 'questions', id] as const;
+export const adminAnswersKey = (questionId: string) =>
+  [...adminQuestionKey(questionId), 'answers'] as const;
 // Under the quiz's key, so a change to the quiz refreshes the list too.
 export const adminQuizQuestionsKey = (quizId: string) =>
   [...adminQuizKey(quizId), 'questions'] as const;
@@ -40,18 +43,32 @@ export async function fetchAdminQuestion(id: string) {
   return { ...question, explanation: question.explanation as string | null };
 }
 
-export async function createQuestion(quizId: string, values: QuestionValues) {
-  // sort_order is filled in by the trigger questions_assign_sort_order (see
-  // createCategory for the cast). No select: the row holds the explanation.
-  const row: Omit<TablesInsert<'questions'>, 'sort_order'> = { ...values, quiz_id: quizId };
-  const { error } = await supabase.from('questions').insert(row as TablesInsert<'questions'>);
+/** A question's answers with is_correct, by sort_order, through admin_answers(). */
+export async function fetchAdminAnswers(questionId: string) {
+  const { data, error } = await supabase.rpc('admin_answers', { question_id: questionId });
   if (error) throw error;
+  return data;
 }
 
-export async function updateQuestion(id: string, values: QuestionValues) {
-  const { data, error } = await supabase.from('questions').update(values).eq('id', id).select('id');
+/**
+ * Saves a question with its answers in one transaction through
+ * save_question(): creates it in the quiz when questionId is null, else
+ * updates it. Answers with an id are updated, without one inserted, and the
+ * question's answers left out are deleted. Returns nothing that holds a
+ * solution: only the question's id.
+ */
+export async function saveQuestion(
+  quizId: string,
+  questionId: string | null,
+  values: QuestionWithAnswersValues,
+) {
+  // The generated types miss that question_id and explanation may be null.
+  const args = { quiz_id: quizId, question_id: questionId, ...values };
+  const { error } = await supabase.rpc(
+    'save_question',
+    args as Database['public']['Functions']['save_question']['Args'],
+  );
   if (error) throw error;
-  requireWritten(data);
 }
 
 export async function deleteQuestion(id: string) {
