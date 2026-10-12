@@ -121,6 +121,8 @@ select results_eq(
 
 select results_eq(
   $$ select attempt_id, question_id from public.attempt_answers
+     where attempt_id in ('f0000000-0000-0000-0000-000000000001',
+                          'f0000000-0000-0000-0000-000000000002')
      order by attempt_id, question_id $$,
   $$ values ('f0000000-0000-0000-0000-000000000001'::uuid,
              'e0000000-0000-0000-0000-000000000002'::uuid),
