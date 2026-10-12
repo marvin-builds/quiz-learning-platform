@@ -87,7 +87,8 @@ create temporary view rls_helpers as
   select p.oid, p.prosecdef, p.proconfig
   from pg_proc p
   where p.pronamespace = 'private'::regnamespace
-    and p.proname not in ('delete_stale_anonymous_users', 'anonymous_retention_period');
+    and p.oid::regprocedure::text not in ('private.delete_stale_anonymous_users()',
+                                          'private.anonymous_retention_period()');
 
 select is_empty(
   $$ select p.oid::regprocedure::text
@@ -111,19 +112,23 @@ select is_empty(
   'anon and authenticated may execute every function in private'
 );
 
--- The two exceptions exist and neither API role may execute them, so the
--- exclusion above can't hide a granted function.
+-- The two exceptions exist with exactly these signatures, neither API role may
+-- execute them, and they run as security invoker (the job owner) with an empty
+-- search_path, so the exclusion above can't hide a granted, definer or
+-- path-dependent function.
 select results_eq(
-  $$ select p.proname::text collate "default",
+  $$ select p.oid::regprocedure::text collate "default",
             has_function_privilege('anon', p.oid, 'execute'),
-            has_function_privilege('authenticated', p.oid, 'execute')
+            has_function_privilege('authenticated', p.oid, 'execute'),
+            p.prosecdef,
+            coalesce(p.proconfig @> array['search_path=""'], false)
      from pg_proc p
      where p.pronamespace = 'private'::regnamespace
        and p.proname in ('delete_stale_anonymous_users', 'anonymous_retention_period')
      order by 1 $$,
-  $$ values ('anonymous_retention_period'::text, false, false),
-            ('delete_stale_anonymous_users'::text, false, false) $$,
-  'the cleanup job''s functions in private exist and are not executable by anon or authenticated'
+  $$ values ('private.anonymous_retention_period()'::text, false, false, false, true),
+            ('private.delete_stale_anonymous_users()'::text, false, false, false, true) $$,
+  'the cleanup job''s functions in private exist, are not executable by anon or authenticated, are not security definer and set search_path to the empty string'
 );
 
 -- Sanity: the catalog checks above see the helpers, so they can't pass
