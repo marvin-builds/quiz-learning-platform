@@ -5,8 +5,10 @@
 -- (U+202A-U+202E, U+2066-U+2069). Code points are explicit because
 -- [[:space:]] and [[:cntrl:]] depend on the locale, and every one is written
 -- as a \uXXXX escape, since raw they are invisible in an editor or a diff.
--- Zero-width characters (U+200B-U+200D, U+2060, U+FEFF) are allowed: a known
--- gap, since ZWJ and ZWNJ are part of emoji sequences and some scripts.
+-- Known gap: invisible characters that aren't whitespace, such as zero-width
+-- ones (U+200B-U+200D, U+2060, U+FEFF), the Hangul filler U+3164 and the
+-- braille blank U+2800, are allowed, so a name made only of them looks blank.
+-- ZWJ and ZWNJ are part of emoji sequences and some scripts.
 --
 -- The check constraint is the only place the rule is written down. The
 -- signup trigger and the cleanup of existing rows below don't repeat it: they
