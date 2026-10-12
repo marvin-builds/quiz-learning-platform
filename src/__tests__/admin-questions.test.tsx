@@ -2195,6 +2195,26 @@ describe('answer rules in the form', () => {
     expect(saveCalls()).toEqual([]);
   });
 
+  it('removes the single-choice message once the question is switched to multiple choice', async () => {
+    await renderAt(newUrl(HAUPTSTAEDTE));
+    await fillForm({ text: 'Was ist die Hauptstadt von Spanien?' });
+    await fillAnswers([
+      { text: 'Madrid', correct: true },
+      { text: 'Barcelona', correct: true },
+    ]);
+    await fireEvent.press(saveButton());
+    await expectAnnounced('admin.questions.form.errors.singleChoiceOneCorrect');
+
+    await setChecked(multipleControl, true);
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText(text('admin.questions.form.errors.singleChoiceOneCorrect')),
+      ).toBeNull(),
+    );
+    expect(saveCalls()).toEqual([]);
+  });
+
   it('shows the rule messages in English when the language is English', async () => {
     await i18n.changeLanguage('en');
     await renderAt(newUrl(HAUPTSTAEDTE));
