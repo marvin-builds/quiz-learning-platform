@@ -282,7 +282,15 @@ function mockRespond(query: Query): Promise<Result> {
     });
   }
 
-  const state = mockIsContent(query.table, fields) ? mockRead.content : mockRead.detail;
+  // Re-spec (#84): `mockRead` controls the preview's own reads only. The admin
+  // guard's role read (`profiles`) always answers normally, or the guard
+  // would never let the preview render its loading or error state.
+  const state =
+    query.table === 'profiles'
+      ? 'ok'
+      : mockIsContent(query.table, fields)
+        ? mockRead.content
+        : mockRead.detail;
   if (state === 'pending') return new Promise(() => {});
   if (state !== 'ok') return Promise.resolve({ data: null, error: state.error });
 
@@ -965,7 +973,11 @@ describe('the preview (/admin/quizzes/<quizId>/preview)', () => {
     mockRead.content = { error: { code: '', message: 'TypeError: Failed to fetch' } };
     await renderAt(previewUrl(QUIZ));
 
-    expect(await screen.findByText(text('admin.preview.error'))).toBeOnTheScreen();
+    // Re-spec (#84): generous, like the other admin screens' error tests: the
+    // app's query client retries with backoff before it gives up.
+    expect(
+      await screen.findByText(text('admin.preview.error'), {}, { timeout: 15_000 }),
+    ).toBeOnTheScreen();
     mockRead.detail = 'ok';
     mockRead.content = 'ok';
     await fireEvent.press(screen.getByRole('button', { name: text('admin.preview.retry') }));
