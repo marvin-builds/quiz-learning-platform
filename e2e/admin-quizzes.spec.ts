@@ -193,6 +193,26 @@ test('an admin creates a quiz with one question in a category, and the explanati
   await expect(multiple).not.toBeChecked();
   await multiple.click();
   await expect(multiple).toBeChecked();
+  // Re-spec (#82): the database refuses a question without valid answers,
+  // so this one gets two, both correct (it is multiple choice).
+  for (const [index, answer] of ['Antwort A', 'Antwort B'].entries()) {
+    const number = String(index + 1);
+    await page
+      .getByLabel(
+        text('admin.questions.form.answers.text').replace(/\{\{\s*number\s*\}\}/g, number),
+        {
+          exact: true,
+        },
+      )
+      .fill(answer);
+    const correct = text('admin.questions.form.answers.correct').replace(
+      /\{\{\s*number\s*\}\}/g,
+      number,
+    );
+    await toggle(page, correct)
+      .or(page.getByRole('radio', { name: correct, exact: true }))
+      .click();
+  }
   await page.getByRole('button', { name: text('admin.questions.form.save'), exact: true }).click();
 
   await expect(page).toHaveURL(new RegExp(`^${escape(quizUrl.replace(/\/$/, ''))}/?$`));
@@ -272,9 +292,21 @@ test('long quiz titles and question texts wrap in the lists instead of widening 
   });
   expect(quizResponse.ok(), await quizResponse.text()).toBe(true);
   const [{ id: quizId }] = (await quizResponse.json()) as { id: string }[];
-  const questionResponse = await request.post(`${apiUrl}/rest/v1/questions?select=id`, {
+  // Re-spec (#82): was a plain insert into questions without answers, which
+  // the database now refuses; save_question writes it with valid answers.
+  const questionResponse = await request.post(`${apiUrl}/rest/v1/rpc/save_question`, {
     headers,
-    data: { quiz_id: quizId, text: `Was ist eine ${longWord}${longWord}?` },
+    data: {
+      quiz_id: quizId,
+      question_id: null,
+      text: `Was ist eine ${longWord}${longWord}?`,
+      explanation: null,
+      multiple_correct: false,
+      answers: [
+        { text: 'Ja', is_correct: true },
+        { text: 'Nein', is_correct: false },
+      ],
+    },
   });
   expect(questionResponse.ok(), await questionResponse.text()).toBe(true);
 
