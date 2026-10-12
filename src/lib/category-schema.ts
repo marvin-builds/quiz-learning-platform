@@ -23,3 +23,6 @@ export const categorySchema = z.object({
 });
 
 export type CategoryValues = z.output<typeof categorySchema>;
+
+/** What the form holds before validation. */
+export type CategoryInput = z.input<typeof categorySchema>;
