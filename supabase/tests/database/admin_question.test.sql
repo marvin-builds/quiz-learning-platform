@@ -370,8 +370,12 @@ select results_eq(
   'reading through admin_question changed nothing'
 );
 
+-- Counts only attempts started in this test's transaction (started_at = now(),
+-- the column default), on any quiz and for any user: the fixtures start none,
+-- and attempts the e2e tests commit meanwhile on the same stack start in other
+-- transactions, so they don't count.
 select is_empty(
-  $$ select 1 from public.attempts $$,
+  $$ select 1 from public.attempts where started_at = now() $$,
   'reading through admin_question started no attempt'
 );
 
