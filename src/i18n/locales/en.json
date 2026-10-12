@@ -194,6 +194,7 @@
       "notFound": "This quiz doesn't exist (any more).",
       "back": "Back to the categories",
       "create": "New question",
+      "preview": "Preview of {{name}}",
       "actions": {
         "edit": "Edit {{name}}",
         "delete": "Delete {{name}}",
@@ -260,6 +261,16 @@
         "confirm": "Delete",
         "cancel": "Cancel"
       }
+    },
+    "preview": {
+      "marker": "Preview: this is how learners see this quiz, with the correct answers and explanations. Nothing is saved.",
+      "loading": "Loading the preview …",
+      "error": "The preview could not be loaded.",
+      "retry": "Try again",
+      "empty": "This quiz has no questions yet.",
+      "notFound": "This quiz does not exist (any more).",
+      "back": "Back to the categories",
+      "correctAnswer": "Correct answer: {{answer}}"
     }
   }
 }

@@ -77,6 +77,16 @@ export async function fetchAdminAnswers(questionId: string) {
 }
 
 /**
+ * One question as the preview shows it: its text, image, explanation and
+ * answers with is_correct, through admin_question() and admin_answers();
+ * null when it doesn't exist.
+ */
+export async function fetchPreviewQuestion(id: string) {
+  const [question, answers] = await Promise.all([fetchAdminQuestion(id), fetchAdminAnswers(id)]);
+  return question && { ...question, answers };
+}
+
+/**
  * Saves a question with its answers in one transaction through
  * save_question(): creates it in the quiz when questionId is null, else
  * updates it. Answers with an id are updated, without one inserted, and the

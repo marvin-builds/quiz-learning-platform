@@ -194,6 +194,7 @@
       "notFound": "Dieses Quiz gibt es nicht (mehr).",
       "back": "Zurück zu den Kategorien",
       "create": "Neue Frage",
+      "preview": "Vorschau von {{name}}",
       "actions": {
         "edit": "{{name}} bearbeiten",
         "delete": "{{name}} löschen",
@@ -260,6 +261,16 @@
         "confirm": "Löschen",
         "cancel": "Abbrechen"
       }
+    },
+    "preview": {
+      "marker": "Vorschau: So sehen Lernende dieses Quiz, mit den richtigen Antworten und Erklärungen. Nichts wird gespeichert.",
+      "loading": "Die Vorschau wird geladen …",
+      "error": "Die Vorschau konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "empty": "Dieses Quiz hat noch keine Fragen.",
+      "notFound": "Dieses Quiz gibt es nicht (mehr).",
+      "back": "Zurück zu den Kategorien",
+      "correctAnswer": "Richtige Antwort: {{answer}}"
     }
   }
 }
