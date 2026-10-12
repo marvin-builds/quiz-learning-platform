@@ -11,3 +11,11 @@ export const isUuid = (id: string | undefined): id is string => id !== undefined
 export function requireWritten(data: unknown[] | null) {
   if (!data || data.length === 0) throw new Error('No row was written');
 }
+
+/**
+ * Whether the database refused a write by one of its rules (SQLSTATE 23514,
+ * check_violation), e.g. the answer or publish rules (#82), as opposed to a
+ * failure worth retrying.
+ */
+export const isRuleViolation = (error: unknown) =>
+  (error as { code?: unknown } | null)?.code === '23514';
