@@ -106,9 +106,18 @@ When `main` moves, rebase the open PRs that fall behind (steps 1 to 3 and
 ## Stacked branches
 
 - A child starts from its parent's branch only after the parent's review is
-  done; its PR targets the parent branch.
-- When the parent merges: `git -C <wt> fetch origin`,
-  `git -C <wt> rebase --onto origin/main <parent tip from log.md>`, then the
+  done; its PR targets the parent branch. That makes the PRs a GitHub stack
+  (`main` ← parent ← child).
+- When the parent merges, GitHub rebases the child onto `main` and
+  retargets its PR by itself, so don't rebase it by hand. Check it:
+  `gh pr view <pr> --json baseRefName,headRefOid` shows `main` and a new
+  head. Then bring the worktree along with `git -C <wt> fetch origin` and
+  `git -C <wt> rebase origin/<child>` (it has no unpushed commits, so this
+  only moves it to GitHub's commits). Then run the migration-order fix. If
+  it renames something, commit the rename, rerun pgTAP and push with
+  `--force-with-lease`. Either way, watch CI again.
+- Fallback, only if GitHub didn't rebase or retarget:
+  `git -C <wt> rebase --onto origin/main <parent tip from log.md>`, the
   migration-order fix, push with `--force-with-lease`, and
   `gh pr edit <pr> --base main`.
 - A re-spec of the parent (changed approved tests) pauses the child: stop
