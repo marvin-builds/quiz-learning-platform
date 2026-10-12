@@ -591,3 +591,72 @@ describe('QuestionForm: answer images', () => {
     expect(values.image_path).toBe(STORED_PATH);
   });
 });
+
+// Found by the ui-verifier: a refused save's alt text message stayed after
+// the image it was about was removed. Like the answer rules, a message from
+// a save attempt goes as soon as what it is about changed.
+describe('QuestionForm: outdated alt text messages', () => {
+  const altRequired = () => label('admin.questions.form.errors.imageAltRequired');
+
+  it('drops the question image alt text message once the image is removed', async () => {
+    const onSubmit = await renderForm(STORED);
+    await fireEvent.changeText(
+      await screen.findByLabelText(label('admin.questions.form.image.alt')),
+      '',
+    );
+    await save();
+    expect(await screen.findByText(altRequired())).toBeOnTheScreen();
+
+    await fireEvent.press(button(label('admin.questions.form.image.remove')));
+
+    await waitFor(() => expect(screen.queryByText(altRequired())).toBeNull());
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('drops the question image alt text message once an alt text is written', async () => {
+    await renderForm(STORED);
+    await fireEvent.changeText(
+      await screen.findByLabelText(label('admin.questions.form.image.alt')),
+      '',
+    );
+    await save();
+    expect(await screen.findByText(altRequired())).toBeOnTheScreen();
+
+    await fireEvent.changeText(field(label('admin.questions.form.image.alt')), 'Ein Tier im Gras');
+
+    await waitFor(() => expect(screen.queryByText(altRequired())).toBeNull());
+  });
+
+  it('drops an answer image alt text message once that image is removed', async () => {
+    const onSubmit = await renderForm(STORED);
+    await fireEvent.changeText(
+      await screen.findByLabelText(
+        label('admin.questions.form.answers.image.alt', { number: '1' }),
+      ),
+      '',
+    );
+    await save();
+    expect(await screen.findByText(altRequired())).toBeOnTheScreen();
+
+    await fireEvent.press(
+      button(label('admin.questions.form.answers.image.remove', { number: '1' })),
+    );
+
+    await waitFor(() => expect(screen.queryByText(altRequired())).toBeNull());
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('keeps the alt text message while an alt text is still missing', async () => {
+    await renderForm(STORED);
+    await fireEvent.changeText(
+      await screen.findByLabelText(label('admin.questions.form.image.alt')),
+      '',
+    );
+    await save();
+    expect(await screen.findByText(altRequired())).toBeOnTheScreen();
+
+    await fireEvent.changeText(field(label('admin.questions.form.image.alt')), '  ');
+
+    await waitFor(() => expect(screen.getByText(altRequired())).toBeOnTheScreen());
+  });
+});
