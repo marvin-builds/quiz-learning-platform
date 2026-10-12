@@ -6,12 +6,13 @@ import { AdminNotFound } from '@/components/admin-list';
 import { FormScreen } from '@/components/form-screen';
 import { QuestionForm } from '@/components/question-form';
 import { ErrorState, StatusMessage } from '@/components/status';
-import { isRuleViolation, isUuid } from '@/lib/admin-rows';
+import { isUuid } from '@/lib/admin-rows';
 import {
   adminAnswersKey,
   adminQuestionKey,
   fetchAdminAnswers,
   fetchAdminQuestion,
+  saveFailureKey,
   saveQuestion,
 } from '@/lib/admin-questions';
 import { adminKey } from '@/lib/admin-quizzes';
@@ -43,16 +44,35 @@ export default function EditQuestionScreen() {
     ...readOptions,
     enabled: validQuiz && isUuid(questionId),
   });
+  // A question of another quiz is not found under this one.
+  const found = question.data?.quiz_id === quizId ? question.data : null;
+  const initial = found && {
+    ...found,
+    answers: (answers.data ?? []).map(({ id, text, is_correct, image_path, image_alt }) => ({
+      id,
+      text,
+      is_correct,
+      image_path,
+      image_alt,
+    })),
+  };
+
   const update = useMutation({
-    mutationFn: (values: QuestionWithAnswersValues) => saveQuestion(quizId, questionId, values),
+    // The stored images, whose objects go once the save replaced or removed them.
+    mutationFn: (values: QuestionWithAnswersValues) =>
+      saveQuestion(
+        quizId,
+        questionId,
+        values,
+        [initial, ...(initial?.answers ?? [])].flatMap((image) =>
+          image?.image_path ? [image.image_path] : [],
+        ),
+      ),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: adminKey });
       router.replace(`/admin/quizzes/${quizId}`);
     },
   });
-  // A question of another quiz is not found under this one.
-  const found = question.data?.quiz_id === quizId ? question.data : null;
-
   return (
     <FormScreen title={t('admin.questions.form.editTitle')}>
       {question.isError || answers.isError ? (
@@ -69,7 +89,7 @@ export default function EditQuestionScreen() {
         (!question.isFetchedAfterMount ||
           (question.data != null && !answers.isFetchedAfterMount)) ? (
         <StatusMessage text={t('admin.questions.form.loading')} />
-      ) : found === null ? (
+      ) : initial === null ? (
         <AdminNotFound
           message={t('admin.questions.form.notFound')}
           backLabel={t('admin.questions.form.back')}
@@ -77,24 +97,9 @@ export default function EditQuestionScreen() {
         />
       ) : (
         <QuestionForm
-          initial={{
-            ...found,
-            answers: (answers.data ?? []).map(({ id, text, is_correct }) => ({
-              id,
-              text,
-              is_correct,
-            })),
-          }}
+          initial={initial}
           pending={update.isPending}
-          failure={
-            update.isError
-              ? t(
-                  isRuleViolation(update.error)
-                    ? 'admin.questions.form.errors.rules'
-                    : 'admin.questions.form.errors.save',
-                )
-              : null
-          }
+          failure={update.isError ? t(saveFailureKey(update.error)) : null}
           onSubmit={(values) => update.mutate(values)}
         />
       )}
