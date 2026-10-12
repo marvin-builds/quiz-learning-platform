@@ -8,8 +8,8 @@
 -- can insert, update and delete objects in quiz-images, and only there, and
 -- only under a name the app chose: a lowercase UUID with .png, .jpg, .jpeg or
 -- .webp at the bucket root (no folder, no '..', no original file name). An
--- update can't move an object to another bucket or rename it to any other
--- name. The admin can also select (list) them: Storage's remove() deletes
+-- update can't move an object to another bucket or rename it to a name
+-- outside that rule. The admin can also select (list) them: Storage's remove() deletes
 -- with RETURNING, so without a select policy it reports success and deletes
 -- nothing (tried against the local stack while writing this test). Listing
 -- stays closed for anon, an anonymous user and a learner. Nobody, the admin

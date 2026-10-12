@@ -40,7 +40,10 @@ alter table public.answers
 --
 -- Admins insert, update and delete objects of quiz-images, only there and
 -- only under the name rule; an update can't move an object to another bucket
--- or rename it to another name. This supersedes the comment of
+-- or rename it to a name outside the name rule. It can rename it to another
+-- valid name, which detaches it from the row that names it; only an admin
+-- can, and policies can't compare the old and new name (that would need a
+-- trigger), so this is accepted. This supersedes the comment of
 -- ..._create_quiz_images_bucket ("nobody can write"), which stays as applied.
 --
 -- Deviation from "listing the bucket stays closed" (#83, decisions D4): the
