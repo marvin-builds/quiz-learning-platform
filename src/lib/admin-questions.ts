@@ -1,7 +1,7 @@
 import { isRuleViolation, isUuid, requireWritten } from '@/lib/admin-rows';
 import { adminKey, adminQuizKey, fetchAdminQuiz } from '@/lib/admin-quizzes';
-import { ImageUploadError, removeImages, uploadImage } from '@/lib/images';
-import type { QuestionWithAnswersValues } from '@/lib/question-schema';
+import { ImageUploadError, newImageName, removeImages, uploadImage } from '@/lib/images';
+import type { ImageFile, QuestionWithAnswersValues } from '@/lib/question-schema';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/types/database';
 
@@ -83,11 +83,13 @@ export async function fetchAdminAnswers(questionId: string) {
  * question's answers left out are deleted. Returns nothing that holds a
  * solution: only the question's id.
  *
- * Images: every newly picked file is uploaded first, under the name the form
- * chose; if one upload fails (ImageUploadError) or the save does, the objects
- * uploaded for it are removed again and the stored ones stay. Once the save
- * went through, the objects of `storedPaths` (the images the question and
- * its answers had) that no longer are named are removed, best effort.
+ * Images: every newly picked file is uploaded first, under a name new to
+ * this attempt (a failed attempt whose clean-up failed too leaves its object
+ * behind, and Storage never overwrites one); if one upload fails
+ * (ImageUploadError) or the save does, the objects uploaded for it are
+ * removed again and the stored ones stay. Once the save went through, the
+ * objects of `storedPaths` (the images the question and its answers had)
+ * that no longer are named are removed, best effort.
  */
 export async function saveQuestion(
   quizId: string,
@@ -95,8 +97,17 @@ export async function saveQuestion(
   values: QuestionWithAnswersValues,
   storedPaths: string[] = [],
 ) {
-  const { image_file: _file, answers, ...question } = values;
-  const images = [values, ...answers];
+  // A new file gets a fresh name per attempt; a stored image keeps its own.
+  const named = <T extends { image_path: string | null; image_file: ImageFile | null }>(
+    image: T,
+  ): T =>
+    image.image_path !== null && image.image_file !== null
+      ? { ...image, image_path: newImageName(image.image_file.mimeType) }
+      : image;
+  const namedQuestion = named(values);
+  const namedAnswers = values.answers.map(named);
+  const { image_file: _file, answers: _answers, ...question } = namedQuestion;
+  const images = [namedQuestion, ...namedAnswers];
   const uploaded: string[] = [];
   try {
     for (const { image_path: path, image_file: file } of images) {
@@ -109,7 +120,7 @@ export async function saveQuestion(
       quiz_id: quizId,
       question_id: questionId,
       ...question,
-      answers: answers.map(({ image_file: _file, ...answer }) => answer),
+      answers: namedAnswers.map(({ image_file: _file, ...answer }) => answer),
     };
     const { error } = await supabase.rpc(
       'save_question',
@@ -120,8 +131,8 @@ export async function saveQuestion(
     await removeImages(uploaded);
     throw error;
   }
-  const named = new Set(images.map((image) => image.image_path));
-  await removeImages(storedPaths.filter((path) => !named.has(path)));
+  const kept = new Set(images.map((image) => image.image_path));
+  await removeImages(storedPaths.filter((path) => !kept.has(path)));
 }
 
 /**
