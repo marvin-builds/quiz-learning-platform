@@ -1,4 +1,4 @@
-import { type Href, Link } from 'expo-router';
+import { Link } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, View } from 'react-native';
 
@@ -16,8 +16,7 @@ export default function AdminDashboardScreen() {
         <Text role="heading" className="text-2xl font-bold text-gray-900">
           {t('admin.dashboard.title')}
         </Text>
-        {/* The categories screen comes with #80; drop the cast then. */}
-        <Link href={'/admin/categories' as Href} asChild>
+        <Link href="/admin/categories" asChild>
           <ListCard title={t('admin.dashboard.categories')} description={null} />
         </Link>
         <SignOutButton />
