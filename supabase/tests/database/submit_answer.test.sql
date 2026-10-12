@@ -22,7 +22,7 @@
 -- unpublished and edited as a draft can't leak the draft. The check doesn't
 -- latch: once the quiz is published again, submissions work again.
 begin;
-select plan(98);
+select plan(99);
 
 -- Fixtures ----------------------------------------------------------------
 
@@ -256,21 +256,41 @@ select results_eq(
 
 reset role;
 
+-- Alice's nine attempts on quiz d…01, inserted as the owner with the columns
+-- start_attempt sets (her user, the quiz, max_score = its question count,
+-- started_at = now()). start_attempt reuses an empty attempt on the same quiz
+-- (#74), so nine calls would return one id and the scoring, race and
+-- separation cases below would all test the same attempt.
+insert into public.attempts (id, user_id, quiz_id, max_score)
+select ids.id, '11111111-1111-1111-1111-111111111111', 'd0000000-0000-0000-0000-000000000001',
+       (select count(*)::int from public.questions
+        where quiz_id = 'd0000000-0000-0000-0000-000000000001')
+from (values
+  ('f1000000-0000-0000-0000-000000000001'::uuid),
+  ('f1000000-0000-0000-0000-000000000002'::uuid),
+  ('f1000000-0000-0000-0000-000000000003'::uuid),
+  ('f1000000-0000-0000-0000-000000000004'::uuid),
+  ('f1000000-0000-0000-0000-000000000005'::uuid),
+  ('f1000000-0000-0000-0000-000000000006'::uuid),
+  ('f1000000-0000-0000-0000-000000000007'::uuid),
+  ('f1000000-0000-0000-0000-000000000008'::uuid),
+  ('f1000000-0000-0000-0000-000000000009'::uuid)) as ids (id);
+
 -- learner (alice) ---------------------------------------------------------
 
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}', true);
 
-select set_config('test.a1', public.start_attempt('d0000000-0000-0000-0000-000000000001')::text, true);
-select set_config('test.a2', public.start_attempt('d0000000-0000-0000-0000-000000000001')::text, true);
-select set_config('test.a3', public.start_attempt('d0000000-0000-0000-0000-000000000001')::text, true);
-select set_config('test.a4', public.start_attempt('d0000000-0000-0000-0000-000000000001')::text, true);
-select set_config('test.a5', public.start_attempt('d0000000-0000-0000-0000-000000000001')::text, true);
-select set_config('test.rej', public.start_attempt('d0000000-0000-0000-0000-000000000001')::text, true);
-select set_config('test.sep', public.start_attempt('d0000000-0000-0000-0000-000000000001')::text, true);
-select set_config('test.race_a', public.start_attempt('d0000000-0000-0000-0000-000000000001')::text, true);
-select set_config('test.race_b', public.start_attempt('d0000000-0000-0000-0000-000000000001')::text, true);
+select set_config('test.a1', 'f1000000-0000-0000-0000-000000000001', true);
+select set_config('test.a2', 'f1000000-0000-0000-0000-000000000002', true);
+select set_config('test.a3', 'f1000000-0000-0000-0000-000000000003', true);
+select set_config('test.a4', 'f1000000-0000-0000-0000-000000000004', true);
+select set_config('test.a5', 'f1000000-0000-0000-0000-000000000005', true);
+select set_config('test.rej', 'f1000000-0000-0000-0000-000000000006', true);
+select set_config('test.sep', 'f1000000-0000-0000-0000-000000000007', true);
+select set_config('test.race_a', 'f1000000-0000-0000-0000-000000000008', true);
+select set_config('test.race_b', 'f1000000-0000-0000-0000-000000000009', true);
 select set_config('test.unpub', public.start_attempt('d0000000-0000-0000-0000-000000000003')::text, true);
 select set_config('test.deleted', public.start_attempt('d0000000-0000-0000-0000-000000000004')::text, true);
 select set_config('test.three', public.start_attempt('d0000000-0000-0000-0000-000000000006')::text, true);
@@ -278,6 +298,16 @@ select set_config('test.cat', public.start_attempt('d0000000-0000-0000-0000-0000
 select set_config('test.moved', public.start_attempt('d0000000-0000-0000-0000-000000000008')::text, true);
 select set_config('test.repub', public.start_attempt('d0000000-0000-0000-0000-000000000009')::text, true);
 select set_config('test.edited', public.start_attempt('d0000000-0000-0000-0000-000000000010')::text, true);
+
+select is(
+  (select count(distinct id)::int from unnest(array[
+         current_setting('test.a1'), current_setting('test.a2'), current_setting('test.a3'), current_setting('test.a4'),
+         current_setting('test.a5'), current_setting('test.rej'), current_setting('test.sep'), current_setting('test.race_a'),
+         current_setting('test.race_b'), current_setting('test.unpub'), current_setting('test.deleted'), current_setting('test.three'),
+         current_setting('test.cat'), current_setting('test.moved'), current_setting('test.repub'), current_setting('test.edited')]::uuid[]) as t (id)),
+  16,
+  'alice''s named attempts are pairwise distinct, so each case tests its own attempt'
+);
 
 -- Scoring (plan § 7), result and stored row -------------------------------
 

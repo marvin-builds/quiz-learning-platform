@@ -16,7 +16,7 @@
 -- count; the positive control proves the count sees an attempt start_attempt
 -- creates here.
 begin;
-select plan(11);
+select plan(13);
 
 -- Fixtures: a learner for the positive control.
 insert into auth.users (id, email) values
@@ -128,6 +128,17 @@ select is(
   'a caller without a user creates no attempt'
 );
 
+-- A refused caller without a user leaves no advisory lock behind (#74).
+-- This only proves that no lock is held: pg_advisory_xact_lock is strict, so
+-- a lock keyed on a null uid would silently take nothing either way. That the
+-- user check runs before the lock is a reviewed design point, like the race.
+-- Nothing else in this file takes an advisory lock.
+select is_empty(
+  $$ select 1 from pg_catalog.pg_locks
+     where locktype = 'advisory' and pid = pg_catalog.pg_backend_pid() $$,
+  'a caller without a user leaves no advisory lock behind'
+);
+
 -- Positive control: with a user, the same quiz starts ------------------------
 
 set local role authenticated;
@@ -145,6 +156,12 @@ select is(
   pg_temp.attempts_started_here(),
   1::bigint,
   'the "no attempt is created" checks count the attempt the learner just started'
+);
+
+select isnt_empty(
+  $$ select 1 from pg_catalog.pg_locks
+     where locktype = 'advisory' and pid = pg_catalog.pg_backend_pid() $$,
+  'the learner''s call takes the advisory lock, so the lock check above can see one'
 );
 
 select * from finish();
