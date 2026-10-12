@@ -16,6 +16,7 @@ import {
   hasUncommittedChanges,
   isCommitted,
   isTestFile,
+  markedWorkTree,
   parseTscErrors,
   projectDir,
   readInput,
@@ -37,7 +38,11 @@ const ESCALATION_NOTE = `${STATE_DIR}/escalation.md`;
 const NO_CHECKS_NEEDED = [/\.md$/, /^docs\//, /^\.github\//];
 
 const input = await readInput();
-const dir = projectDir(input);
+// A workflow agent keeps the orchestrator's checkout as cwd; its prompt names the
+// slice worktree it works in.
+const dir =
+  (input.hook_event_name === 'SubagentStop' && markedWorkTree(input.agent_transcript_path)) ||
+  projectDir(input);
 // blocking() per file: every failing suite and type error asks, and each
 // answer costs git processes.
 const blockingByFile = new Map();
