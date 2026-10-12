@@ -1508,3 +1508,82 @@ describe('deleting a quiz with confirmation', () => {
     await waitFor(() => expect(screen.queryByText('Flüsse in Deutschland')).toBeNull());
   });
 });
+
+// Publish rules (#82) -------------------------------------------------------------
+// The database refuses to publish a quiz without questions or with a question
+// that breaks the answer rules, with SQLSTATE 23514 (quiz_publish_rules.test.sql).
+// The screens explain why instead of the generic error. The fake doesn't
+// model the rule; each test makes the server refuse the write.
+
+const PUBLISH_REFUSED = {
+  error: { code: '23514', message: 'quiz_publish_rules' },
+};
+
+describe('why a quiz cannot be published', () => {
+  it('has a German and an English explanation that names the questions and their answers', () => {
+    expect(text('admin.quizzes.errors.publishRules', 'de')).toMatch(/Frage/);
+    expect(text('admin.quizzes.errors.publishRules', 'de')).toMatch(/Antwort/);
+    expect(text('admin.quizzes.errors.publishRules', 'en')).toMatch(/question/i);
+    expect(text('admin.quizzes.errors.publishRules', 'en')).toMatch(/answer/i);
+  });
+
+  it('explains on the list why publishing was refused, and keeps the quiz a draft', async () => {
+    mockServer['quizzes.update'] = PUBLISH_REFUSED;
+    await renderAt(listUrl(GEOGRAFIE));
+    await screen.findByText('Flüsse in Deutschland');
+
+    await fireEvent.press(
+      control(label('admin.quizzes.actions.publish', { name: 'Flüsse in Deutschland' })),
+    );
+
+    expect(await screen.findByText(text('admin.quizzes.errors.publishRules'))).toBeOnTheScreen();
+    expect(screen.queryByText(text('admin.quizzes.errors.toggle'))).toBeNull();
+    await flush();
+    expect(
+      control(label('admin.quizzes.actions.publish', { name: 'Flüsse in Deutschland' })),
+    ).toBeOnTheScreen();
+  });
+
+  it('explains in the edit form why publishing was refused, and keeps the input', async () => {
+    mockServer['quizzes.update'] = PUBLISH_REFUSED;
+    const result = await renderAt(editUrl(FLUESSE));
+    await waitFor(() => expect(titleField().props.value).toBe('Flüsse in Deutschland'));
+
+    await fillForm({ title: 'Flüsse in Europa', published: true });
+    await fireEvent.press(saveButton());
+
+    expect(await screen.findByText(text('admin.quizzes.errors.publishRules'))).toBeOnTheScreen();
+    expect(screen.queryByText(text('admin.quizzes.form.errors.save'))).toBeNull();
+    expect(result.getPathname()).toBe(editUrl(FLUESSE));
+    expect(titleField().props.value).toBe('Flüsse in Europa');
+    expect(isChecked(publishedControl())).toBe(true);
+  });
+
+  it('explains in the create form why a new quiz cannot be published right away', async () => {
+    mockServer['quizzes.insert'] = PUBLISH_REFUSED;
+    const result = await renderAt(newUrl(GEOGRAFIE));
+
+    await fillForm({ title: 'Wüsten der Welt', published: true });
+    await fireEvent.press(saveButton());
+
+    expect(await screen.findByText(text('admin.quizzes.errors.publishRules'))).toBeOnTheScreen();
+    expect(screen.queryByText(text('admin.quizzes.form.errors.save'))).toBeNull();
+    expect(result.getPathname()).toBe(newUrl(GEOGRAFIE));
+    expect(titleField().props.value).toBe('Wüsten der Welt');
+  });
+
+  it('shows the explanation in English when the language is English', async () => {
+    await i18n.changeLanguage('en');
+    mockServer['quizzes.update'] = PUBLISH_REFUSED;
+    await renderAt(listUrl(GEOGRAFIE));
+    await screen.findByText('Flüsse in Deutschland');
+
+    await fireEvent.press(
+      control(label('admin.quizzes.actions.publish', { name: 'Flüsse in Deutschland' }, 'en')),
+    );
+
+    expect(
+      await screen.findByText(text('admin.quizzes.errors.publishRules', 'en')),
+    ).toBeOnTheScreen();
+  });
+});

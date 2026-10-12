@@ -58,6 +58,17 @@ insert into public.quizzes (id, category_id, title, description, sort_order, pub
   ('d0000000-0000-0000-0000-000000000006', 'c0000000-0000-0000-0000-000000000001',
    'Zum Löschen', null, 5, true);
 
+-- Re-spec (#82): a quiz may only be published with questions that keep the
+-- answer rules (quiz_publish_rules.test.sql), so the quiz the admin
+-- publishes below gets a valid question; it used to have none.
+insert into public.questions (id, quiz_id, text, multiple_correct, sort_order) values
+  ('e0000000-0000-0000-0000-000000000005', 'd0000000-0000-0000-0000-000000000005',
+   'Frage zum Veröffentlichen?', false, 1);
+
+insert into public.answers (question_id, text, is_correct, sort_order) values
+  ('e0000000-0000-0000-0000-000000000005', 'Ja', true, 1),
+  ('e0000000-0000-0000-0000-000000000005', 'Nein', false, 2);
+
 -- The number of rows a write touched, or null (with the error as a notice)
 -- when it raised one, so a failing write reports here instead of aborting
 -- the file. Temporary, so it never shows up in function_privileges.test.sql.
