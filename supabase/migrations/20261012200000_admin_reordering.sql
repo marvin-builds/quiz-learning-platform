@@ -13,6 +13,7 @@
 -- an id too many, unknown or of another parent, an id named twice, a null
 -- id, an empty or null list, or an unknown or null parent changes nothing,
 -- so a stale list from a second tab can't drop or duplicate a position. A
+-- stale list with the same members is accepted: the last reorder wins. A
 -- valid list renumbers every child 1..n in one statement.
 --
 -- Each takes the same transaction-scoped advisory lock as the insert trigger
