@@ -110,6 +110,29 @@ This replaces the earlier behavior that let an attempt started before its
 quiz was unpublished still be answered and finished. Such an attempt stays
 open until its quiz is published again.
 
+#### Addendum (2026-10-12): admins read the explanation through admin_question
+
+The question editor (#81) needs `questions.explanation`, which no role may
+select. Of the options (admin-only security-definer functions guarded by
+`private.is_admin()`, or an admin view outside the exposed schema), I chose
+a function:
+
+- `public.admin_question(question_id)` returns one question with its
+  explanation to an admin, and no row for an unknown id. It is security
+  definer with an empty search path, executable by `authenticated` only, and
+  raises the same `not available` for every caller who isn't an admin
+  (`private.is_admin()`), for any id. It returns a table of its own, so a
+  later column of `questions` doesn't reach the client through it.
+- Admins write the explanation through column grants (insert and update,
+  never select), so a write can't return it.
+- The rule now reads: learners reach the solutions only through
+  `submit_answer`, admins also through `admin_question`.
+
+Deleting a question cascades to the attempts' recorded answers; the attempts
+keep their stored score and `max_score`. Accepted until the answers item: an
+in-progress attempt can't finish after a question is deleted, and its next
+submit rescores without that question.
+
 ## Consequences
 
 **Positive:**

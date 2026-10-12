@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
-import EditCategoryScreen from '@/app/(admin)/admin/(guarded)/categories/[categoryId]';
+import EditCategoryScreen from '@/app/(admin)/admin/(guarded)/categories/[categoryId]/edit';
 import i18n from '@/i18n';
 
 // The edit form of a category (#80) when the category changed while the form

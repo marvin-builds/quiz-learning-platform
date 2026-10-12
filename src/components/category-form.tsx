@@ -1,9 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
+import { View } from 'react-native';
 
+import { ErrorText } from '@/components/admin-list';
 import { Button } from '@/components/status';
+import { SwitchField } from '@/components/switch-field';
 import { TextField } from '@/components/text-field';
 import { categorySchema, type CategoryInput, type CategoryValues } from '@/lib/category-schema';
 
@@ -52,9 +54,7 @@ export function CategoryForm({ initial, pending, failed, onSubmit }: Props) {
       />
       {nameError ? (
         // The schema's messages are keys of admin.categories.form.errors.
-        <Text role="alert" className="text-base text-red-700">
-          {t(nameError as 'admin.categories.form.errors.nameRequired')}
-        </Text>
+        <ErrorText text={t(nameError as 'admin.categories.form.errors.nameRequired')} />
       ) : null}
       <Controller
         control={control}
@@ -74,52 +74,19 @@ export function CategoryForm({ initial, pending, failed, onSubmit }: Props) {
         control={control}
         name="published"
         render={({ field }) => (
-          <PublishedSwitch
+          <SwitchField
             label={t('admin.categories.form.published')}
-            published={field.value}
+            value={field.value}
             onChange={field.onChange}
           />
         )}
       />
-      {failed ? (
-        <Text role="alert" className="text-base text-red-700">
-          {t('admin.categories.form.errors.save')}
-        </Text>
-      ) : null}
+      {failed ? <ErrorText text={t('admin.categories.form.errors.save')} /> : null}
       <Button
         label={pending ? t('admin.categories.form.saving') : t('admin.categories.form.save')}
         disabled={pending}
         onPress={() => void submit()}
       />
     </View>
-  );
-}
-
-function PublishedSwitch({
-  label,
-  published,
-  onChange,
-}: {
-  label: string;
-  published: boolean;
-  onChange: (published: boolean) => void;
-}) {
-  return (
-    <Pressable
-      role="switch"
-      aria-checked={published}
-      aria-label={label}
-      onPress={() => onChange(!published)}
-      className="flex-row items-center justify-between rounded-lg border border-gray-500 bg-white px-3 py-3"
-    >
-      <Text className="text-base font-semibold text-gray-900">{label}</Text>
-      <View
-        className={`h-7 w-12 justify-center rounded-full px-1 ${
-          published ? 'items-end bg-blue-700' : 'items-start bg-gray-400'
-        }`}
-      >
-        <View className="h-5 w-5 rounded-full bg-white" />
-      </View>
-    </Pressable>
   );
 }
