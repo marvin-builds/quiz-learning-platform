@@ -24,6 +24,8 @@ export const meta = {
 //             (after the human approved the tests at gate 1)
 //   ports     { web } for the ui-verifier's dev server, from .env.local
 //   notes     the orchestrator's readings or answers to pass on (optional)
+//   ui        whether the slice changes screens; the red run finds out, so
+//             the orchestrator passes the red report's `ui` to a green run
 const {
   issue,
   worktree: WT,
@@ -32,6 +34,7 @@ const {
   phase: run = 'all',
   ports = {},
   notes = '',
+  ui,
 } = args;
 if (!issue || !WT || !branch)
   throw new Error('slice workflow needs args.issue, args.worktree and args.branch');
@@ -141,6 +144,18 @@ async function work(name, prompt, opts) {
   return result;
 }
 
+// The approved tests are red once committed, and the stop gate blocks any
+// agent but the test-writer and the reviewer that stops with red committed
+// tests; so the test-writer commits them.
+async function commitTests() {
+  const commit = await work(
+    'commit-tests',
+    `Commit the new and changed test files on their own, nothing else: stage only them, message \`Add failing tests for <what>\` (sentence case, the attribution line from your instructions). If they are already committed, change nothing.`,
+    { phase: 'Red', agentType: 'test-writer' },
+  );
+  return commit;
+}
+
 if (run === 'all' || run === 'red') {
   phase('Spec');
   const spec = await step(
@@ -181,20 +196,26 @@ if (run === 'all' || run === 'red') {
   if (tests.status !== 'ok') return stop(tests.status, 'tests', tests.designChoices);
   report.gate1 = tests.gate1;
   report.dbSecurity = spec.dbSecurity;
-  report.ui = spec.ui;
+  report.ui = ui ?? spec.ui;
   if (spec.dbSecurity || run === 'red') return { ...report, status: 'gate1' };
   await work(
-    'commit-tests',
-    `Log every design choice the tests pin down and every rejected or deferred review finding in the decision log:\n${JSON.stringify({ designChoices: tests.designChoices, findings: review.findings }, null, 2)}\nThen commit the new test files on their own: stage only them, message \`Add failing tests for <what>\` (sentence case, the attribution line from your instructions).`,
+    'log-tests',
+    `Log every design choice the tests pin down and every rejected or deferred review finding in the decision log, and change nothing else (don't commit):\n${JSON.stringify({ designChoices: tests.designChoices, findings: review.findings }, null, 2)}`,
     { phase: 'Red' },
   );
+  const committed = await commitTests();
+  if (committed.status !== 'ok') return stop(committed.status, 'commit-tests', committed.summary);
 } else if (run === 'green') {
   phase('Red');
+  report.ui = ui ?? false;
+  if (ui === undefined) log('args.ui not given: the ui-verifier is skipped');
   await work(
-    'commit-tests',
-    `The human approved the uncommitted failing tests at gate 1. Log every decision the orchestrator's notes carry over from the red run (design choices the tests pin, rejected or deferred review findings) in the decision log, unless it is already there. If test files are uncommitted, commit them on their own: stage only them, message \`Add failing tests for <what>\` (sentence case, the attribution line from your instructions). If they are already committed, change nothing.`,
+    'log-tests',
+    `The human approved the uncommitted failing tests at gate 1. Log every decision the orchestrator's notes carry over from the red run (design choices the tests pin, rejected or deferred review findings) in the decision log, unless it is already there. Change nothing else (don't commit).`,
     { phase: 'Red' },
   );
+  const committed = await commitTests();
+  if (committed.status !== 'ok') return stop(committed.status, 'commit-tests', committed.summary);
 } else {
   throw new Error(`unknown phase ${run}`);
 }
