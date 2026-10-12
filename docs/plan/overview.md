@@ -69,7 +69,14 @@ Supabase: Postgres + row-level security · Auth · Storage (images) · Realtime 
   correct answers, the explanation and the points. Learners can't see the
   solutions in advance or fake a score, and no extra server code is needed
   (see the [ADR 0002 amendment](../adr/0002-supabase-backend.md#amendment-2026-10-03-answers-are-recorded-before-they-are-checked)).
-- Admins have full write access.
+- Admins have full write access, still without selecting the solution
+  columns: the editor reads them through the admin-only functions
+  `admin_question(question_id)` and `admin_answers(question_id)` and saves
+  a question with its answers through `save_question(...)`, in one
+  transaction. The database keeps the answer rules (at least two answers, at
+  least one correct, exactly one for single choice) and publishes a quiz
+  only while it has questions that keep them
+  (see the [ADR 0002 addendum](../adr/0002-supabase-backend.md#addendum-2026-10-12-answers-their-rules-and-admin_answers)).
 - Users can only read their own attempts. Attempts are created by
   `start_attempt(quiz_id)` and filled by `submit_answer`, never written
   directly. `start_attempt` reuses the user's empty unfinished attempt on

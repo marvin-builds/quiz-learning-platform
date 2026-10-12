@@ -138,6 +138,38 @@ keep their stored score and `max_score`. Accepted until the answers item: an
 in-progress attempt can't finish after a question is deleted, and its next
 submit rescores without that question.
 
+#### Addendum (2026-10-12): answers, their rules and admin_answers
+
+The answer editor (#82) needs `answers.is_correct`, which no role may
+select, and rules that hold in the database: a question has at least two
+answers and at least one correct one, a single-choice question exactly one,
+and a quiz is published only with questions that keep these rules.
+
+- `public.admin_answers(question_id)` is the admin's read of a question's
+  answers with `is_correct`, built like `admin_question`: security definer,
+  empty search path, `authenticated` only, the same `not available` for
+  every caller who isn't an admin, and a table of its own.
+- Admins write answers through column grants (insert `question_id`, `text`,
+  `is_correct`; update `text`, `is_correct`; delete), never select on
+  `is_correct`, and RLS for admins only.
+- Answers are written row by row, so each request would pass through states
+  that break the rules. Of the options (deferred constraint triggers, or one
+  function that saves a question with its answers), I chose both:
+  `public.save_question(quiz_id, question_id, text, explanation,
+  multiple_correct, answers)` is the editor's save path, one transaction,
+  checking the rules on its payload before it writes. It is **security
+  invoker**, so the grants and RLS above still decide what it may write, and
+  it returns only the question's id. Deferrable, initially deferred
+  constraint triggers in schema `internal` are the backstop for every direct
+  write, at commit, with SQLSTATE 23514; their functions are security
+  definer, since they read `is_correct`.
+- The publish rule fires only when `published` turns true (insert or
+  update), and on deleting a published quiz's last question, which is
+  refused rather than unpublishing the quiz. Rows from before the rule stay
+  as they are and may still be edited or unpublished.
+- The rule now reads: learners reach the solutions only through
+  `submit_answer`, admins also through `admin_question` and `admin_answers`.
+
 ## Consequences
 
 **Positive:**
