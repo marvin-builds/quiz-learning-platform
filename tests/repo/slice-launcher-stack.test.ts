@@ -154,7 +154,11 @@ describe('slice launcher and the worktree stack', () => {
     expect(fs.existsSync(supabaseEnv)).toBe(true);
     expect(fs.existsSync(rootEnv)).toBe(true);
     const stack = parseEnv(supabaseEnv);
-    expect(stack.SUPABASE_PROJECT_ID).toBe(`quiz-learning-platform-${path.basename(worktree)}`);
+    // The Supabase CLI cuts ids to 40 characters; a cut ending in a separator breaks `supabase start`.
+    const id = `quiz-learning-platform-${path.basename(worktree)}`
+      .slice(0, 40)
+      .replace(/[-_.]+$/, '');
+    expect(stack.SUPABASE_PROJECT_ID).toBe(id);
     const api = Number(stack.SUPABASE_API_PORT);
     expect(api).toBeGreaterThan(54321);
     expect(parseEnv(rootEnv).EXPO_PUBLIC_SUPABASE_URL).toBe(`http://127.0.0.1:${api}`);
