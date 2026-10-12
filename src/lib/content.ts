@@ -12,7 +12,8 @@ export async function fetchCategories() {
     .from('categories')
     .select('id, name, description')
     .eq('published', true)
-    .order('sort_order', { ascending: true });
+    .order('sort_order', { ascending: true })
+    .order('id', { ascending: true });
   if (error) throw error;
   return data;
 }
@@ -29,6 +30,7 @@ export async function fetchCategoryWithQuizzes(categoryId: string) {
     .eq('published', true)
     .eq('quizzes.published', true)
     .order('sort_order', { referencedTable: 'quizzes', ascending: true })
+    .order('id', { referencedTable: 'quizzes', ascending: true })
     .maybeSingle();
   if (error) throw error;
   return data;
