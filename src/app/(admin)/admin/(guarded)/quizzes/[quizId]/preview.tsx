@@ -32,7 +32,10 @@ export default function QuizPreviewScreen() {
     queryKey: adminQuizQuestionsKey(quizId),
     queryFn: () => fetchQuizQuestions(quizId),
   });
-  const [index, setIndex] = useState(0);
+  const [requestedIndex, setIndex] = useState(0);
+  // The list can shrink when it is read again (a question deleted or the
+  // quiz changed elsewhere): stay on its last question instead of one past it.
+  const index = Math.max(0, Math.min(requestedIndex, (list.data?.questions.length ?? 1) - 1));
   const questionId = list.data?.questions[index]?.id;
   const question = useQuery({
     queryKey: [...adminQuizQuestionsKey(quizId), 'preview', questionId],
