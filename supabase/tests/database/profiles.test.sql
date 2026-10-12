@@ -2,7 +2,7 @@
 -- admin. Nobody makes themselves admin: not by updating their role, not by
 -- inserting a profile, not with sign-up metadata.
 begin;
-select plan(29);
+select plan(55);
 
 -- Fixtures: three auth users. Their profiles must come from the signup trigger.
 insert into auth.users (id, email, raw_user_meta_data) values
@@ -260,6 +260,232 @@ select is_empty(
   $$ select 1 from public.profiles where id = '55555555-5555-5555-5555-555555555555' $$,
   'deleting the auth user deletes the profile'
 );
+
+
+-- display_name bounds ------------------------------------------------------
+-- A name is shown to others later (history, leaderboards), so every writer is
+-- held to the same rule by a check constraint: null, or 1 to 50 characters
+-- (char_length, not bytes) that aren't all whitespace (Unicode whitespace
+-- such as U+00A0 and U+3000 included, since those render blank too) and
+-- contain no control characters (U+0001-U+001F, U+007F-U+009F) and no bidi
+-- controls (U+202A-U+202E, U+2066-U+2069). Zero-width characters are not
+-- covered (a known gap). Checked as the owner (bob), then through the API as
+-- the learner, the admin and the anonymous owner of a profile.
+
+select ok(
+  exists (
+    select 1 from pg_constraint c
+    join pg_attribute a
+      on a.attrelid = c.conrelid and a.attnum = any (c.conkey)
+    where c.conrelid = 'public.profiles'::regclass
+      and c.contype = 'c'
+      and a.attname = 'display_name'
+      and c.convalidated
+  ),
+  'a validated check constraint bounds profiles.display_name'
+);
+
+select results_eq(
+  $$ update public.profiles set display_name = repeat('b', 50)
+     where id = '22222222-2222-2222-2222-222222222222'
+     returning char_length(display_name) $$,
+  $$ values (50) $$,
+  'a display name of exactly 50 characters is accepted'
+);
+
+select results_eq(
+  $$ update public.profiles set display_name = repeat('ü', 50)
+     where id = '22222222-2222-2222-2222-222222222222'
+     returning char_length(display_name) $$,
+  $$ values (50) $$,
+  'the maximum counts characters, not bytes (50 two-byte letters are accepted)'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = repeat('b', 51)
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  '23514', null,
+  'a display name of 51 characters is rejected'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = ''
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  '23514', null,
+  'an empty display name is rejected'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = '   '
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  '23514', null,
+  'a whitespace-only display name is rejected'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = repeat(chr(160), 3)
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  '23514', null,
+  'a display name of only no-break spaces (U+00A0) is rejected'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = repeat(chr(12288), 3)
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  '23514', null,
+  'a display name of only ideographic spaces (U+3000) is rejected'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = E'Bo\nb'
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  '23514', null,
+  'a display name with a newline (C0 control) is rejected'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = E'Bo\tb'
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  '23514', null,
+  'a display name with a tab (C0 control) is rejected'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = 'Bo' || chr(31) || 'b'
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  '23514', null,
+  'a display name with U+001F (last C0 control) is rejected'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = 'Bo' || chr(127) || 'b'
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  '23514', null,
+  'a display name with DEL (U+007F) is rejected'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = 'Bo' || chr(133) || 'b'
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  '23514', null,
+  'a display name with NEL (U+0085, C1 control) is rejected'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = 'Bo' || chr(159) || 'b'
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  '23514', null,
+  'a display name with U+009F (last C1 control) is rejected'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = 'Bo' || chr(8238) || 'b'
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  '23514', null,
+  'a display name with a right-to-left override (U+202E) is rejected'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = 'Bo' || chr(8234) || 'b'
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  '23514', null,
+  'a display name with a left-to-right embedding (U+202A) is rejected'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = 'Bo' || chr(8294) || 'b'
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  '23514', null,
+  'a display name with a left-to-right isolate (U+2066) is rejected'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = 'Bo' || chr(8297) || 'b'
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  '23514', null,
+  'a display name with a pop directional isolate (U+2069) is rejected'
+);
+
+-- learner owner (alice)
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}', true);
+
+select results_eq(
+  $$ update public.profiles set display_name = repeat('a', 50)
+     where id = '11111111-1111-1111-1111-111111111111'
+     returning char_length(display_name) $$,
+  $$ values (50) $$,
+  'learner can set their own display name to exactly 50 characters'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = repeat('a', 51)
+     where id = '11111111-1111-1111-1111-111111111111' $$,
+  '23514', null,
+  'learner cannot set their own display name to 51 characters'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = E'Ali\nce'
+     where id = '11111111-1111-1111-1111-111111111111' $$,
+  '23514', null,
+  'learner cannot put a control character into their own display name'
+);
+
+reset role;
+
+-- admin owner (carol)
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+
+select results_eq(
+  $$ update public.profiles set display_name = repeat('c', 50)
+     where id = '33333333-3333-3333-3333-333333333333'
+     returning char_length(display_name) $$,
+  $$ values (50) $$,
+  'admin can set their own display name to exactly 50 characters'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = repeat('c', 51)
+     where id = '33333333-3333-3333-3333-333333333333' $$,
+  '23514', null,
+  'admin cannot set their own display name to 51 characters'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = E'Car\nol'
+     where id = '33333333-3333-3333-3333-333333333333' $$,
+  '23514', null,
+  'admin cannot put a control character into their own display name'
+);
+
+reset role;
+
+-- anonymous owner
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub": "44444444-4444-4444-4444-444444444444", "role": "authenticated", "is_anonymous": true}',
+  true);
+
+select results_eq(
+  $$ update public.profiles set display_name = repeat('d', 50)
+     where id = '44444444-4444-4444-4444-444444444444'
+     returning char_length(display_name) $$,
+  $$ values (50) $$,
+  'an anonymous user can set their own display name to exactly 50 characters'
+);
+
+select throws_ok(
+  $$ update public.profiles set display_name = repeat('d', 51)
+     where id = '44444444-4444-4444-4444-444444444444' $$,
+  '23514', null,
+  'an anonymous user cannot set their own display name to 51 characters'
+);
+
+reset role;
 
 select * from finish();
 rollback;
