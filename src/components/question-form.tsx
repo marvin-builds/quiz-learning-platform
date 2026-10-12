@@ -1,20 +1,24 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Controller, useFieldArray, useForm } from 'react-hook-form';
+import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 
 import { ErrorText, RowAction } from '@/components/admin-list';
 import { CheckboxField } from '@/components/checkbox-field';
+import { ImageField } from '@/components/image-field';
 import { Button } from '@/components/status';
 import { SwitchField } from '@/components/switch-field';
 import { TextField } from '@/components/text-field';
 import {
+  type ImageFile,
   questionWithAnswersSchema,
   type QuestionWithAnswersInput,
   type QuestionWithAnswersValues,
 } from '@/lib/question-schema';
 
-type Answer = { id: string | null; text: string; is_correct: boolean };
+type Image = { image_path?: string | null; image_alt?: string | null };
+
+type Answer = { id: string | null; text: string; is_correct: boolean } & Image;
 
 type Props = {
   initial?: {
@@ -22,14 +26,16 @@ type Props = {
     explanation: string | null;
     multiple_correct: boolean;
     answers: Answer[];
-  };
+  } & Image;
   pending: boolean;
   /** The translated message of a failed save, or null. */
   failure: string | null;
   onSubmit: (values: QuestionWithAnswersValues) => void;
 };
 
-const EMPTY_ANSWER: Answer = { id: null, text: '', is_correct: false };
+const NO_IMAGE = { image_path: null, image_alt: null, image_file: null };
+
+const EMPTY_ANSWER = { id: null, text: '', is_correct: false, ...NO_IMAGE };
 
 // The schema's messages are keys of admin.questions.form.errors.
 type ErrorKey = `admin.questions.form.errors.${
@@ -37,17 +43,19 @@ type ErrorKey = `admin.questions.form.errors.${
   | 'answersTooFew'
   | 'correctMissing'
   | 'singleChoiceOneCorrect'
-  | 'answerTextRequired'}`;
+  | 'answerTextRequired'
+  | 'imageAltRequired'}`;
 
 /**
- * The create and edit form of a question: text, explanation, multiple_correct
- * and its answers inline (add, edit, remove, mark correct). Validates with the
- * shared schema before anything is sent and shows the answer rules next to
- * the answers; the input stays when saving fails.
+ * The create and edit form of a question: text, explanation, multiple_correct,
+ * its image and its answers inline (add, edit, remove, mark correct, image).
+ * A picked image's file comes with the values, for the screen to upload.
+ * Validates with the shared schema before anything is sent and shows the
+ * answer rules next to the answers; the input stays when saving fails.
  */
 export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
   const { t } = useTranslation();
-  const { control, handleSubmit, formState, trigger } = useForm<
+  const { control, handleSubmit, formState, trigger, setValue } = useForm<
     QuestionWithAnswersInput,
     unknown,
     QuestionWithAnswersValues
@@ -57,18 +65,48 @@ export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
       text: initial?.text ?? '',
       explanation: initial?.explanation ?? '',
       multiple_correct: initial?.multiple_correct ?? false,
-      answers: initial?.answers ?? [EMPTY_ANSWER, EMPTY_ANSWER],
+      image_path: initial?.image_path ?? null,
+      image_alt: initial?.image_alt ?? null,
+      image_file: null,
+      answers: initial?.answers.map((answer) => ({ ...NO_IMAGE, ...answer })) ?? [
+        EMPTY_ANSWER,
+        EMPTY_ANSWER,
+      ],
     },
   });
+  const values = useWatch({ control });
   // keyName: the answers have an `id` of their own.
   const answers = useFieldArray({ control, name: 'answers', keyName: 'key' });
   const { errors } = formState;
   const textError = errors.text?.message;
   const answersError = errors.answers?.root?.message ?? errors.answers?.message;
 
-  const submit = handleSubmit((values) => {
-    if (!pending) onSubmit(values);
+  const submit = handleSubmit((valid) => {
+    if (!pending) onSubmit(valid);
   });
+
+  // The image fields of the question (prefix '') or of answer `answers.<i>.`.
+  type WatchedImage = {
+    image_path?: string | null;
+    image_alt?: string | null;
+    image_file?: Partial<ImageFile> | null;
+  };
+  const imageProps = (prefix: '' | `answers.${number}.`, image: WatchedImage | undefined) => ({
+    path: image?.image_path ?? null,
+    file: (image?.image_file as ImageFile | null | undefined) ?? null,
+    alt: image?.image_alt ?? null,
+    onPicked: (path: string, file: ImageFile) => {
+      setValue(`${prefix}image_path`, path);
+      setValue(`${prefix}image_file`, file);
+    },
+    onRemove: () => {
+      setValue(`${prefix}image_path`, null);
+      setValue(`${prefix}image_alt`, null);
+      setValue(`${prefix}image_file`, null);
+    },
+    onAltChange: (alt: string) => setValue(`${prefix}image_alt`, alt),
+  });
+  const errorText = (message: string | undefined) => (message ? t(message as ErrorKey) : undefined);
 
   return (
     <View className="gap-4">
@@ -117,6 +155,18 @@ export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
           />
         )}
       />
+      <ImageField
+        id="question-image-alt"
+        labels={{
+          pick: t('admin.questions.form.image.pick'),
+          replace: t('admin.questions.form.image.replace'),
+          remove: t('admin.questions.form.image.remove'),
+          alt: t('admin.questions.form.image.alt'),
+          preview: t('admin.questions.form.image.preview'),
+        }}
+        {...imageProps('', values)}
+        altError={errorText(errors.image_alt?.message)}
+      />
       <View className="gap-3">
         <Text role="heading" aria-level={2} className="text-lg font-semibold text-gray-900">
           {t('admin.questions.form.answers.title')}
@@ -140,6 +190,18 @@ export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
                 )}
               />
               {answerTextError ? <ErrorText text={t(answerTextError as ErrorKey)} /> : null}
+              <ImageField
+                id={`answer-image-alt-${answer.key}`}
+                labels={{
+                  pick: t('admin.questions.form.answers.image.pick', { number }),
+                  replace: t('admin.questions.form.answers.image.replace', { number }),
+                  remove: t('admin.questions.form.answers.image.remove', { number }),
+                  alt: t('admin.questions.form.answers.image.alt', { number }),
+                  preview: t('admin.questions.form.answers.image.preview', { number }),
+                }}
+                {...imageProps(`answers.${index}.`, values.answers?.[index])}
+                altError={errorText(errors.answers?.[index]?.image_alt?.message)}
+              />
               <View className="flex-row flex-wrap items-center justify-between gap-2">
                 <Controller
                   control={control}
