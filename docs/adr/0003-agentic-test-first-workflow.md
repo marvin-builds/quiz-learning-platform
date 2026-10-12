@@ -452,8 +452,11 @@ the loop.
   Merges stay mine.
 - **Stacked branches, one level.** An issue that waits only for an open
   slice whose tests are approved and reviewed may branch from it; its PR
-  targets the parent until the parent merges, then it is rebased with
-  `--onto` and retargeted. On every rebase onto `main`, a migration older
+  targets the parent until the parent merges. Then GitHub rebases it onto
+  `main` and retargets the PR itself, because the PRs form a stack
+  (`main` ← parent ← child). The orchestrator only checks that this
+  happened, and rebases with `--onto` and retargets by hand only when it
+  didn't (2026-10-12). On every rebase onto `main`, a migration older
   than `main`'s newest gets a new timestamp (`scripts/migration-order.mjs`,
   a rename only), since `supabase db push` refuses out-of-order migrations.
   This replaces "migrations get timestamps at merge time" in the plan.
