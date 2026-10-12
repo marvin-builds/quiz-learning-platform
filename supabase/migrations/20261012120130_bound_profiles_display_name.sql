@@ -3,9 +3,10 @@
 -- characters (char_length, not bytes) that aren't all whitespace and hold no
 -- control characters (U+0001-U+001F, U+007F-U+009F) and no bidi controls
 -- (U+202A-U+202E, U+2066-U+2069). Code points are explicit because
--- [[:space:]] and [[:cntrl:]] depend on the locale. Zero-width characters
--- (U+200B-U+200D, U+2060, U+FEFF) are allowed: a known gap, since ZWJ and
--- ZWNJ are part of emoji sequences and some scripts.
+-- [[:space:]] and [[:cntrl:]] depend on the locale, and every one is written
+-- as a \uXXXX escape, since raw they are invisible in an editor or a diff.
+-- Zero-width characters (U+200B-U+200D, U+2060, U+FEFF) are allowed: a known
+-- gap, since ZWJ and ZWNJ are part of emoji sequences and some scripts.
 --
 -- The check constraint is the only place the rule is written down. The
 -- signup trigger and the cleanup of existing rows below don't repeat it: they
@@ -19,8 +20,8 @@ alter table public.profiles
     display_name is null
     or (
       char_length(display_name) <= 50
-      and display_name ~ '[^\u0009-\u000d \u0085   -     　]'
-      and display_name !~ '[\u0001-\u001f\u007f-\u009f‪-‮⁦-⁩]'
+      and display_name ~ '[^\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]'
+      and display_name !~ '[\u0001-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]'
     )
   ) not valid;
 
