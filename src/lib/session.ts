@@ -1,4 +1,4 @@
-import type { Session } from '@supabase/supabase-js';
+import { isAuthApiError, type Session } from '@supabase/supabase-js';
 
 import { supabase } from '@/lib/supabase';
 
@@ -18,11 +18,19 @@ export function ensureSession(): Promise<Session> {
 async function loadOrSignIn(): Promise<Session> {
   // getSession reads the stored session without a network request.
   const stored = await supabase.auth.getSession();
-  if (stored.error) throw stored.error;
+  // A server-rejected refresh token means the user is gone (e.g. deleted as
+  // a stale anonymous user, #75): start over. Any other error, such as a
+  // network failure, says nothing about the user, so signing in again would
+  // replace a live one.
+  if (stored.error && !isRefreshTokenGone(stored.error)) throw stored.error;
   if (stored.data.session) return stored.data.session;
 
   const { data, error } = await supabase.auth.signInAnonymously();
   if (error) throw error;
   if (!data.session) throw new Error('The anonymous sign-in returned no session');
   return data.session;
+}
+
+function isRefreshTokenGone(error: Error): boolean {
+  return isAuthApiError(error) && error.code === 'refresh_token_not_found';
 }
