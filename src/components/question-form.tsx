@@ -113,7 +113,7 @@ export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
         )}
       />
       <View className="gap-3">
-        <Text role="heading" className="text-lg font-semibold text-gray-900">
+        <Text role="heading" aria-level={2} className="text-lg font-semibold text-gray-900">
           {t('admin.questions.form.answers.title')}
         </Text>
         {answers.fields.map((answer, index) => {
