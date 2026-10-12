@@ -230,7 +230,8 @@ grant execute on function public.admin_answers(uuid) to authenticated;
 -- who may write: nothing it writes can be read back through it, and it
 -- returns only the question's id. Every caller who isn't an admin gets 42501
 -- before anything else, so a refusal says nothing about which rows exist.
--- The payload is checked against the rules (and for blank texts) before
+-- The payload is checked against the rules (and for blank texts and an
+-- answer id named twice) before
 -- anything is written; an unknown question, a quiz the question doesn't
 -- belong to, or another question's answer id raise 'not available'.
 
@@ -265,8 +266,12 @@ begin
   into answer_count, correct_count
   from pg_catalog.jsonb_array_elements(save_question.answers) e;
 
+  -- An answer id named twice would be counted twice here but keep only one
+  -- answer, so such a payload is refused like any other rule break.
   if answer_count < 2
      or correct_count < 1
+     or (select count(distinct e->>'id') <> count(e->>'id')
+         from pg_catalog.jsonb_array_elements(save_question.answers) e)
      or (not save_question.multiple_correct and correct_count <> 1)
      or exists (
        select 1 from pg_catalog.jsonb_array_elements(save_question.answers) e
