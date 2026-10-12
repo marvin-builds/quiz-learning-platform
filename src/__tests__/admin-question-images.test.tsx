@@ -700,9 +700,14 @@ describe('admin question screens: images', () => {
     expect(result.getPathname()).toBe(editUrl);
   });
 
-  it('removes the object it just uploaded when the save fails, keeps the stored one, and keeps the input', async () => {
+  it('removes the object it just uploaded when the database refuses the save, keeps the stored one, and keeps the input', async () => {
+    // Re-spec (#83, R2): this was a transport error ('TypeError: Failed to
+    // fetch', no code), where the save may have committed and the row may
+    // name the new object, so removing it could break the image. A database
+    // refusal that isn't a rule refusal (here 42501) rolled the save back, so
+    // the just-uploaded object is an orphan and goes.
     mockServer['rpc.save_question'] = {
-      error: { message: 'TypeError: Failed to fetch', code: '' },
+      error: { message: 'permission denied for function save_question', code: '42501' },
     };
     const result = await renderAt(editUrl);
     await replaceQuestionImage();
@@ -715,6 +720,34 @@ describe('admin question screens: images', () => {
     await waitFor(() => expect(removedPaths()).toEqual([upload.path]));
     expect(mockObjects.has(upload.path)).toBe(false);
     expect(mockObjects.has(STORED_PATH)).toBe(true);
+    expect(result.getPathname()).toBe(editUrl);
+    expect(await field(label('admin.questions.form.image.alt'))).toHaveDisplayValue('Ein Dachs');
+  });
+
+  it('keeps every object when the save fails in transport, since it may have gone through, and keeps the input', async () => {
+    // Re-spec (#83, R2): with no answer from the database the save may have
+    // committed and the row may name the new object. Removing it could break
+    // the image, so nothing is removed (worst case an orphan).
+    mockServer['rpc.save_question'] = {
+      error: { message: 'TypeError: Failed to fetch', code: '' },
+    };
+    const result = await renderAt(editUrl);
+    await replaceQuestionImage();
+    await fireEvent.changeText(await field(label('admin.questions.form.image.alt')), 'Ein Dachs');
+
+    await save();
+
+    expect(await screen.findByText(label('admin.questions.form.errors.save'))).toBeOnTheScreen();
+    // Give a late clean-up every chance to run before asserting it didn't.
+    await flush();
+    await flush();
+    expect(uploads()).toHaveLength(1);
+    expect(saveArgs()).toHaveLength(1);
+    const [upload] = uploads();
+    expect(removedPaths()).toEqual([]);
+    expect(mockObjects.has(upload.path)).toBe(true);
+    expect(mockObjects.has(STORED_PATH)).toBe(true);
+    expect(mockObjects.has(STORED_ANSWER_PATH)).toBe(true);
     expect(result.getPathname()).toBe(editUrl);
     expect(await field(label('admin.questions.form.image.alt'))).toHaveDisplayValue('Ein Dachs');
   });
