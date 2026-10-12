@@ -420,3 +420,49 @@ review before the merge already read the branch diff, tests included.
   mechanically" (Consequences) no longer holds for a committed test; a
   weakened test is green, so only the `reviewer` and my review of the diff
   catch it.
+
+### Amendment (2026-10-11): an orchestrator runs slices in parallel
+
+Issue #17. Phase 1 and #79 showed that the bottleneck is waiting (gates,
+push, merge, CI), not writing code. One orchestrator session in the main
+checkout now runs several slices at once; the `orchestrator` skill describes
+the loop.
+
+- **Workers are workflows.** Each slice runs as the checked-in `slice`
+  workflow (`.claude/workflows/slice.js`): spec review, `test-writer`, test
+  review, green, verify, `ui-verifier`, `reviewer`, the same steps as a
+  semi-auto run, as separate agents in the slice's worktree. The
+  orchestrator gets a short structured report back, never a transcript, and
+  logs to `.claude/state/orchestrator/` so a new session can resume.
+- **The hooks follow the slice.** Workflow agents keep the orchestrator's
+  checkout as cwd and edit the worktree by absolute path, so the post-edit
+  hook and the test-writer scope resolve the work tree from the edited
+  file, and the stop gate (on `SubagentStop`) from a `Slice worktree:` line
+  the workflow puts at the top of every agent's task. Without that line it
+  falls back to the cwd; the workflow's own verify step runs the full check
+  in the worktree regardless.
+- **Gate 1 is batched.** Semi-auto slices keep the agent's test review.
+  Database-security slices run as two workflows, up to the failing tests and
+  after my approval; the orchestrator presents all waiting gate-1 slices
+  together.
+- **Push authority is scoped.** Started by the orchestrator launcher, the
+  personal push guard allows pushing a branch checked out in a linked
+  worktree of the repo and listed in the orchestrator's state, under its own
+  name, never the default branch, with force at most `--force-with-lease`.
+  Merges stay mine.
+- **Stacked branches, one level.** An issue that waits only for an open
+  slice whose tests are approved and reviewed may branch from it; its PR
+  targets the parent until the parent merges, then it is rebased with
+  `--onto` and retargeted. On every rebase onto `main`, a migration older
+  than `main`'s newest gets a new timestamp (`scripts/migration-order.mjs`,
+  a rename only), since `supabase db push` refuses out-of-order migrations.
+  This replaces "migrations get timestamps at merge time" in the plan.
+- **Resources decide, not a fixed number.** Instead of "up to two parallel
+  worktree sessions", `scripts/capacity.mjs` checks free RAM, disk and load
+  against the slice kind's cost, learned from measured stack peaks. One e2e
+  run at a time across worktrees (`scripts/e2e-lock.mjs`, which
+  `npm run test:e2e` uses). A slice waiting for me has its stack stopped.
+- **Stop policy.** A slice stops, and the orchestrator tells me, on an
+  escalation note, red verification, a spec conflict, or red CI after one
+  fix attempt; the other slices keep running. Issues labelled `manual` are
+  skipped.

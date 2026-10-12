@@ -33,6 +33,83 @@ export function projectDir(input) {
   return process.env.CLAUDE_PROJECT_DIR || process.cwd();
 }
 
+/** The git top level of the repo that contains `dir`, or undefined. */
+function gitTopLevel(dir) {
+  const top = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd: dir, encoding: 'utf8' });
+  return top.status === 0 && top.stdout.trim() ? top.stdout.trim() : undefined;
+}
+
+/**
+ * The work tree of the edited file: a workflow agent keeps the orchestrator's
+ * checkout as cwd and edits a slice worktree by absolute path. The nearest
+ * existing directory decides, since a new test may open a new directory.
+ * Without an edited file, or outside any repo, it is projectDir().
+ */
+export function editedWorkTree(input) {
+  const filePath = editedPath(input);
+  if (filePath) {
+    let dir = path.dirname(path.resolve(input.cwd ?? process.cwd(), filePath));
+    while (!fs.existsSync(dir) && path.dirname(dir) !== dir) dir = path.dirname(dir);
+    const top = gitTopLevel(dir);
+    if (top) return top;
+  }
+  return projectDir(input);
+}
+
+const SLICE_MARKER = /^\s*Slice worktree: (.+?)\s*$/m;
+// The Workflow tool's agents start with two harness entries: the human's
+// request, relayed, then the script's prompt, each line indented.
+const RELAYED_REQUEST = '[Workflow harness — user request]';
+const COMPUTED_TASK = '[Workflow harness — computed task]';
+
+function entryText(content) {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .filter((block) => block?.type === 'text')
+    .map((block) => block.text)
+    .join('\n');
+}
+
+/**
+ * The work tree named by a `Slice worktree: <absolute path>` line in the
+ * agent's task: its first user entry, or for a workflow agent the computed
+ * task that follows the relayed request. The orchestrator's workflow puts the
+ * line at the top of every agent prompt. Undefined when the transcript can't
+ * be read, names nothing, or names no git repo; the relayed request and later
+ * entries never count, so neither the human's words nor a quoted marker can
+ * redirect the check.
+ */
+export function markedWorkTree(transcriptPath) {
+  let lines;
+  try {
+    lines = fs.readFileSync(transcriptPath, 'utf8').split('\n');
+  } catch {
+    return undefined;
+  }
+  let relayed = false;
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      return undefined;
+    }
+    if (entry.type !== 'user') continue;
+    const text = entryText(entry.message?.content);
+    if (!relayed && text.startsWith(RELAYED_REQUEST)) {
+      relayed = true;
+      continue;
+    }
+    if (relayed && !text.startsWith(COMPUTED_TASK)) return undefined;
+    const named = text.match(SLICE_MARKER)?.[1];
+    if (!named || !path.isAbsolute(named) || !fs.existsSync(named)) return undefined;
+    return gitTopLevel(named);
+  }
+  return undefined;
+}
+
 /** The path relative to the project, or undefined when it lies outside. */
 export function relativeToProject(dir, filePath) {
   if (!filePath) return undefined;

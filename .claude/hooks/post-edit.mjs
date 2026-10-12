@@ -10,7 +10,7 @@ import {
   editedPath,
   ensureStateDir,
   failure,
-  projectDir,
+  editedWorkTree,
   readInput,
   relativeToProject,
   run,
@@ -21,7 +21,7 @@ import {
 const STACK_SCRIPT = path.resolve(import.meta.dirname, '..', '..', 'scripts', 'stack.mjs');
 
 const input = await readInput();
-const dir = projectDir(input);
+const dir = editedWorkTree(input);
 const rel = relativeToProject(dir, editedPath(input));
 
 if (rel && !rel.startsWith('node_modules/') && fs.existsSync(path.join(dir, rel))) {

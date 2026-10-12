@@ -85,6 +85,8 @@ module.exports = defineConfig([
     rules: { 'import/no-named-as-default': 'off' },
   },
   {
-    ignores: ['dist/*', '.expo/*', 'coverage/*', 'test-results/*'],
+    // Workflow scripts (Workflow tool) are module-shaped but return at the top
+    // level, which no ESLint parser mode accepts; Prettier still formats them.
+    ignores: ['dist/*', '.expo/*', 'coverage/*', 'test-results/*', '.claude/workflows/*'],
   },
 ]);
