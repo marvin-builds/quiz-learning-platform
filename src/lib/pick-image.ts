@@ -23,3 +23,9 @@ export async function pickImage(): Promise<PickedImage | null> {
     fileName: asset.fileName,
   };
 }
+
+/**
+ * Lets go of a picked file the form no longer holds. Native URIs point to
+ * the picker's cached copy, which the system cleans up; nothing to do here.
+ */
+export function releaseImage(_uri: string) {}
