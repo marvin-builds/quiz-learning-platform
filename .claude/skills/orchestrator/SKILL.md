@@ -53,9 +53,11 @@ Repeat until nothing is ready and nothing is running, then report (below).
 worktree}`. Never use workflow `isolation: 'worktree'`. Add the slice to
    `slices.json` and the log.
 4. **Launch** the `slice` workflow (`.claude/workflows/slice.js`) with
-   `{issue, worktree, branch, base, phase: 'all', ports: {web}}`; `base` is
-   `origin/main`, or `origin/<parent>` for a child; `web` is the
-   worktree's `QUIZ_E2E_PORT` (in its `.env.local`) + 1, free per worktree.
+   `{issue, worktree, branch, base, phase: 'all', ports: {web}, criteria}`;
+   `base` is `origin/main`, or `origin/<parent>` for a child; `web` is the
+   worktree's `QUIZ_E2E_PORT` (in its `.env.local`) + 1, free per worktree;
+   `criteria` is the issue's acceptance criteria as text, for the
+   ui-verifier, which can't read the issue itself.
    Launch every ready slice that fits, then wait for the reports (the
    notification), never poll the workflows.
 5. **Report in.** By the report's `status`:
