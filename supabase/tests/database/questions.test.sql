@@ -10,15 +10,25 @@
 --
 -- Only an admin writes questions through the API (#81): insert quiz_id,
 -- text, explanation and multiple_correct; update text, explanation and
--- multiple_correct (no move to another quiz); delete. Images are item 5, so
--- image_path and image_alt stay unwritable, like sort_order (assigned per
--- quiz by a before-insert trigger in schema internal), id and created_at. A
+-- multiple_correct (no move to another quiz); delete. sort_order (assigned
+-- per quiz by a before-insert trigger in schema internal), id and created_at
+-- stay unwritable. A
 -- grant to insert or update explanation gives no select on it, so a write
 -- may not return or filter on it either. A learner's or an anonymous user's
 -- update or delete touches no row (RLS), their insert fails; anon has no
 -- write grant.
+--
+-- Re-spec (#83): an admin also inserts and updates image_path and image_alt
+-- (images are item 5), directly and through the security-invoker
+-- save_question() (save_question_images.test.sql), so authenticated gets
+-- those column grants and RLS keeps them to admins. These were 'an admin
+-- cannot set / change the image of a question yet'. Every write, the
+-- owner's included, must name an object the app chose: a lowercase UUID
+-- with .png, .jpg, .jpeg or .webp at the bucket root (a table constraint,
+-- 23514), the same rule as the quiz-images Storage policies. The fixtures'
+-- image names changed from 'fragen/...' to such names for that reason.
 begin;
-select plan(119);
+select plan(133);
 
 -- Fixtures ----------------------------------------------------------------
 
@@ -47,7 +57,7 @@ insert into public.questions
   (id, quiz_id, text, image_path, image_alt, multiple_correct, explanation, sort_order) values
   -- in a visible quiz: visible
   ('e0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001',
-   'Welche Farbe hat der Himmel?', 'fragen/himmel.png', 'Ein blauer Himmel', true,
+   'Welche Farbe hat der Himmel?', '1f2e3d4c-0000-4000-8000-000000000001.png', 'Ein blauer Himmel', true,
    'Wegen der Rayleigh-Streuung.', 1),
   -- in an unpublished quiz: hidden
   ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000002',
@@ -103,6 +113,20 @@ as $fn$
 $fn$;
 
 grant execute on function pg_temp.advisory_locks() to authenticated;
+
+-- How a statement ends: 'ok' or its sqlstate, so a list of refused image
+-- names can be checked in one assertion.
+create function pg_temp.outcome(statement text)
+returns text
+language plpgsql
+as $fn$
+begin
+  execute statement;
+  return 'ok';
+exception when others then
+  return sqlstate;
+end;
+$fn$;
 
 -- Structure ---------------------------------------------------------------
 
@@ -208,7 +232,7 @@ select throws_ok(
 
 select throws_ok(
   $$ insert into public.questions (quiz_id, text, image_path, sort_order)
-     values ('d0000000-0000-0000-0000-000000000001', 'Bild ohne Alt?', 'fragen/x.png', 1) $$,
+     values ('d0000000-0000-0000-0000-000000000001', 'Bild ohne Alt?', '1f2e3d4c-0000-4000-8000-000000000002.png', 1) $$,
   '23514', null,
   'a question with an image but no image_alt is rejected'
 );
@@ -216,7 +240,7 @@ select throws_ok(
 select throws_ok(
   $$ insert into public.questions (quiz_id, text, image_path, image_alt, sort_order)
      values ('d0000000-0000-0000-0000-000000000001', 'Bild mit leerem Alt?',
-             'fragen/x.png', '  ', 1) $$,
+             '1f2e3d4c-0000-4000-8000-000000000002.png', '  ', 1) $$,
   '23514', null,
   'a question with an image and a blank image_alt is rejected'
 );
@@ -224,8 +248,57 @@ select throws_ok(
 select lives_ok(
   $$ insert into public.questions (quiz_id, text, image_path, image_alt, sort_order)
      values ('d0000000-0000-0000-0000-000000000001', 'Bild mit Alt?',
-             'fragen/y.png', 'Ein Diagramm', 1) $$,
+             '1f2e3d4c-0000-4000-8000-000000000003.jpg', 'Ein Diagramm', 1) $$,
   'a question with an image and an image_alt is accepted'
+);
+
+select results_eq(
+  $$ select name, pg_temp.outcome(format(
+       $q$ insert into public.questions (quiz_id, text, image_path, image_alt, sort_order)
+           values ('d0000000-0000-0000-0000-000000000001', 'Bildname?', %L, 'Ein Bild', 1) $q$,
+       name))
+     from unnest(array[
+       'periodensystem.png',
+       'Mein Foto vom Urlaub.jpg',
+       'ordner/1f2e3d4c-0000-4000-8000-000000000005.png',
+       '../1f2e3d4c-0000-4000-8000-000000000005.png',
+       'quiz-images/1f2e3d4c-0000-4000-8000-000000000005.png',
+       '/1f2e3d4c-0000-4000-8000-000000000005.png',
+       '1f2e3d4c-0000-4000-8000-000000000005',
+       '1f2e3d4c-0000-4000-8000-000000000005.svg',
+       '1f2e3d4c-0000-4000-8000-000000000005.png.html',
+       '1F2E3D4C-0000-4000-8000-000000000005.png',
+       '']) with ordinality as t(name, n)
+     order by n $$,
+  $$ values
+       ('periodensystem.png'::text, '23514'::text),
+       ('Mein Foto vom Urlaub.jpg', '23514'),
+       ('ordner/1f2e3d4c-0000-4000-8000-000000000005.png', '23514'),
+       ('../1f2e3d4c-0000-4000-8000-000000000005.png', '23514'),
+       ('quiz-images/1f2e3d4c-0000-4000-8000-000000000005.png', '23514'),
+       ('/1f2e3d4c-0000-4000-8000-000000000005.png', '23514'),
+       ('1f2e3d4c-0000-4000-8000-000000000005', '23514'),
+       ('1f2e3d4c-0000-4000-8000-000000000005.svg', '23514'),
+       ('1f2e3d4c-0000-4000-8000-000000000005.png.html', '23514'),
+       ('1F2E3D4C-0000-4000-8000-000000000005.png', '23514'),
+       ('', '23514') $$,
+  'a question image_path that is not a lowercase UUID name with .png, .jpg, .jpeg or .webp at the bucket root is rejected, even for the owner'
+);
+
+select lives_ok(
+  $$ insert into public.questions (quiz_id, text, image_path, image_alt, sort_order)
+     values ('d0000000-0000-0000-0000-000000000001', 'Bild als JPEG?',
+             '1f2e3d4c-0000-4000-8000-000000000006.jpeg', 'Ein Foto', 1),
+            ('d0000000-0000-0000-0000-000000000001', 'Bild als WebP?',
+             '1f2e3d4c-0000-4000-8000-000000000007.webp', 'Ein Foto', 1) $$,
+  'a question image_path with .jpeg or .webp is accepted'
+);
+
+select throws_ok(
+  $$ update public.questions set image_path = 'ordner/1f2e3d4c-0000-4000-8000-000000000005.png'
+     where text = 'Bild als JPEG?' $$,
+  '23514', null,
+  'an update to an image_path that is not a UUID name at the bucket root is rejected, even for the owner'
 );
 
 delete from public.questions where id = 'e0000000-0000-0000-0000-000000000001';
@@ -239,7 +312,7 @@ select is_empty(
 insert into public.questions
   (id, quiz_id, text, image_path, image_alt, multiple_correct, explanation, sort_order) values
   ('e0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001',
-   'Welche Farbe hat der Himmel?', 'fragen/himmel.png', 'Ein blauer Himmel', true,
+   'Welche Farbe hat der Himmel?', '1f2e3d4c-0000-4000-8000-000000000001.png', 'Ein blauer Himmel', true,
    'Wegen der Rayleigh-Streuung.', 1);
 
 -- Grants, policies and the sort_order trigger (catalog) ---------------------
@@ -267,13 +340,13 @@ select results_eq(
   $$ values ('created_at'::text, false, false, true),
             ('explanation'::text, true, true, false),
             ('id'::text, false, false, true),
-            ('image_alt'::text, false, false, true),
-            ('image_path'::text, false, false, true),
+            ('image_alt'::text, true, true, true),
+            ('image_path'::text, true, true, true),
             ('multiple_correct'::text, true, true, true),
             ('quiz_id'::text, true, false, true),
             ('sort_order'::text, false, false, true),
             ('text'::text, true, true, true) $$,
-  'authenticated may insert quiz_id, text, explanation and multiple_correct, update all but quiz_id, and never select explanation'
+  'authenticated may insert quiz_id, text, explanation, multiple_correct, image_path and image_alt, update all of them but quiz_id, and never select explanation'
 );
 
 select ok(
@@ -336,7 +409,7 @@ select results_eq(
      from public.questions where id = 'e0000000-0000-0000-0000-000000000001' $$,
   $$ values ('e0000000-0000-0000-0000-000000000001'::uuid,
              'd0000000-0000-0000-0000-000000000001'::uuid,
-             'Welche Farbe hat der Himmel?'::text, 'fragen/himmel.png'::text,
+             'Welche Farbe hat der Himmel?'::text, '1f2e3d4c-0000-4000-8000-000000000001.png'::text,
              'Ein blauer Himmel'::text, true, 1, true) $$,
   'anon sees a question of a visible quiz with every column except explanation'
 );
@@ -385,10 +458,20 @@ select throws_ok(
 -- Only the columns an admin may insert, so a column-level insert grant to
 -- anon would show up as an RLS error instead of a missing grant.
 select throws_ok(
-  $$ insert into public.questions (quiz_id, text, explanation, multiple_correct)
-     values ('d0000000-0000-0000-0000-000000000001', 'Neu?', 'Weil.', false) $$,
+  $$ insert into public.questions
+       (quiz_id, text, explanation, multiple_correct, image_path, image_alt)
+     values ('d0000000-0000-0000-0000-000000000001', 'Neu?', 'Weil.', false,
+             '1f2e3d4c-0000-4000-8000-000000000008.png', 'Von anon') $$,
   '42501', 'permission denied for table questions',
-  'anon cannot insert a question with only the admin-writable columns (no grant, not RLS)'
+  'anon cannot insert a question with only the admin-writable columns, image included (no grant, not RLS)'
+);
+
+select throws_ok(
+  $$ update public.questions
+     set image_path = '1f2e3d4c-0000-4000-8000-000000000008.png', image_alt = 'Von anon'
+     where id = 'e0000000-0000-0000-0000-000000000001' $$,
+  '42501', null,
+  'anon cannot change the image of a question'
 );
 
 select throws_ok(
@@ -442,6 +525,22 @@ select throws_like(
   'an anonymous user cannot insert a question (RLS)'
 );
 
+select throws_like(
+  $$ insert into public.questions (quiz_id, text, image_path, image_alt)
+     values ('d0000000-0000-0000-0000-000000000001', 'Von Anonym mit Bild?',
+             '1f2e3d4c-0000-4000-8000-000000000009.png', 'Vom Gast') $$,
+  '%row-level security%',
+  'an anonymous user cannot insert a question with an image (RLS)'
+);
+
+select is(
+  pg_temp.touched_rows($$ update public.questions
+     set image_path = '1f2e3d4c-0000-4000-8000-000000000009.png', image_alt = 'Vom Gast'
+     where id = 'e0000000-0000-0000-0000-000000000001' $$),
+  0,
+  'an anonymous user''s change to the image of a visible question touches no row'
+);
+
 select is(
   pg_temp.touched_rows($$ update public.questions set text = 'Von Anonym geändert?', explanation = 'Neu'
      where id = 'e0000000-0000-0000-0000-000000000001' $$),
@@ -459,14 +558,15 @@ select is(
 reset role;
 
 select results_eq(
-  $$ select text, explanation, multiple_correct from public.questions
+  $$ select text, explanation, multiple_correct, image_path, image_alt from public.questions
      where id = 'e0000000-0000-0000-0000-000000000001' $$,
-  $$ values ('Welche Farbe hat der Himmel?'::text, 'Wegen der Rayleigh-Streuung.'::text, true) $$,
-  'after the anonymous user''s writes the visible question is still there, unchanged'
+  $$ values ('Welche Farbe hat der Himmel?'::text, 'Wegen der Rayleigh-Streuung.'::text, true,
+             '1f2e3d4c-0000-4000-8000-000000000001.png'::text, 'Ein blauer Himmel'::text) $$,
+  'after the anonymous user''s writes the visible question is still there, unchanged, image included'
 );
 
 select is_empty(
-  $$ select 1 from public.questions where text = 'Von Anonym?' $$,
+  $$ select 1 from public.questions where text in ('Von Anonym?', 'Von Anonym mit Bild?') $$,
   'the anonymous user''s insert left no row behind'
 );
 
@@ -482,7 +582,7 @@ select results_eq(
      from public.questions where id = 'e0000000-0000-0000-0000-000000000001' $$,
   $$ values ('e0000000-0000-0000-0000-000000000001'::uuid,
              'd0000000-0000-0000-0000-000000000001'::uuid,
-             'Welche Farbe hat der Himmel?'::text, 'fragen/himmel.png'::text,
+             'Welche Farbe hat der Himmel?'::text, '1f2e3d4c-0000-4000-8000-000000000001.png'::text,
              'Ein blauer Himmel'::text, true, 1, true) $$,
   'a learner sees a question of a visible quiz with every column except explanation'
 );
@@ -553,6 +653,22 @@ select is(
 );
 
 select is(
+  pg_temp.touched_rows($$ update public.questions
+     set image_path = '1f2e3d4c-0000-4000-8000-00000000000a.png', image_alt = 'Von Alice'
+     where id = 'e0000000-0000-0000-0000-000000000001' $$),
+  0,
+  'a learner cannot change the image of a question: the update touches no row'
+);
+
+select throws_like(
+  $$ insert into public.questions (quiz_id, text, image_path, image_alt)
+     values ('d0000000-0000-0000-0000-000000000001', 'Vom Lerner mit Bild?',
+             '1f2e3d4c-0000-4000-8000-00000000000a.png', 'Von Alice') $$,
+  '%row-level security%',
+  'a learner cannot insert a question with an image (RLS)'
+);
+
+select is(
   pg_temp.touched_rows($$ delete from public.questions
      where id = 'e0000000-0000-0000-0000-000000000001' $$),
   0,
@@ -562,14 +678,15 @@ select is(
 reset role;
 
 select results_eq(
-  $$ select text, explanation from public.questions
+  $$ select text, explanation, image_path, image_alt from public.questions
      where id = 'e0000000-0000-0000-0000-000000000001' $$,
-  $$ values ('Welche Farbe hat der Himmel?'::text, 'Wegen der Rayleigh-Streuung.'::text) $$,
-  'after the learner''s writes the visible question is still there, unchanged'
+  $$ values ('Welche Farbe hat der Himmel?'::text, 'Wegen der Rayleigh-Streuung.'::text,
+             '1f2e3d4c-0000-4000-8000-000000000001.png'::text, 'Ein blauer Himmel'::text) $$,
+  'after the learner''s writes the visible question is still there, unchanged, image included'
 );
 
 select is_empty(
-  $$ select 1 from public.questions where text = 'Vom Lerner?' $$,
+  $$ select 1 from public.questions where text in ('Vom Lerner?', 'Vom Lerner mit Bild?') $$,
   'the learner''s insert left no row behind'
 );
 
@@ -585,7 +702,7 @@ select results_eq(
      from public.questions where id = 'e0000000-0000-0000-0000-000000000001' $$,
   $$ values ('e0000000-0000-0000-0000-000000000001'::uuid,
              'd0000000-0000-0000-0000-000000000001'::uuid,
-             'Welche Farbe hat der Himmel?'::text, 'fragen/himmel.png'::text,
+             'Welche Farbe hat der Himmel?'::text, '1f2e3d4c-0000-4000-8000-000000000001.png'::text,
              'Ein blauer Himmel'::text, true, 1, true) $$,
   'an admin sees a question of a visible quiz without explanation'
 );
@@ -726,11 +843,25 @@ select throws_ok(
   'an admin cannot choose the created_at of a new question'
 );
 
+select lives_ok(
+  $$ insert into public.questions (quiz_id, text, image_path, image_alt)
+     values ('d0000000-0000-0000-0000-000000000002', 'Mit Bild?', '1f2e3d4c-0000-4000-8000-000000000004.webp', 'Ein Bild') $$,
+  'an admin can insert a question with an image and its alt text'
+);
+
 select throws_ok(
   $$ insert into public.questions (quiz_id, text, image_path, image_alt)
-     values ('d0000000-0000-0000-0000-000000000002', 'Mit Bild?', 'fragen/z.png', 'Ein Bild') $$,
-  '42501', null,
-  'an admin cannot set the image of a new question yet (images are item 5)'
+     values ('d0000000-0000-0000-0000-000000000002', 'Mit falschem Bild?',
+             '../1f2e3d4c-0000-4000-8000-000000000004.webp', 'Ein Bild') $$,
+  '23514', null,
+  'an admin cannot insert a question whose image_path is not a UUID name at the bucket root'
+);
+
+select throws_ok(
+  $$ insert into public.questions (quiz_id, text, image_path)
+     values ('d0000000-0000-0000-0000-000000000002', 'Bild ohne Alt?', '1f2e3d4c-0000-4000-8000-00000000000b.png') $$,
+  '23514', null,
+  'an admin cannot insert a question with an image but no alt text'
 );
 
 select throws_ok(
@@ -797,11 +928,26 @@ select throws_ok(
   'an admin cannot change the sort_order of a question (reordering is item 6)'
 );
 
+select is(
+  pg_temp.touched_rows($$ update public.questions
+     set image_path = '1f2e3d4c-0000-4000-8000-00000000000c.jpg', image_alt = 'Ein neues Bild'
+     where id = 'e0000000-0000-0000-0000-000000000004' $$),
+  1,
+  'an admin can set the image and alt text of a question'
+);
+
 select throws_ok(
-  $$ update public.questions set image_path = 'fragen/z.png', image_alt = 'Ein Bild'
+  $$ update public.questions set image_path = 'fragen/1f2e3d4c-0000-4000-8000-00000000000d.png'
      where id = 'e0000000-0000-0000-0000-000000000004' $$,
-  '42501', null,
-  'an admin cannot change the image of a question yet (images are item 5)'
+  '23514', null,
+  'an admin cannot change an image_path to one that is not a UUID name at the bucket root'
+);
+
+select is(
+  pg_temp.touched_rows($$ update public.questions set image_path = null, image_alt = null
+     where id = 'e0000000-0000-0000-0000-000000000001' $$),
+  1,
+  'an admin can remove the image and alt text of a question'
 );
 
 select throws_ok(
@@ -858,11 +1004,25 @@ select results_eq(
 );
 
 select results_eq(
-  $$ select quiz_id, text, explanation, multiple_correct, image_path, sort_order
+  $$ select quiz_id, text, explanation, multiple_correct, image_path, image_alt, sort_order
      from public.questions where id = 'e0000000-0000-0000-0000-000000000004' $$,
   $$ values ('d0000000-0000-0000-0000-000000000002'::uuid, 'Bearbeitet?'::text,
-             'Neue Erklärung.'::text, true, null::text, 2) $$,
-  'the admin''s edits are stored, explanation included, and the refused writes changed nothing else'
+             'Neue Erklärung.'::text, true, '1f2e3d4c-0000-4000-8000-00000000000c.jpg'::text, 'Ein neues Bild'::text, 2) $$,
+  'the admin''s edits are stored, explanation and image included, and the refused writes changed nothing else'
+);
+
+select results_eq(
+  $$ select quiz_id, image_path, image_alt from public.questions where text = 'Mit Bild?' $$,
+  $$ values ('d0000000-0000-0000-0000-000000000002'::uuid, '1f2e3d4c-0000-4000-8000-000000000004.webp'::text,
+             'Ein Bild'::text) $$,
+  'the admin''s new question is stored with its image and alt text'
+);
+
+select results_eq(
+  $$ select image_path, image_alt from public.questions
+     where id = 'e0000000-0000-0000-0000-000000000001' $$,
+  $$ values (null::text, null::text) $$,
+  'the admin''s removed image is stored as no image and no alt text'
 );
 
 select results_eq(
@@ -878,8 +1038,8 @@ select is_empty(
 
 select is_empty(
   $$ select 1 from public.questions
-     where text in ('Mit Rückgabe?', 'Mit Position?', 'Mit Id?', 'Mit Datum?', 'Mit Bild?',
-                    'Verwaist?')
+     where text in ('Mit Rückgabe?', 'Mit Position?', 'Mit Id?', 'Mit Datum?',
+                    'Mit falschem Bild?', 'Bild ohne Alt?', 'Verwaist?')
         or id in ('e0000000-0000-0000-0000-0000000000ff',
                   'e0000000-0000-0000-0000-0000000000fe') $$,
   'the admin''s refused inserts left no row behind'
