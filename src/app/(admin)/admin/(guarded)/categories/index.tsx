@@ -17,6 +17,7 @@ import {
 type Category = Awaited<ReturnType<typeof fetchAdminCategories>>[number];
 
 const toggleKey = [...adminCategoriesKey, 'toggle'] as const;
+const deleteKey = [...adminCategoriesKey, 'delete'] as const;
 
 export default function AdminCategoriesScreen() {
   const { t } = useTranslation();
@@ -38,8 +39,14 @@ export default function AdminCategoriesScreen() {
     select: (mutation) => (mutation.state.variables as Category).id,
   });
   const remove = useMutation({
+    mutationKey: deleteKey,
     mutationFn: (category: Category) => deleteCategory(category.id),
     onSuccess: refetch,
+  });
+  // Rows whose delete is still in flight: a second delete would find no row.
+  const deleting = useMutationState({
+    filters: { mutationKey: deleteKey, status: 'pending' },
+    select: (mutation) => (mutation.state.variables as Category).id,
   });
 
   const confirmDelete = () => {
@@ -81,6 +88,7 @@ export default function AdminCategoriesScreen() {
                 key={category.id}
                 category={category}
                 toggling={toggling.includes(category.id)}
+                deleting={deleting.includes(category.id)}
                 onToggle={() => toggle.mutate(category)}
                 onDelete={() => setToDelete(category)}
               />
@@ -104,11 +112,13 @@ export default function AdminCategoriesScreen() {
 function CategoryRow({
   category,
   toggling,
+  deleting,
   onToggle,
   onDelete,
 }: {
   category: Category;
   toggling: boolean;
+  deleting: boolean;
   onToggle: () => void;
   onDelete: () => void;
 }) {
@@ -147,11 +157,12 @@ function CategoryRow({
               ? t('admin.categories.actions.unpublish', { name })
               : t('admin.categories.actions.publish', { name })
           }
-          disabled={toggling}
+          disabled={toggling || deleting}
           onPress={onToggle}
         />
         <RowAction
           label={t('admin.categories.actions.delete', { name })}
+          disabled={deleting}
           onPress={onDelete}
           destructive
         />
