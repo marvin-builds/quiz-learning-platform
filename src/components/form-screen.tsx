@@ -3,8 +3,8 @@ import { ScrollView, Text, View } from 'react-native';
 
 import { PageTitle } from '@/components/page-title';
 
-/** The frame of the category create and edit screens: title and heading. */
-export function CategoryFormScreen({ title, children }: { title: string; children: ReactNode }) {
+/** The frame of the admin's create and edit screens: title and heading. */
+export function FormScreen({ title, children }: { title: string; children: ReactNode }) {
   return (
     <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="px-4 py-8">
       <PageTitle title={title} />

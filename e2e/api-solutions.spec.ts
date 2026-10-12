@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { type APIRequestContext, expect, test } from '@playwright/test';
@@ -20,14 +20,17 @@ const HAUPTSTAEDTE = '20000000-0000-4000-8000-000000000001';
 const FRANCE = '30000000-0000-4000-8000-000000000001';
 const PARIS = '40000000-0000-4000-8000-000000000001';
 
-// The local stack's URL and key, which the web export under test also reads
-// from `.env` (locally and in the CI e2e job).
+// The stack the web export talks to: .env.local in a worktree, else .env.
 function setting(name: string): string {
-  const line = readFileSync(path.join(process.cwd(), '.env'), 'utf8')
-    .split('\n')
-    .find((candidate) => candidate.startsWith(`${name}=`));
-  if (!line) throw new Error(`.env sets no ${name}`);
-  return line.slice(name.length + 1).trim();
+  for (const file of ['.env.local', '.env']) {
+    const full = path.join(process.cwd(), file);
+    if (!existsSync(full)) continue;
+    const line = readFileSync(full, 'utf8')
+      .split('\n')
+      .find((candidate) => candidate.startsWith(`${name}=`));
+    if (line) return line.slice(name.length + 1).trim();
+  }
+  throw new Error(`Neither .env.local nor .env sets ${name}`);
 }
 
 const API_URL = setting('EXPO_PUBLIC_SUPABASE_URL');
@@ -168,4 +171,88 @@ test('a user can neither set the score of their own attempt nor insert a scored 
     { headers },
   );
   expect(await answers.json()).toEqual([]);
+});
+
+// The admin's read of the explanation (#81): public.admin_question() is a
+// public function that `authenticated` may execute, so PostgREST serves it
+// as /rest/v1/rpc/admin_question. Everyone but an admin gets the function's
+// own refusal (P0001 "not available", which proves the call reached it), the
+// same for a question that exists and one that doesn't, and no row data;
+// anon has no execute grant at all.
+
+const FRANCE_EXPLANATION = 'Paris ist seit dem Mittelalter die Hauptstadt Frankreichs.';
+const UNKNOWN_QUESTION = '30000000-0000-4000-8000-0000000000ff';
+
+// A learner: a user who signed up with an email and a password (not
+// anonymous, no admin role), unique per run.
+async function signUpLearner(request: APIRequestContext): Promise<Record<string, string>> {
+  const email = `learner-${Date.now()}-${Math.random().toString(36).slice(2)}@example.test`;
+  const response = await request.post(`${API_URL}/auth/v1/signup`, {
+    headers: { apikey: KEY },
+    data: { email, password: 'learner-password-1' },
+  });
+  expect(response.ok(), await response.text()).toBe(true);
+  const { access_token: token } = (await response.json()) as { access_token: string };
+  return { apikey: KEY, Authorization: `Bearer ${token}` };
+}
+
+const learner: Caller = { name: 'a learner', headers: signUpLearner };
+
+for (const caller of [learner, anonymousUser]) {
+  test.describe(`admin_question as ${caller.name}`, () => {
+    for (const [what, questionId] of [
+      ['a question with an explanation', FRANCE],
+      ['an unknown question', UNKNOWN_QUESTION],
+    ] as const) {
+      test(`POST /rest/v1/rpc/admin_question for ${what} is refused with "not available" only`, async ({
+        request,
+      }) => {
+        const response = await request.post(`${API_URL}/rest/v1/rpc/admin_question`, {
+          headers: await caller.headers(request),
+          data: { question_id: questionId },
+        });
+
+        expect(response.status()).toBeGreaterThanOrEqual(400);
+        expect(response.status()).toBeLessThan(500);
+        const body = (await response.json()) as Record<string, unknown>;
+        expect(Array.isArray(body)).toBe(false);
+        expect(body).toHaveProperty('code', 'P0001');
+        expect(body).toHaveProperty('message', 'not available');
+        const text = JSON.stringify(body);
+        expect(text).not.toContain(questionId);
+        expect(text).not.toContain('"explanation":');
+        expect(text).not.toContain(FRANCE_EXPLANATION);
+      });
+    }
+
+    test('GET /rest/v1/rpc/admin_question is refused without row data', async ({ request }) => {
+      const response = await request.get(
+        `${API_URL}/rest/v1/rpc/admin_question?question_id=${FRANCE}`,
+        { headers: await caller.headers(request) },
+      );
+
+      expect(response.status()).toBeGreaterThanOrEqual(400);
+      expect(response.status()).toBeLessThan(500);
+      // Whether PostgREST refuses the GET itself or the function does is
+      // PostgREST's business (see the header): only the leak is pinned.
+      const text = await response.text();
+      expect(Array.isArray(JSON.parse(text))).toBe(false);
+      expect(text).not.toContain('"explanation":');
+      expect(text).not.toContain(FRANCE_EXPLANATION);
+    });
+  });
+}
+
+test('anon cannot call admin_question', async ({ request }) => {
+  const response = await request.post(`${API_URL}/rest/v1/rpc/admin_question`, {
+    headers: { apikey: KEY },
+    data: { question_id: FRANCE },
+  });
+
+  expect(response.status()).toBeGreaterThanOrEqual(400);
+  expect(response.status()).toBeLessThan(500);
+  // No execute grant for anon: refused before the function runs.
+  const body = (await response.json()) as Record<string, unknown>;
+  expect(body).toHaveProperty('code', '42501');
+  expect(JSON.stringify(body)).not.toContain(FRANCE_EXPLANATION);
 });

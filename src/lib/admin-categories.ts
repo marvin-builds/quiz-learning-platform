@@ -1,3 +1,4 @@
+import { isUuid, requireWritten } from '@/lib/admin-rows';
 import type { CategoryValues } from '@/lib/category-schema';
 import { supabase } from '@/lib/supabase';
 import type { TablesInsert } from '@/types/database';
@@ -5,8 +6,6 @@ import type { TablesInsert } from '@/types/database';
 // The admin's reads and writes of categories (#80). RLS lets only an admin
 // write, and the column grants only name, description and published; the
 // database assigns sort_order (max + 1) on insert.
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Query keys: the list and each category share the prefix, so one invalidation covers both. */
 export const adminCategoriesKey = ['admin', 'categories'] as const;
@@ -24,7 +23,7 @@ export async function fetchAdminCategories() {
 
 /** One category's writable values, or null when it doesn't exist. */
 export async function fetchAdminCategory(id: string) {
-  if (!UUID.test(id)) return null;
+  if (!isUuid(id)) return null;
   const { data, error } = await supabase
     .from('categories')
     .select('id, name, description, published')
@@ -42,13 +41,6 @@ export async function createCategory(values: CategoryValues) {
   const row: Omit<TablesInsert<'categories'>, 'sort_order'> = values;
   const { error } = await supabase.from('categories').insert(row as TablesInsert<'categories'>);
   if (error) throw error;
-}
-
-// RLS turns a write on a row that is gone (or one the user may no longer
-// make) into a success with no rows. An admin sees every row, so no row back
-// means nothing was written, which has to fail like an error.
-function requireWritten(data: unknown[] | null) {
-  if (!data || data.length === 0) throw new Error('No category was written');
 }
 
 export async function updateCategory(id: string, values: Partial<CategoryValues>) {

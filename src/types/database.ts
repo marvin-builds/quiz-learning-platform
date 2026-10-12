@@ -276,6 +276,16 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      admin_question: {
+        Args: { question_id: string };
+        Returns: {
+          explanation: string;
+          id: string;
+          multiple_correct: boolean;
+          quiz_id: string;
+          text: string;
+        }[];
+      };
       health_check: { Args: Record<PropertyKey, never>; Returns: string };
       start_attempt: { Args: { quiz_id: string }; Returns: string };
       submit_answer: {
