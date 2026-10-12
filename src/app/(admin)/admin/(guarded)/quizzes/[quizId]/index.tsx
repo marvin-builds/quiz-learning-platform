@@ -4,13 +4,25 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, View } from 'react-native';
 
-import { AdminNotFound, ErrorText, PrimaryLink, RowAction, RowLink } from '@/components/admin-list';
+import {
+  AdminNotFound,
+  ErrorText,
+  MoveActions,
+  PrimaryLink,
+  RowAction,
+  RowLink,
+} from '@/components/admin-list';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { PageTitle } from '@/components/page-title';
 import { ErrorState, StatusMessage } from '@/components/status';
-import { adminQuizQuestionsKey, deleteQuestion, fetchQuizQuestions } from '@/lib/admin-questions';
+import {
+  adminQuizQuestionsKey,
+  deleteQuestion,
+  fetchQuizQuestions,
+  reorderQuestions,
+} from '@/lib/admin-questions';
 import { adminKey } from '@/lib/admin-quizzes';
-import { isRuleViolation } from '@/lib/admin-rows';
+import { isRuleViolation, movedIds } from '@/lib/admin-rows';
 
 type Question = NonNullable<Awaited<ReturnType<typeof fetchQuizQuestions>>>['questions'][number];
 
@@ -26,16 +38,27 @@ export default function AdminQuestionsScreen() {
   });
   const [toDelete, setToDelete] = useState<Question | null>(null);
 
+  const refetch = () => queryClient.invalidateQueries({ queryKey: adminKey });
   const remove = useMutation({
     mutationKey: deleteKey,
     mutationFn: (question: Question) => deleteQuestion(question.id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminKey }),
+    onSuccess: refetch,
   });
   // Rows whose delete is still in flight: a second delete would find no row.
   const deleting = useMutationState({
     filters: { mutationKey: deleteKey, status: 'pending' },
     select: (mutation) => (mutation.state.variables as Question).id,
   });
+
+  // A move sends the whole list in its new order; refused or not, the list
+  // is read again, so it shows the server's order. One move at a time.
+  const reorder = useMutation({
+    mutationFn: (ids: string[]) => reorderQuestions(quizId, ids),
+    onSettled: refetch,
+  });
+  const move = (from: number, to: number) => {
+    if (list.data && !reorder.isPending) reorder.mutate(movedIds(list.data.questions, from, to));
+  };
 
   const confirmDelete = () => {
     if (toDelete) remove.mutate(toDelete);
@@ -84,17 +107,25 @@ export default function AdminQuestionsScreen() {
                 )}
               />
             ) : null}
+            {reorder.isError ? <ErrorText text={t('admin.questions.errors.reorder')} /> : null}
             {list.data.questions.length === 0 ? (
               <StatusMessage text={t('admin.questions.empty')} />
             ) : (
               <View className="gap-3">
-                {list.data.questions.map((question) => (
+                {list.data.questions.map((question, index, questions) => (
                   <View
                     key={question.id}
                     className="gap-3 rounded-xl border border-gray-200 bg-white p-4"
                   >
                     <Text className="text-lg font-semibold text-gray-900">{question.text}</Text>
                     <View className="flex-row flex-wrap gap-2">
+                      <MoveActions
+                        index={index}
+                        count={questions.length}
+                        upLabel={t('admin.questions.actions.moveUp', { name: question.text })}
+                        downLabel={t('admin.questions.actions.moveDown', { name: question.text })}
+                        onMove={move}
+                      />
                       <RowLink
                         label={t('admin.questions.actions.edit', { name: question.text })}
                         href={`/admin/quizzes/${quizId}/questions/${question.id}`}

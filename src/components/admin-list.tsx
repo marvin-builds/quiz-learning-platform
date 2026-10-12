@@ -33,6 +33,36 @@ export function RowAction({
   );
 }
 
+/**
+ * A row's move-up and move-down buttons at `index` of `count` rows: buttons,
+ * so they work by keyboard and screen reader. The first row can't go up and
+ * the last can't go down; those stay visible, disabled.
+ */
+export function MoveActions({
+  index,
+  count,
+  upLabel,
+  downLabel,
+  onMove,
+}: {
+  index: number;
+  count: number;
+  upLabel: string;
+  downLabel: string;
+  onMove: (from: number, to: number) => void;
+}) {
+  return (
+    <>
+      <RowAction label={upLabel} disabled={index === 0} onPress={() => onMove(index, index - 1)} />
+      <RowAction
+        label={downLabel}
+        disabled={index === count - 1}
+        onPress={() => onMove(index, index + 1)}
+      />
+    </>
+  );
+}
+
 /** A row's link to another screen, styled like its actions. */
 export function RowLink({ label, href }: { label: string; href: Href }) {
   return (

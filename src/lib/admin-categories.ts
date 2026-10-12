@@ -58,3 +58,13 @@ export async function deleteCategory(id: string) {
   if (error) throw error;
   requireWritten(data);
 }
+
+/**
+ * Puts the categories in the order of `ids`, which must name every category
+ * once: reorder_categories() refuses a stale or partial list and changes
+ * nothing.
+ */
+export async function reorderCategories(ids: string[]) {
+  const { error } = await supabase.rpc('reorder_categories', { category_ids: ids });
+  if (error) throw error;
+}

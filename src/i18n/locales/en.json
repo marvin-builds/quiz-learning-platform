@@ -100,11 +100,14 @@
         "quizzes": "Quizzes in {{name}}",
         "publish": "Publish {{name}}",
         "unpublish": "Unpublish {{name}}",
-        "delete": "Delete {{name}}"
+        "delete": "Delete {{name}}",
+        "moveUp": "Move {{name}} up",
+        "moveDown": "Move {{name}} down"
       },
       "errors": {
         "toggle": "The status could not be changed. Try again.",
-        "delete": "The category could not be deleted. Try again."
+        "delete": "The category could not be deleted. Try again.",
+        "reorder": "The order could not be changed. The list shows the saved order. Please try again."
       },
       "form": {
         "createTitle": "New category",
@@ -148,12 +151,15 @@
         "edit": "Edit {{name}}",
         "publish": "Publish {{name}}",
         "unpublish": "Unpublish {{name}}",
-        "delete": "Delete {{name}}"
+        "delete": "Delete {{name}}",
+        "moveUp": "Move {{name}} up",
+        "moveDown": "Move {{name}} down"
       },
       "errors": {
         "toggle": "The status could not be changed. Please try again.",
         "delete": "The quiz could not be deleted. Please try again.",
-        "publishRules": "The quiz can only be published once it has questions and every question has at least two answers with at least one correct (exactly one for single choice)."
+        "publishRules": "The quiz can only be published once it has questions and every question has at least two answers with at least one correct (exactly one for single choice).",
+        "reorder": "The order could not be changed. The list shows the saved order. Please try again."
       },
       "form": {
         "createTitle": "New quiz",
@@ -190,11 +196,14 @@
       "create": "New question",
       "actions": {
         "edit": "Edit {{name}}",
-        "delete": "Delete {{name}}"
+        "delete": "Delete {{name}}",
+        "moveUp": "Move {{name}} up",
+        "moveDown": "Move {{name}} down"
       },
       "errors": {
         "delete": "The question could not be deleted. Please try again.",
-        "deleteLastPublished": "The last question of a published quiz can't be deleted. Unpublish the quiz first."
+        "deleteLastPublished": "The last question of a published quiz can't be deleted. Unpublish the quiz first.",
+        "reorder": "The order could not be changed. The list shows the saved order. Please try again."
       },
       "form": {
         "createTitle": "New question",

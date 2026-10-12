@@ -62,3 +62,12 @@ export async function deleteQuiz(id: string) {
   if (error) throw error;
   requireWritten(data);
 }
+
+/** Puts a category's quizzes in the order of `ids`, all of them (see reorderCategories). */
+export async function reorderQuizzes(categoryId: string, ids: string[]) {
+  const { error } = await supabase.rpc('reorder_quizzes', {
+    category_id: categoryId,
+    quiz_ids: ids,
+  });
+  if (error) throw error;
+}
