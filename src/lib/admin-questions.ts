@@ -86,8 +86,9 @@ export async function fetchAdminAnswers(questionId: string) {
  * Images: every newly picked file is uploaded first, under a name new to
  * this attempt (a failed attempt whose clean-up failed too leaves its object
  * behind, and Storage never overwrites one); if one upload fails
- * (ImageUploadError) or the save does, the objects uploaded for it are
- * removed again and the stored ones stay. Once the save went through, the
+ * (ImageUploadError) or the database refuses the save, the objects uploaded
+ * for it are removed again and the stored ones stay. A save that fails in
+ * transport keeps them (see below). Once the save went through, the
  * objects of `storedPaths` (the images the question and its answers had)
  * that no longer are named are removed, best effort.
  */
@@ -109,6 +110,7 @@ export async function saveQuestion(
   const { image_file: _file, answers: _answers, ...question } = namedQuestion;
   const images = [namedQuestion, ...namedAnswers];
   const uploaded: string[] = [];
+  let saveSent = false;
   try {
     for (const { image_path: path, image_file: file } of images) {
       if (path === null || file === null) continue;
@@ -122,18 +124,28 @@ export async function saveQuestion(
       ...question,
       answers: namedAnswers.map(({ image_file: _file, ...answer }) => answer),
     };
+    saveSent = true;
     const { error } = await supabase.rpc(
       'save_question',
       args as Database['public']['Functions']['save_question']['Args'],
     );
     if (error) throw error;
   } catch (error) {
-    await removeImages(uploaded);
+    // Only a refusal by the database (an error with a SQLSTATE or PostgREST
+    // code) proves the save rolled back. A transport error (no code) may
+    // follow a commit whose response got lost, and the row may then name the
+    // new objects, so they stay: worst case an orphan, which is accepted.
+    if (!saveSent || refusedByDatabase(error)) await removeImages(uploaded);
     throw error;
   }
   const kept = new Set(images.map((image) => image.image_path));
   await removeImages(storedPaths.filter((path) => !kept.has(path)));
 }
+
+const refusedByDatabase = (error: unknown) => {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === 'string' && code !== '';
+};
 
 /**
  * The message key for a failed save: a refused upload, a rule the database
