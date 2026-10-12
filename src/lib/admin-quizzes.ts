@@ -16,7 +16,7 @@ export const adminQuizKey = (id: string) => [...adminKey, 'quizzes', id] as cons
 export const adminCategoryQuizzesKey = (categoryId: string) =>
   [...adminCategoryKey(categoryId), 'quizzes'] as const;
 
-/** A category and its quizzes, published or not, by sort_order; null when the category doesn't exist. */
+/** A category and its quizzes, published or not, by sort_order and then id; null when the category doesn't exist. */
 export async function fetchCategoryQuizzes(categoryId: string) {
   if (!isUuid(categoryId)) return null;
   const [category, quizzes] = await Promise.all([
@@ -25,7 +25,8 @@ export async function fetchCategoryQuizzes(categoryId: string) {
       .from('quizzes')
       .select('id, title, description, sort_order, published')
       .eq('category_id', categoryId)
-      .order('sort_order', { ascending: true }),
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true }),
   ]);
   if (quizzes.error) throw quizzes.error;
   return category && { category, quizzes: quizzes.data };
