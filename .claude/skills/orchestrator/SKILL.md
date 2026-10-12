@@ -69,10 +69,9 @@ worktree}`. Never use workflow `isolation: 'worktree'`. Add the slice to
    collected gate-1 slices together: per slice the file → behaviors table,
    design choices, the test review findings and their triage. My answer
    resumes each approved slice with `phase: 'green'`, the red report's `ui`,
-   and, in `notes`, my
-   answer plus the red run's design choices and review triage (the
-   test-writer can't write the decision log); start its stack again
-   first. A rejected one gets my notes as `notes` and `phase: 'red'`.
+   and, in `notes`, my answer plus the red run's design choices and review
+   triage (the test-writer can't write the decision log); start its stack
+   again first. A rejected one gets my notes as `notes` and `phase: 'red'`.
 7. **Escalations.** Between reports, check each worktree's
    `.claude/state/escalation.md`; one that exists stops that slice.
 
