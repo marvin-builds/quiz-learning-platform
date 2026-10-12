@@ -300,6 +300,8 @@ export type Database = {
         Args: {
           answers: Json;
           explanation: string;
+          image_alt?: string;
+          image_path?: string;
           multiple_correct: boolean;
           question_id: string;
           quiz_id: string;
