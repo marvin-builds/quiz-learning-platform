@@ -78,6 +78,9 @@ Supabase: Postgres + row-level security · Auth · Storage (images) · Realtime 
 
 **Anonymous play:** uses Supabase anonymous sign-in. When the learner
 registers, the identity is linked to a real account and their progress is kept.
+An anonymous user with no activity for 90 days is deleted with their
+progress by a daily pg_cron job (`private.delete_stale_anonymous_users()`);
+a returning visitor then starts over as a new anonymous user.
 
 **Supporting libraries:**
 
