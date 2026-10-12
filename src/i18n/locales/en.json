@@ -152,7 +152,8 @@
       },
       "errors": {
         "toggle": "The status could not be changed. Please try again.",
-        "delete": "The quiz could not be deleted. Please try again."
+        "delete": "The quiz could not be deleted. Please try again.",
+        "publishRules": "The quiz can only be published once it has questions and every question has at least two answers with at least one correct (exactly one for single choice)."
       },
       "form": {
         "createTitle": "New quiz",

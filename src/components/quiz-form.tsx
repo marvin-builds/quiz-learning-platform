@@ -12,7 +12,8 @@ import { quizSchema, type QuizInput, type QuizValues } from '@/lib/quiz-schema';
 type Props = {
   initial?: { title: string; description: string | null; published: boolean };
   pending: boolean;
-  failed: boolean;
+  /** The translated message of a failed save, or null. */
+  failure: string | null;
   onSubmit: (values: QuizValues) => void;
 };
 
@@ -21,7 +22,7 @@ type Props = {
  * Validates with the shared schema before anything is sent; the input stays
  * when saving fails.
  */
-export function QuizForm({ initial, pending, failed, onSubmit }: Props) {
+export function QuizForm({ initial, pending, failure, onSubmit }: Props) {
   const { t } = useTranslation();
   const { control, handleSubmit, formState } = useForm<QuizInput, unknown, QuizValues>({
     resolver: zodResolver(quizSchema),
@@ -81,7 +82,7 @@ export function QuizForm({ initial, pending, failed, onSubmit }: Props) {
           />
         )}
       />
-      {failed ? <ErrorText text={t('admin.quizzes.form.errors.save')} /> : null}
+      {failure ? <ErrorText text={failure} /> : null}
       <Button
         label={pending ? t('admin.quizzes.form.saving') : t('admin.quizzes.form.save')}
         disabled={pending}
