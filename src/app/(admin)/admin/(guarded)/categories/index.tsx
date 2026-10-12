@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,8 @@ import {
 
 type Category = Awaited<ReturnType<typeof fetchAdminCategories>>[number];
 
+const toggleKey = [...adminCategoriesKey, 'toggle'] as const;
+
 export default function AdminCategoriesScreen() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -25,9 +27,15 @@ export default function AdminCategoriesScreen() {
   // Every successful write reads the list from the server again.
   const refetch = () => queryClient.invalidateQueries({ queryKey: adminCategoriesKey });
   const toggle = useMutation({
+    mutationKey: toggleKey,
     mutationFn: (category: Category) =>
       updateCategory(category.id, { published: !category.published }),
     onSuccess: refetch,
+  });
+  // Every row whose toggle is still in flight, not only the last one toggled.
+  const toggling = useMutationState({
+    filters: { mutationKey: toggleKey, status: 'pending' },
+    select: (mutation) => (mutation.state.variables as Category).id,
   });
   const remove = useMutation({
     mutationFn: (category: Category) => deleteCategory(category.id),
@@ -72,7 +80,7 @@ export default function AdminCategoriesScreen() {
               <CategoryRow
                 key={category.id}
                 category={category}
-                toggling={toggle.isPending && toggle.variables.id === category.id}
+                toggling={toggling.includes(category.id)}
                 onToggle={() => toggle.mutate(category)}
                 onDelete={() => setToDelete(category)}
               />
