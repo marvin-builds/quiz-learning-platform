@@ -9,6 +9,7 @@ import {
   PublishedBadge,
   RowAction,
   RowLink,
+  RowTitle,
 } from '@/components/admin-list';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { PageTitle } from '@/components/page-title';
@@ -128,7 +129,7 @@ function CategoryRow({
   return (
     <View className="gap-3 rounded-xl border border-gray-200 bg-white p-4">
       <View className="flex-row flex-wrap items-center justify-between gap-2">
-        <Text className="text-lg font-semibold text-gray-900">{name}</Text>
+        <RowTitle text={name} />
         <PublishedBadge
           published={category.published}
           label={

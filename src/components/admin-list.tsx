@@ -5,6 +5,9 @@ import { StatusMessage } from '@/components/status';
 
 // The pieces the admin's list and form screens share.
 
+// A row's controls repeat the row's name, which can be long: max-w-full lets
+// a label wrap inside the card instead of widening the page.
+
 /** A row's action, named with the row so the actions of different rows differ. */
 export function RowAction({
   label,
@@ -23,7 +26,7 @@ export function RowAction({
       aria-label={label}
       disabled={disabled}
       onPress={onPress}
-      className={`rounded-lg border px-3 py-2 ${destructive ? 'border-red-700' : 'border-gray-500'}`}
+      className={`max-w-full rounded-lg border px-3 py-2 ${destructive ? 'border-red-700' : 'border-gray-500'}`}
     >
       <Text className={`text-base ${destructive ? 'text-red-700' : 'text-gray-900'}`}>{label}</Text>
     </Pressable>
@@ -37,7 +40,7 @@ export function RowLink({ label, href }: { label: string; href: Href }) {
       <Pressable
         role="link"
         aria-label={label}
-        className="rounded-lg border border-gray-500 px-3 py-2"
+        className="max-w-full rounded-lg border border-gray-500 px-3 py-2"
       >
         <Text className="text-base text-gray-900">{label}</Text>
       </Pressable>
@@ -54,6 +57,11 @@ export function PrimaryLink({ label, href }: { label: string; href: Href }) {
       </Pressable>
     </Link>
   );
+}
+
+/** A row's name; it wraps, also within one long word, inside the card. */
+export function RowTitle({ text }: { text: string }) {
+  return <Text className="max-w-full text-lg font-semibold text-gray-900">{text}</Text>;
 }
 
 /** Whether a row is published, as a badge. */

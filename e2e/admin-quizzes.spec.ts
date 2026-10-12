@@ -254,3 +254,50 @@ test('the quiz and question forms reject a blank title or text with their messag
   await expect(page).toHaveURL(/\/questions\/new\/?$/);
   await expectNoSeriousAxeViolations(page);
 });
+
+// A row whose title or question is one long word: the row's title and its
+// controls, which repeat the name, wrap inside the card instead of making the
+// page wider than the screen (the ui-verifier found that at phone width).
+test('long quiz titles and question texts wrap in the lists instead of widening the page', async ({
+  page,
+  request,
+}, testInfo) => {
+  const apiUrl = setting('EXPO_PUBLIC_SUPABASE_URL');
+  const headers = { ...(await adminHeaders(request)), Prefer: 'return=representation' };
+  const longWord = 'Donaudampfschifffahrtsgesellschaftskapitänsmützenhalterungsschrauben';
+  const categoryId = await createCategory(request, unique(testInfo, 'Kategorie'));
+  const quizResponse = await request.post(`${apiUrl}/rest/v1/quizzes?select=id`, {
+    headers,
+    data: { category_id: categoryId, title: `${longWord} ${longWord}`, published: false },
+  });
+  expect(quizResponse.ok(), await quizResponse.text()).toBe(true);
+  const [{ id: quizId }] = (await quizResponse.json()) as { id: string }[];
+  const questionResponse = await request.post(`${apiUrl}/rest/v1/questions?select=id`, {
+    headers,
+    data: { quiz_id: quizId, text: `Was ist eine ${longWord}${longWord}?` },
+  });
+  expect(questionResponse.ok(), await questionResponse.text()).toBe(true);
+
+  await signInAsAdmin(page);
+  // The ScrollView scrolls inside itself, so the document stays as wide as the
+  // screen: measure how far any element reaches past the viewport instead.
+  const overflow = () =>
+    page.evaluate(() =>
+      Math.max(
+        0,
+        ...Array.from(document.querySelectorAll('body *')).map(
+          (element) => element.getBoundingClientRect().right - window.innerWidth,
+        ),
+      ),
+    );
+
+  await page.goto(`/admin/categories/${categoryId}`);
+  await expect(page.getByText(`${longWord} ${longWord}`, { exact: true })).toBeVisible();
+  expect(await overflow()).toBeLessThanOrEqual(0);
+
+  await page.goto(`/admin/quizzes/${quizId}`);
+  await expect(
+    page.getByText(`Was ist eine ${longWord}${longWord}?`, { exact: true }),
+  ).toBeVisible();
+  expect(await overflow()).toBeLessThanOrEqual(0);
+});
