@@ -47,7 +47,7 @@ type ErrorKey = `admin.questions.form.errors.${
  */
 export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
   const { t } = useTranslation();
-  const { control, handleSubmit, formState } = useForm<
+  const { control, handleSubmit, formState, trigger } = useForm<
     QuestionWithAnswersInput,
     unknown,
     QuestionWithAnswersValues
@@ -143,7 +143,14 @@ export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
                     <CheckboxField
                       label={t('admin.questions.form.answers.correct', { number })}
                       value={field.value}
-                      onChange={field.onChange}
+                      onChange={(value) => {
+                        field.onChange(value);
+                        // The answer rules report on `answers`, which a
+                        // change of one mark doesn't revalidate by itself:
+                        // after a save attempt, check them again so no
+                        // outdated message stays.
+                        if (formState.isSubmitted) void trigger('answers');
+                      }}
                     />
                   )}
                 />

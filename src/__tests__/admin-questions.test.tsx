@@ -2155,6 +2155,46 @@ describe('answer rules in the form', () => {
     expect(stored(DANUBE.id)?.multiple_correct).toBe(false);
   });
 
+  // A message about the correct marks goes as soon as the marks fix it, so
+  // neither the screen nor a screen reader keeps an outdated message.
+  it('removes the missing-correct message once an answer is marked correct', async () => {
+    await renderAt(newUrl(HAUPTSTAEDTE));
+    await fillForm({ text: 'Was ist die Hauptstadt von Spanien?' });
+    await fillAnswers([
+      { text: 'Madrid', correct: false },
+      { text: 'Barcelona', correct: false },
+    ]);
+    await fireEvent.press(saveButton());
+    await expectAnnounced('admin.questions.form.errors.correctMissing');
+
+    await setCorrect(1, true);
+
+    await waitFor(() =>
+      expect(screen.queryByText(text('admin.questions.form.errors.correctMissing'))).toBeNull(),
+    );
+    expect(saveCalls()).toEqual([]);
+  });
+
+  it('removes the single-choice message once only one answer is marked correct', async () => {
+    await renderAt(newUrl(HAUPTSTAEDTE));
+    await fillForm({ text: 'Was ist die Hauptstadt von Spanien?' });
+    await fillAnswers([
+      { text: 'Madrid', correct: true },
+      { text: 'Barcelona', correct: true },
+    ]);
+    await fireEvent.press(saveButton());
+    await expectAnnounced('admin.questions.form.errors.singleChoiceOneCorrect');
+
+    await setCorrect(2, false);
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText(text('admin.questions.form.errors.singleChoiceOneCorrect')),
+      ).toBeNull(),
+    );
+    expect(saveCalls()).toEqual([]);
+  });
+
   it('shows the rule messages in English when the language is English', async () => {
     await i18n.changeLanguage('en');
     await renderAt(newUrl(HAUPTSTAEDTE));
