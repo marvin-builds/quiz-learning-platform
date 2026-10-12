@@ -5,6 +5,9 @@ import { z } from 'zod';
 // never be looser.
 const BLANK = /^[ \t\r\n]*$/;
 
+/** Whether a text is empty once spaces, tabs and line breaks are trimmed. */
+export const isBlank = (value: string) => BLANK.test(value);
+
 /** A required text; `message` (an i18next key) for a missing or blank one. */
 export const requiredText = (message: string) =>
   z.string({ error: message }).refine((value) => !BLANK.test(value), message);

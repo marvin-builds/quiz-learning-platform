@@ -203,12 +203,26 @@
         "text": "Frage",
         "explanation": "Erklärung (optional, erst nach dem Antworten sichtbar)",
         "multipleCorrect": "Mehrere Antworten richtig",
+        "image": {
+          "pick": "Bild auswählen",
+          "replace": "Bild ersetzen",
+          "remove": "Bild entfernen",
+          "alt": "Alternativtext des Bildes",
+          "preview": "Vorschau des Bildes"
+        },
         "answers": {
           "title": "Antworten",
           "text": "Antwort {{number}}",
           "correct": "Antwort {{number}} ist richtig",
           "remove": "Antwort {{number}} entfernen",
-          "add": "Antwort hinzufügen"
+          "add": "Antwort hinzufügen",
+          "image": {
+            "pick": "Bild für Antwort {{number}} auswählen",
+            "replace": "Bild von Antwort {{number}} ersetzen",
+            "remove": "Bild von Antwort {{number}} entfernen",
+            "alt": "Alternativtext des Bildes von Antwort {{number}}",
+            "preview": "Vorschau des Bildes von Antwort {{number}}"
+          }
         },
         "save": "Speichern",
         "saving": "Wird gespeichert …",
@@ -222,7 +236,11 @@
           "correctMissing": "Markiere mindestens eine Antwort als richtig.",
           "singleChoiceOneCorrect": "Bei Einfachauswahl darf nur eine Antwort richtig sein. Lass nur eine markiert oder erlaube mehrere richtige Antworten.",
           "answerTextRequired": "Gib einen Text für die Antwort ein.",
-          "rules": "Die Frage wurde nicht gespeichert: Sie braucht mindestens zwei Antworten mit Text und mindestens eine richtige, bei Einfachauswahl genau eine."
+          "rules": "Die Frage wurde nicht gespeichert: Sie braucht mindestens zwei Antworten mit Text und mindestens eine richtige, bei Einfachauswahl genau eine, und jedes Bild einen Alternativtext.",
+          "imageAltRequired": "Beschreibe das Bild in einem Alternativtext.",
+          "imageTooLarge": "Das Bild ist größer als 5 MB. Wähle ein kleineres Bild.",
+          "imageType": "Wähle ein Bild im Format PNG, JPEG oder WebP.",
+          "imageUpload": "Das Bild konnte nicht hochgeladen werden. Es muss ein PNG-, JPEG- oder WebP-Bild bis 5 MB sein. Versuche es erneut."
         }
       },
       "deleteDialog": {

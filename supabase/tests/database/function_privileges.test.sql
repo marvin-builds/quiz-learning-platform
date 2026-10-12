@@ -87,6 +87,10 @@ select set_eq(
 -- save_question() (#82) is the admin's save of a question with its answers
 -- in one transaction; it is security invoker, so the grants and RLS of
 -- questions and answers decide who may write (save_question.test.sql).
+-- Re-spec (#83): save_question() also writes the question's image_path and
+-- image_alt (two trailing parameters) and each answer's (in the answers
+-- payload); the six-argument overload is dropped, not left behind
+-- (save_question_images.test.sql).
 select set_eq(
   $$ select signature from pg_temp.executable_by_authenticated $$,
   $$ values
@@ -100,7 +104,7 @@ select set_eq(
        ('public.submit_answer(uuid, uuid, uuid[])'),
        ('public.admin_question(uuid)'),
        ('public.admin_answers(uuid)'),
-       ('public.save_question(uuid, uuid, text, text, boolean, jsonb)') $$,
+       ('public.save_question(uuid, uuid, text, text, boolean, jsonb, text, text)') $$,
   'authenticated can execute exactly the allow-listed functions'
 );
 
@@ -185,7 +189,7 @@ select results_eq(
       ('public.submit_answer(uuid, uuid, uuid[])'),
       ('public.admin_question(uuid)'),
       ('public.admin_answers(uuid)'),
-      ('public.save_question(uuid, uuid, text, text, boolean, jsonb)')
+      ('public.save_question(uuid, uuid, text, text, boolean, jsonb, text, text)')
   $$,
   $$ values ('public.function_privileges_authenticated_probe()'::text) $$,
   'a function granted to authenticated shows up outside its allow-list'
