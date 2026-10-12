@@ -99,12 +99,16 @@ export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
       setValue(`${prefix}image_path`, path);
       setValue(`${prefix}image_file`, file);
     },
+    // The alt text check reports on image_alt: after a save attempt, check
+    // it again when the image or its alt text changes, so no outdated
+    // message stays.
     onRemove: () => {
       setValue(`${prefix}image_path`, null);
-      setValue(`${prefix}image_alt`, null);
       setValue(`${prefix}image_file`, null);
+      setValue(`${prefix}image_alt`, null, { shouldValidate: formState.isSubmitted });
     },
-    onAltChange: (alt: string) => setValue(`${prefix}image_alt`, alt),
+    onAltChange: (alt: string) =>
+      setValue(`${prefix}image_alt`, alt, { shouldValidate: formState.isSubmitted }),
   });
   const errorText = (message: string | undefined) => (message ? t(message as ErrorKey) : undefined);
 
