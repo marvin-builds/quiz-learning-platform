@@ -236,7 +236,7 @@
           "correctMissing": "Mark at least one answer as correct.",
           "singleChoiceOneCorrect": "With single choice only one answer may be correct. Keep only one marked or allow several correct answers.",
           "answerTextRequired": "Enter a text for the answer.",
-          "rules": "The question was not saved: it needs at least two answers with text and at least one correct one, exactly one for single choice.",
+          "rules": "The question was not saved: it needs at least two answers with text and at least one correct one, exactly one for single choice, and alt text for every image.",
           "imageAltRequired": "Describe the image in an alt text.",
           "imageTooLarge": "The image is larger than 5 MB. Choose a smaller image.",
           "imageType": "Choose a PNG, JPEG or WebP image.",

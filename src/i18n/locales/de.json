@@ -236,7 +236,7 @@
           "correctMissing": "Markiere mindestens eine Antwort als richtig.",
           "singleChoiceOneCorrect": "Bei Einfachauswahl darf nur eine Antwort richtig sein. Lass nur eine markiert oder erlaube mehrere richtige Antworten.",
           "answerTextRequired": "Gib einen Text für die Antwort ein.",
-          "rules": "Die Frage wurde nicht gespeichert: Sie braucht mindestens zwei Antworten mit Text und mindestens eine richtige, bei Einfachauswahl genau eine.",
+          "rules": "Die Frage wurde nicht gespeichert: Sie braucht mindestens zwei Antworten mit Text und mindestens eine richtige, bei Einfachauswahl genau eine, und jedes Bild einen Alternativtext.",
           "imageAltRequired": "Beschreibe das Bild in einem Alternativtext.",
           "imageTooLarge": "Das Bild ist größer als 5 MB. Wähle ein kleineres Bild.",
           "imageType": "Wähle ein Bild im Format PNG, JPEG oder WebP.",
