@@ -270,3 +270,54 @@ test('/admin lands on the category list and "Abmelden" in the header signs out',
   await expect(page).toHaveURL(/\/$/);
   await expect(control(header(page), text('nav.admin'))).toHaveCount(0);
 });
+
+// A mouse click on a header or breadcrumb link stays in the app (no reload)
+// and goes through the leave guard, like the buttons do.
+test('a header link asks before it leaves a changed admin form or a started quiz', async ({
+  page,
+}) => {
+  await page.goto('/admin/sign-in');
+  await page.getByLabel(text('admin.signIn.email'), { exact: true }).fill(ADMIN_EMAIL);
+  await page.getByLabel(text('admin.signIn.password'), { exact: true }).fill(ADMIN_PASSWORD);
+  await page.getByRole('button', { name: text('admin.signIn.submit'), exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/categories\/?$/);
+
+  await page.goto(`/admin/quizzes/${HAUPTSTAEDTE}/questions/${ITALY}`);
+  const field = page.getByLabel(text('admin.questions.form.text'), { exact: true });
+  await expect(field).toHaveValue(ITALY_TEXT);
+  await field.fill(`${ITALY_TEXT} (geändert)`);
+  await page.evaluate(() => {
+    (window as unknown as { notReloaded?: boolean }).notReloaded = true;
+  });
+
+  const dialog = page.getByRole('alertdialog').or(page.getByRole('dialog'));
+  for (const link of [
+    control(breadcrumb(page), QUIZ_TITLE).filter({ visible: true }),
+    control(header(page), text('nav.toApp')),
+  ]) {
+    await link.click();
+    await expect(
+      dialog.getByText(text('nav.discardDialog.message'), { exact: true }),
+    ).toBeVisible();
+    await dialog
+      .getByRole('button', { name: text('nav.discardDialog.cancel'), exact: true })
+      .click();
+    await expect(page).toHaveURL(new RegExp(`/admin/quizzes/${HAUPTSTAEDTE}/questions/${ITALY}$`));
+    await expect(field).toHaveValue(`${ITALY_TEXT} (geändert)`);
+  }
+  expect(
+    await page.evaluate(() => (window as unknown as { notReloaded?: boolean }).notReloaded),
+  ).toBe(true);
+
+  await page.goto(`/quizzes/${HAUPTSTAEDTE}`);
+  await page.getByRole('button', { name: text('quiz.start'), exact: true }).click();
+  await page.getByRole('radio', { name: /^Paris(?!\w)|(?<!\w)Paris$/ }).click();
+  await page.getByRole('button', { name: text('quiz.submit'), exact: true }).click();
+  await expect(page.getByRole('button', { name: text('quiz.next'), exact: true })).toBeVisible();
+
+  await control(header(page), text('nav.appName')).click();
+  await expect(dialog.getByText(text('nav.leaveDialog.message'), { exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: text('nav.leaveDialog.cancel'), exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/quizzes/${HAUPTSTAEDTE}$`));
+  await expect(page.getByRole('button', { name: text('quiz.next'), exact: true })).toBeVisible();
+});
