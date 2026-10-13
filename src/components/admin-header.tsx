@@ -146,7 +146,10 @@ function useCrumbs(): Crumb[] {
   // A name while it loads is the placeholder; one that can't be read is left out.
   const nameOf = (read: { isPending: boolean }, name: string | undefined) =>
     name ?? (read.isPending ? loading : undefined);
-  const categoryName = nameOf(quiz.isPending && quizId ? quiz : category, category.data?.name);
+  // Without a category id (the quiz loads, can't be read or doesn't exist)
+  // there is nothing to wait for or link to, though the disabled read stays
+  // pending; the segment is left out.
+  const categoryName = categoryId === undefined ? undefined : nameOf(category, category.data?.name);
   const quizTitle = nameOf(quiz, quiz.data?.quiz.title);
   const questionIndex = quiz.data?.questions.findIndex((question) => question.id === rest[1]);
   const questionLabel =

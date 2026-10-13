@@ -1003,6 +1003,63 @@ describe('admin breadcrumb: up to the logical parent, opened directly by URL', (
     if (nav) expect(textOf(nav)).not.toMatch(UUID);
   });
 
+  // Without a quiz there is no category to name: the segment is left out,
+  // not a placeholder that never resolves.
+  const MISSING_QUIZ = '20000000-0000-4000-8000-0000000000ff';
+  const QUIZ_UNREADABLE = [
+    [
+      'fails to load',
+      HAUPTSTAEDTE,
+      () => {
+        mockServer['quizzes.select'] = { error: { code: '', message: 'Failed to fetch' } };
+      },
+    ],
+    ['doesn’t exist', MISSING_QUIZ, () => {}],
+  ] as const;
+
+  it.each(QUIZ_UNREADABLE)(
+    'leaves the category out when the quiz %s, without a lasting placeholder',
+    async (_case, quizId, arrange) => {
+      arrange();
+      await renderAt(`/admin/quizzes/${quizId}/questions/${ITALY}`);
+      await findSegment(text('nav.breadcrumb.categories'));
+      for (let i = 0; i < 5; i += 1) await flush();
+
+      const nav = breadcrumb();
+      expect(
+        within(nav)
+          .queryAllByText(navName(text('nav.breadcrumb.loading')))
+          .map(textOf),
+      ).toEqual([]);
+      const links = hostNodes((node) => roleOf(node) === 'link', nav).filter(
+        (node) => !isHidden(node),
+      );
+      expect(links.map((node) => textOf(node).replace('←', '').trim())).toEqual([
+        text('nav.breadcrumb.categories'),
+      ]);
+    },
+  );
+
+  it.each(QUIZ_UNREADABLE)(
+    'on a phone, leads up to "Kategorien" when the quiz %s',
+    async (_case, quizId, arrange) => {
+      setWindowWidth(PHONE);
+      arrange();
+      const result = await renderAt(`/admin/quizzes/${quizId}`);
+      // While the quiz loads, the phone shows its placeholder, not "Kategorien".
+      for (let i = 0; i < 5; i += 1) await flush();
+      await findSegment(text('nav.breadcrumb.categories'));
+
+      expect(within(breadcrumb()).queryAllByText(navName(text('nav.breadcrumb.loading')))).toEqual(
+        [],
+      );
+
+      await fireEvent.press(segment(text('nav.breadcrumb.categories')));
+
+      await waitFor(() => expect(result.getPathname()).toBe('/admin/categories'));
+    },
+  );
+
   it('shows its texts in English when the language is English', async () => {
     await i18n.changeLanguage('en');
 
