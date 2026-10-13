@@ -66,7 +66,11 @@ async function signInAsAdmin(page: Page) {
   await page.getByLabel(text('admin.signIn.email'), { exact: true }).fill(ADMIN_EMAIL);
   await page.getByLabel(text('admin.signIn.password'), { exact: true }).fill(ADMIN_PASSWORD);
   await page.getByRole('button', { name: text('admin.signIn.submit'), exact: true }).click();
-  await expect(page.getByText(text('admin.dashboard.title'), { exact: true })).toBeVisible();
+  // Re-spec (#116): the sign-in lands on the category list, not the dashboard.
+  await expect(page).toHaveURL(/\/admin\/categories\/?$/);
+  await expect(
+    page.getByRole('heading', { name: text('admin.categories.title'), exact: true }),
+  ).toBeVisible();
 }
 
 // A learner in their own browser context with this project's settings.
@@ -116,13 +120,13 @@ test.afterEach(async ({ request }) => {
   }
 });
 
-test('the dashboard opens the category list, which shows unpublished categories and passes axe', async ({
+// Re-spec (#116): was "the dashboard opens the category list"; the
+// dashboard is gone and the sign-in lands on the list.
+test('the sign-in lands on the category list, which shows unpublished categories and passes axe', async ({
   page,
 }) => {
   const errors = watchErrors(page);
   await signInAsAdmin(page);
-
-  await page.getByRole('link', { name: text('admin.dashboard.categories'), exact: true }).click();
 
   await expect(page).toHaveURL(/\/admin\/categories\/?$/);
   await expect(listHeading(page)).toBeVisible();
