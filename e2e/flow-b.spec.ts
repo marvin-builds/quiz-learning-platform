@@ -423,21 +423,18 @@ test('flow B: an admin creates, publishes and previews a quiz with an image, and
   const alt = unique(testInfo, 'Ein orangefarbener Kreis');
   const explanation = 'Der Fuchs hat ein rotes Fell.';
 
-  // Sign-in screen and dashboard.
+  // Sign-in screen, then the category list. Re-spec (#116): the dashboard
+  // is gone; the sign-in lands on the list, which passes axe as before.
   await page.goto('/admin/sign-in');
   await expect(page.getByLabel(text('admin.signIn.email'), { exact: true })).toBeVisible();
   await expectNoSeriousAxeViolations(page);
   await signInAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-  await expect(
-    page.getByText(text('admin.dashboard.title'), { exact: true }).first(),
-  ).toBeVisible();
-  await expectNoSeriousAxeViolations(page);
 
   // The category: list, create form, back on the list.
-  await page
-    .getByRole('link', { name: new RegExp(`^${escape(text('admin.dashboard.categories'))}`) })
-    .click();
   await expect(page).toHaveURL(/\/admin\/categories\/?$/);
+  await expect(
+    page.getByRole('heading', { name: text('admin.categories.title'), exact: true }),
+  ).toBeVisible();
   await expectNoSeriousAxeViolations(page);
   await link(page, 'admin.categories.create').click();
   await expect(page).toHaveURL(/\/admin\/categories\/new\/?$/);
@@ -717,9 +714,8 @@ test('an admin reorders categories, quizzes, questions and answers by keyboard, 
   for (const id of quizIds) await publishQuiz(request, id);
 
   await signInAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-  await expect(
-    page.getByText(text('admin.dashboard.title'), { exact: true }).first(),
-  ).toBeVisible();
+  // Re-spec (#116): the sign-in lands on the category list, not the dashboard.
+  await expect(page).toHaveURL(/\/admin\/categories\/?$/);
 
   // Re-spec (#84, N3): hold the category lock from loading the category
   // list through the learner's check of the category order, so no other

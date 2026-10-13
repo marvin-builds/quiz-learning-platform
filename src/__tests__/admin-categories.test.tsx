@@ -621,10 +621,10 @@ describe('category list (/admin/categories)', () => {
     expect(screen.queryByText('Musik')).toBeNull();
   });
 
-  it('is reached from the dashboard link', async () => {
+  // Re-spec (#116): was "is reached from the dashboard link". The dashboard
+  // is gone; /admin, the admin start, lands on the list.
+  it('is reached at /admin, the admin start', async () => {
     const result = await renderAt('/admin');
-
-    await fireEvent.press(await screen.findByText(text('admin.dashboard.categories')));
 
     await waitFor(() => expect(result.getPathname()).toBe('/admin/categories'));
     expect(await screen.findByText('Musik')).toBeOnTheScreen();

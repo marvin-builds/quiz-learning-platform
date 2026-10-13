@@ -5,9 +5,13 @@ import { expectNoSeriousAxeViolations } from './axe';
 
 // The admin area against the local stack: the seed admin (supabase/seed.sql,
 // admin@example.com / admin-password) signs in at /admin/sign-in and reaches
-// the dashboard at /admin; an anonymous visitor opening /admin doesn't see
-// it. Runs once per project in playwright.config.ts (phone and desktop);
+// the admin start, the category list at /admin/categories; an anonymous
+// visitor opening /admin doesn't see it. Runs once per project in playwright.config.ts (phone and desktop);
 // every test starts in a fresh browser context without a session.
+//
+// Re-spec (#116): the dashboard is gone. The admin start is the category
+// list at /admin/categories, where the sign-in and /admin land, and
+// "Abmelden" sits in the admin header (`nav.signOut`).
 
 const ADMIN_EMAIL = 'admin@example.com';
 const ADMIN_PASSWORD = 'admin-password';
@@ -38,8 +42,9 @@ function watchErrors(page: Page): string[] {
 
 const signInHeading = (page: Page) =>
   page.getByRole('heading', { name: text('admin.signIn.title'), exact: true });
-const dashboardHeading = (page: Page) =>
-  page.getByText(text('admin.dashboard.title'), { exact: true });
+// Re-spec (#116): the admin start, the category list, instead of the dashboard.
+const adminStartHeading = (page: Page) =>
+  page.getByRole('heading', { name: text('admin.categories.title'), exact: true });
 
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/admin/sign-in');
@@ -50,7 +55,7 @@ async function signIn(page: Page, email: string, password: string) {
 }
 
 // The issue allows either a redirect to the sign-in screen or a "no access"
-// state on /admin; either way the dashboard stays hidden.
+// state on /admin; either way the admin start stays hidden.
 async function expectKeptOut(page: Page) {
   const noAccess =
     typeof lookup('admin.guard.noAccess') === 'string'
@@ -58,7 +63,7 @@ async function expectKeptOut(page: Page) {
       : null;
   const keptOut = noAccess ? signInHeading(page).or(noAccess) : signInHeading(page);
   await expect(keptOut).toBeVisible();
-  await expect(dashboardHeading(page)).toBeHidden();
+  await expect(adminStartHeading(page)).toBeHidden();
 }
 
 test('the sign-in screen labels its fields and passes axe', async ({ page }) => {
@@ -76,16 +81,17 @@ test('the sign-in screen labels its fields and passes axe', async ({ page }) => 
   expect(errors).toEqual([]);
 });
 
-test('the seed admin signs in and reaches the dashboard at /admin', async ({ page }) => {
+// Re-spec (#116): was "reaches the dashboard at /admin".
+test('the seed admin signs in and reaches the category list at /admin/categories', async ({
+  page,
+}) => {
   const errors = watchErrors(page);
 
   await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
-  await expect(dashboardHeading(page)).toBeVisible();
-  await expect(page).toHaveURL(/\/admin\/?$/);
-  await expect(
-    page.getByRole('link', { name: text('admin.dashboard.categories'), exact: true }),
-  ).toBeVisible();
+  await expect(adminStartHeading(page)).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/categories\/?$/);
+  await expect(page.getByText('Geografie', { exact: true })).toBeVisible();
   await expectNoSeriousAxeViolations(page);
   expect(errors).toEqual([]);
 });
@@ -96,7 +102,7 @@ test('a wrong password shows the wrong-credentials message', async ({ page }) =>
   await expect(
     page.getByText(text('admin.signIn.errors.invalidCredentials'), { exact: true }),
   ).toBeVisible();
-  await expect(dashboardHeading(page)).toBeHidden();
+  await expect(adminStartHeading(page)).toBeHidden();
   await expect(page).toHaveURL(/\/admin\/sign-in\/?$/);
 });
 
@@ -111,7 +117,7 @@ test('after a failed sign-in the focus is back in the email field', async ({ pag
   await expect(page.getByLabel(text('admin.signIn.email'), { exact: true })).toBeFocused();
 });
 
-test('an anonymous visitor opening /admin does not see the dashboard', async ({ page }) => {
+test('an anonymous visitor opening /admin does not see the admin start', async ({ page }) => {
   await page.goto('/admin');
 
   await expectKeptOut(page);
@@ -119,9 +125,14 @@ test('an anonymous visitor opening /admin does not see the dashboard', async ({ 
 
 test('signing out returns to the learner area and closes /admin again', async ({ page }) => {
   await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-  await expect(dashboardHeading(page)).toBeVisible();
+  await expect(adminStartHeading(page)).toBeVisible();
 
-  await page.getByRole('button', { name: text('admin.dashboard.signOut'), exact: true }).click();
+  // Re-spec (#116): "Abmelden" is in the admin header, a link or a button.
+  const header = page.getByRole('banner');
+  await header
+    .getByRole('button', { name: text('nav.signOut'), exact: true })
+    .or(header.getByRole('link', { name: text('nav.signOut'), exact: true }))
+    .click();
 
   await expect(page.getByText(de.home.title, { exact: true })).toBeVisible();
   await expect(page).toHaveURL(/\/$/);
@@ -136,7 +147,7 @@ test('signing out returns to the learner area and closes /admin again', async ({
 // Deutschland a draft in Geografie, Komponisten a published quiz in Musik.
 test('a signed-in admin sees the learner area without drafts', async ({ page }) => {
   await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-  await expect(dashboardHeading(page)).toBeVisible();
+  await expect(adminStartHeading(page)).toBeVisible();
 
   await page.goto('/');
   await expect(page.getByText('Geografie', { exact: true })).toBeVisible();
