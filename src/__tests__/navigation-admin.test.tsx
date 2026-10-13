@@ -955,6 +955,19 @@ describe('admin breadcrumb: up to the logical parent, opened directly by URL', (
     expect(await findSegment(label('nav.breadcrumb.question', { number: 2 }))).toBeTruthy();
   });
 
+  it('shows only one "← parent" on a phone when the question isn’t in the quiz', async () => {
+    setWindowWidth(PHONE);
+    const missing = '30000000-0000-4000-8000-0000000000ff';
+    await renderAt(`/admin/quizzes/${HAUPTSTAEDTE}/questions/${missing}`);
+    await findSegment(QUIZ_TITLE);
+    for (let i = 0; i < 5; i += 1) await flush();
+
+    const category = within(breadcrumb())
+      .queryAllByText(navName(CATEGORY_NAME))
+      .filter((node) => !isHidden(node));
+    expect(category.map(textOf)).toEqual([]);
+  });
+
   it('gives the preview a way back to its quiz', async () => {
     setWindowWidth(PHONE);
     const result = await renderAt(`/admin/quizzes/${HAUPTSTAEDTE}/preview`);
