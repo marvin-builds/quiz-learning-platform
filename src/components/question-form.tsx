@@ -207,11 +207,16 @@ export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
               <ImageField
                 id={`answer-image-alt-${answer.key}`}
                 labels={{
+                  pick: t('admin.questions.form.image.pick'),
+                  replace: t('admin.questions.form.image.replace'),
+                  remove: t('admin.questions.form.image.remove'),
+                  alt: t('admin.questions.form.answers.image.alt', { number }),
+                  preview: t('admin.questions.form.answers.image.preview', { number }),
+                }}
+                names={{
                   pick: t('admin.questions.form.answers.image.pick', { number }),
                   replace: t('admin.questions.form.answers.image.replace', { number }),
                   remove: t('admin.questions.form.answers.image.remove', { number }),
-                  alt: t('admin.questions.form.answers.image.alt', { number }),
-                  preview: t('admin.questions.form.answers.image.preview', { number }),
                 }}
                 {...imageProps(`answers.${index}.`, values.answers?.[index])}
                 altError={errorText(errors.answers?.[index]?.image_alt?.message)}
@@ -238,12 +243,13 @@ export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
                 <MoveActions
                   index={index}
                   count={answers.fields.length}
-                  upLabel={t('admin.questions.form.answers.moveUp', { number })}
-                  downLabel={t('admin.questions.form.answers.moveDown', { number })}
+                  upName={t('admin.questions.form.answers.moveUp', { number })}
+                  downName={t('admin.questions.form.answers.moveDown', { number })}
                   onMove={answers.move}
                 />
                 <RowAction
-                  label={t('admin.questions.form.answers.remove', { number })}
+                  label={t('admin.rowActions.remove')}
+                  name={t('admin.questions.form.answers.remove', { number })}
                   onPress={() => answers.remove(index)}
                   destructive
                 />
