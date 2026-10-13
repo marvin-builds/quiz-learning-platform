@@ -79,8 +79,10 @@ function Breadcrumb() {
   const { t } = useTranslation();
   const crumbs = useCrumbs();
   const phone = useWindowDimensions().width < PHONE_WIDTH;
-  // On a phone only "← parent" and the current title, so it never wraps.
-  const shown = phone ? crumbs.slice(-2) : crumbs;
+  // On a phone only "← parent" and the current title, so it never wraps;
+  // only "← parent" when the current page has no title (not found).
+  const hasCurrent = crumbs.at(-1)?.href === undefined;
+  const shown = phone ? crumbs.slice(hasCurrent ? -2 : -1) : crumbs;
 
   return (
     <View
