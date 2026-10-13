@@ -968,6 +968,15 @@ describe('admin breadcrumb: up to the logical parent, opened directly by URL', (
     expect(category.map(textOf)).toEqual([]);
   });
 
+  it('keeps a long parent name on one line on a phone', async () => {
+    setWindowWidth(PHONE);
+    await renderReady(ROUTES[ROUTES.length - 1]);
+
+    const parent = await findSegment(QUIZ_TITLE);
+
+    expect(parent.props.numberOfLines).toBe(1);
+  });
+
   it('gives the preview a way back to its quiz', async () => {
     setWindowWidth(PHONE);
     const result = await renderAt(`/admin/quizzes/${HAUPTSTAEDTE}/preview`);
