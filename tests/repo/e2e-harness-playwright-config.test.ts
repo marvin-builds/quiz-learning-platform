@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const ROOT = process.cwd();
@@ -115,11 +115,23 @@ describe('playwright.config.ts', () => {
   });
 
   it('builds the static web export and serves it through webServer, at the base URL', () => {
+    // Re-spec (#123): the export may run through an npm script (export:web,
+    // which also writes the security headers); its body counts as the command.
+    const scripts = (
+      JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as {
+        scripts?: Record<string, string>;
+      }
+    ).scripts;
+    const expand = (command: string) =>
+      command.replace(
+        /\bnpm run (?:-s |--silent )?([\w:-]+)/g,
+        (whole, name: string) => scripts?.[name] ?? whole,
+      );
     const servers = [config.webServer ?? []].flat();
-    const server = servers.find((s) => /\bexpo export\b/.test(s.command ?? ''));
+    const server = servers.find((s) => /\bexpo export\b/.test(expand(s.command ?? '')));
     expect(server).toBeDefined();
 
-    const command = server?.command ?? '';
+    const command = expand(server?.command ?? '');
     expect(command).toMatch(/\bexpo export\b[^;&|]*(?:-p|--platform)[ =]web\b/);
     // Something serves the export after it is built; SPA fallback is checked in
     // e2e/app.spec.ts, so the server is not pinned here.

@@ -13,6 +13,7 @@ import {
 
 import de from '../src/i18n/locales/de.json';
 import { expectNoSeriousAxeViolations } from './axe';
+import { expectCspWithoutViolations, watchCsp } from './csp';
 
 // E2E flow B (#84) against the local stack, at both sizes (the phone and
 // desktop projects of playwright.config.ts):
@@ -417,6 +418,9 @@ test('flow B: an admin creates, publishes and previews a quiz with an image, and
   request,
 }, testInfo) => {
   const errors = watchErrors(page);
+  // #123: the admin flow, the blob: preview of the picked image and the
+  // Storage images run under the deployed CSP without a violation.
+  const csp = await watchCsp(page);
   const category = unique(testInfo, 'Kategorie');
   const quiz = unique(testInfo, 'Quiz');
   const question = `${unique(testInfo, 'Welches Tier')}?`;
@@ -524,6 +528,7 @@ test('flow B: an admin creates, publishes and previews a quiz with an image, and
   // A learner finds and plays it in a browser of their own.
   const learner = await newVisitor(browser, testInfo);
   const learnerErrors = watchErrors(learner);
+  const learnerCsp = await watchCsp(learner);
   try {
     await learner.goto('/');
     await learner.getByRole('link', { name: new RegExp(escape(category)) }).click();
@@ -541,11 +546,13 @@ test('flow B: an admin creates, publishes and previews a quiz with an image, and
     // The learner never saw a preview marker.
     await expect(learner.getByText(text('admin.preview.marker'), { exact: true })).toHaveCount(0);
     expect(learnerErrors).toEqual([]);
+    await expectCspWithoutViolations(learnerCsp);
   } finally {
     await learner.context().close();
   }
 
   expect(errors).toEqual([]);
+  await expectCspWithoutViolations(csp);
 });
 
 // 2. Learners are turned away ---------------------------------------------------------
