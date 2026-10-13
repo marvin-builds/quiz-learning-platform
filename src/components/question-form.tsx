@@ -3,7 +3,7 @@ import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 
-import { ErrorText, RowAction } from '@/components/admin-list';
+import { ErrorText, MoveActions, RowAction } from '@/components/admin-list';
 import { CheckboxField } from '@/components/checkbox-field';
 import { ImageField } from '@/components/image-field';
 import { Button } from '@/components/status';
@@ -48,7 +48,8 @@ type ErrorKey = `admin.questions.form.errors.${
 
 /**
  * The create and edit form of a question: text, explanation, multiple_correct,
- * its image and its answers inline (add, edit, remove, mark correct, image).
+ * its image and its answers inline (add, edit, remove, move, mark correct,
+ * image).
  * A picked image's file comes with the values, for the screen to upload.
  * Validates with the shared schema before anything is sent and shows the
  * answer rules next to the answers; the input stays when saving fails.
@@ -224,6 +225,13 @@ export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
                       }}
                     />
                   )}
+                />
+                <MoveActions
+                  index={index}
+                  count={answers.fields.length}
+                  upLabel={t('admin.questions.form.answers.moveUp', { number })}
+                  downLabel={t('admin.questions.form.answers.moveDown', { number })}
+                  onMove={answers.move}
                 />
                 <RowAction
                   label={t('admin.questions.form.answers.remove', { number })}

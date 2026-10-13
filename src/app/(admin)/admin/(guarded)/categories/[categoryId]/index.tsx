@@ -7,6 +7,7 @@ import { ScrollView, Text, View } from 'react-native';
 import {
   AdminNotFound,
   ErrorText,
+  MoveActions,
   PrimaryLink,
   PublishedBadge,
   RowAction,
@@ -21,9 +22,10 @@ import {
   adminKey,
   deleteQuiz,
   fetchCategoryQuizzes,
+  reorderQuizzes,
   updateQuiz,
 } from '@/lib/admin-quizzes';
-import { isRuleViolation } from '@/lib/admin-rows';
+import { isRuleViolation, movedIds } from '@/lib/admin-rows';
 
 type Quiz = NonNullable<Awaited<ReturnType<typeof fetchCategoryQuizzes>>>['quizzes'][number];
 
@@ -61,6 +63,16 @@ export default function AdminQuizzesScreen() {
     filters: { mutationKey: deleteKey, status: 'pending' },
     select: (mutation) => (mutation.state.variables as Quiz).id,
   });
+
+  // A move sends the whole list in its new order; refused or not, the list
+  // is read again, so it shows the server's order. One move at a time.
+  const reorder = useMutation({
+    mutationFn: (ids: string[]) => reorderQuizzes(categoryId, ids),
+    onSettled: refetch,
+  });
+  const move = (from: number, to: number) => {
+    if (list.data && !reorder.isPending) reorder.mutate(movedIds(list.data.quizzes, from, to));
+  };
 
   const confirmDelete = () => {
     if (toDelete) remove.mutate(toDelete);
@@ -110,14 +122,18 @@ export default function AdminQuizzesScreen() {
               />
             ) : null}
             {remove.isError ? <ErrorText text={t('admin.quizzes.errors.delete')} /> : null}
+            {reorder.isError ? <ErrorText text={t('admin.quizzes.errors.reorder')} /> : null}
             {list.data.quizzes.length === 0 ? (
               <StatusMessage text={t('admin.quizzes.empty')} />
             ) : (
               <View className="gap-3">
-                {list.data.quizzes.map((quiz) => (
+                {list.data.quizzes.map((quiz, index, quizzes) => (
                   <QuizRow
                     key={quiz.id}
                     quiz={quiz}
+                    index={index}
+                    count={quizzes.length}
+                    onMove={move}
                     toggling={toggling.includes(quiz.id)}
                     deleting={deleting.includes(quiz.id)}
                     onToggle={() => toggle.mutate(quiz)}
@@ -144,12 +160,18 @@ export default function AdminQuizzesScreen() {
 
 function QuizRow({
   quiz,
+  index,
+  count,
+  onMove,
   toggling,
   deleting,
   onToggle,
   onDelete,
 }: {
   quiz: Quiz;
+  index: number;
+  count: number;
+  onMove: (from: number, to: number) => void;
   toggling: boolean;
   deleting: boolean;
   onToggle: () => void;
@@ -170,6 +192,13 @@ function QuizRow({
         />
       </View>
       <View className="flex-row flex-wrap gap-2">
+        <MoveActions
+          index={index}
+          count={count}
+          upLabel={t('admin.quizzes.actions.moveUp', { name })}
+          downLabel={t('admin.quizzes.actions.moveDown', { name })}
+          onMove={onMove}
+        />
         <RowLink
           label={t('admin.quizzes.actions.questions', { name })}
           href={`/admin/quizzes/${quiz.id}`}

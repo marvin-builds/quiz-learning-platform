@@ -29,6 +29,17 @@
 -- with .png, .jpg, .jpeg or .webp at the bucket root (a table constraint,
 -- 23514), the same rule as the quiz-images Storage policies. The fixtures'
 -- image names changed from 'antworten/...' to such names for that reason.
+--
+-- Re-spec (#84): reordering (item 6) has come. The admin reorders a
+-- question's answers through the security-invoker save_question(), which
+-- writes sort_order = the answer's position in the payload
+-- (save_question_answer_order.test.sql). So authenticated gets an UPDATE
+-- grant on answers.sort_order, kept to admins by the admin-only RLS on
+-- answers; no INSERT grant, since a new answer still gets its position from
+-- the before-insert trigger and save_question then updates it. These were
+-- 'no INSERT/UPDATE grant on answers.sort_order' and 'an admin cannot change
+-- the sort_order of an answer (reordering is item 6)'; the stored-edits
+-- check now expects the admin's new sort_order instead of the old one.
 begin;
 select plan(129);
 
@@ -326,9 +337,9 @@ select results_eq(
             ('image_path'::text, true, true, true),
             ('is_correct'::text, true, true, false),
             ('question_id'::text, true, false, true),
-            ('sort_order'::text, false, false, true),
+            ('sort_order'::text, false, true, true),
             ('text'::text, true, true, true) $$,
-  'authenticated may insert question_id, text, is_correct, image_path and image_alt, update all of them but question_id, and never select is_correct'
+  'authenticated may insert question_id, text, is_correct, image_path and image_alt, update all of them but question_id plus sort_order (never insert it), and never select is_correct'
 );
 
 select ok(
@@ -896,11 +907,13 @@ select throws_ok(
   'an admin cannot move an answer to another question'
 );
 
-select throws_ok(
-  $$ update public.answers set sort_order = 99
-     where id = 'a0000000-0000-0000-0000-000000000004' $$,
-  '42501', null,
-  'an admin cannot change the sort_order of an answer (reordering is item 6)'
+-- Re-spec (#84): was 'an admin cannot change the sort_order of an answer
+-- (reordering is item 6)', 42501.
+select is(
+  pg_temp.touched_rows($$ update public.answers set sort_order = 99
+     where id = 'a0000000-0000-0000-0000-000000000004' $$),
+  1,
+  'an admin can change the sort_order of an answer'
 );
 
 select is(
@@ -981,8 +994,8 @@ select results_eq(
   $$ select question_id, text, is_correct, image_path, image_alt, sort_order from public.answers
      where id = 'a0000000-0000-0000-0000-000000000004' $$,
   $$ values ('e0000000-0000-0000-0000-000000000002'::uuid, 'Bearbeitet'::text, true,
-             '2a3b4c5d-0000-4000-8000-00000000000c.jpg'::text, 'Ein neues Bild'::text, 2) $$,
-  'the admin''s edits are stored, is_correct and image included, and the refused writes changed nothing else'
+             '2a3b4c5d-0000-4000-8000-00000000000c.jpg'::text, 'Ein neues Bild'::text, 99) $$,
+  'the admin''s edits are stored, is_correct, image and sort_order included, and the refused writes changed nothing else'
 );
 
 select results_eq(

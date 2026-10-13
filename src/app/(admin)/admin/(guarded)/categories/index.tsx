@@ -5,6 +5,7 @@ import { ScrollView, Text, View } from 'react-native';
 
 import {
   ErrorText,
+  MoveActions,
   PrimaryLink,
   PublishedBadge,
   RowAction,
@@ -18,8 +19,10 @@ import {
   adminCategoriesKey,
   deleteCategory,
   fetchAdminCategories,
+  reorderCategories,
   updateCategory,
 } from '@/lib/admin-categories';
+import { movedIds } from '@/lib/admin-rows';
 
 type Category = Awaited<ReturnType<typeof fetchAdminCategories>>[number];
 
@@ -56,6 +59,15 @@ export default function AdminCategoriesScreen() {
     select: (mutation) => (mutation.state.variables as Category).id,
   });
 
+  // A move sends the whole list in its new order; refused or not, the list
+  // is read again, so it shows the server's order. One move at a time.
+  const reorder = useMutation({ mutationFn: reorderCategories, onSettled: refetch });
+  const move = (from: number, to: number) => {
+    if (categories.data && !reorder.isPending) {
+      reorder.mutate(movedIds(categories.data, from, to));
+    }
+  };
+
   const confirmDelete = () => {
     if (toDelete) remove.mutate(toDelete);
     setToDelete(null);
@@ -71,6 +83,7 @@ export default function AdminCategoriesScreen() {
         <PrimaryLink label={t('admin.categories.create')} href="/admin/categories/new" />
         {toggle.isError ? <ErrorText text={t('admin.categories.errors.toggle')} /> : null}
         {remove.isError ? <ErrorText text={t('admin.categories.errors.delete')} /> : null}
+        {reorder.isError ? <ErrorText text={t('admin.categories.errors.reorder')} /> : null}
         {categories.isPending ? (
           <StatusMessage text={t('admin.categories.loading')} />
         ) : categories.isError ? (
@@ -84,10 +97,13 @@ export default function AdminCategoriesScreen() {
           <StatusMessage text={t('admin.categories.empty')} />
         ) : (
           <View className="gap-3">
-            {categories.data.map((category) => (
+            {categories.data.map((category, index) => (
               <CategoryRow
                 key={category.id}
                 category={category}
+                index={index}
+                count={categories.data.length}
+                onMove={move}
                 toggling={toggling.includes(category.id)}
                 deleting={deleting.includes(category.id)}
                 onToggle={() => toggle.mutate(category)}
@@ -112,12 +128,18 @@ export default function AdminCategoriesScreen() {
 
 function CategoryRow({
   category,
+  index,
+  count,
+  onMove,
   toggling,
   deleting,
   onToggle,
   onDelete,
 }: {
   category: Category;
+  index: number;
+  count: number;
+  onMove: (from: number, to: number) => void;
   toggling: boolean;
   deleting: boolean;
   onToggle: () => void;
@@ -140,6 +162,13 @@ function CategoryRow({
         />
       </View>
       <View className="flex-row flex-wrap gap-2">
+        <MoveActions
+          index={index}
+          count={count}
+          upLabel={t('admin.categories.actions.moveUp', { name })}
+          downLabel={t('admin.categories.actions.moveDown', { name })}
+          onMove={onMove}
+        />
         <RowLink
           label={t('admin.categories.actions.quizzes', { name })}
           href={`/admin/categories/${category.id}`}
