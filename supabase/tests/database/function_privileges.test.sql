@@ -8,8 +8,13 @@
 -- The checks read the catalog, so new functions are covered without editing
 -- this file; only the expected lists change, and only on purpose.
 --
--- Scope: `public` and `private` (the app's schemas) and `graphql_public`
--- (Supabase's GraphQL entry point, exposed by the API). Functions owned by an
+-- Scope: `public`, `private` and `internal` (the app's schemas) and
+-- `graphql_public` (Supabase's GraphQL entry point, exposed by the API).
+-- `internal` holds trigger functions and helpers no API role may call or
+-- even see (security review #37): anon and authenticated have no USAGE or
+-- CREATE on it and EXECUTE on none of its functions, so the allow-lists
+-- below have no internal entries, and every function there, security
+-- definer or not, sets an empty search_path. Functions owned by an
 -- extension (pg_depend deptype 'e') are left out, so an extension installed
 -- into one of these schemas (e.g. pgTAP for this run) doesn't make the list
 -- depend on the environment; none of them is in the lists today.
@@ -18,7 +23,7 @@
 -- oid::regprocedure::text, which leaves out the schema when it is on the
 -- search_path and so would differ between environments.
 begin;
-select plan(13);
+select plan(21);
 
 -- The one schema list. Every check below builds on this view.
 -- `collate "default"`: format() over `name` columns inherits their "C"
@@ -32,7 +37,7 @@ create temporary view app_functions as
     p.proconfig
   from pg_proc p
   join pg_namespace n on n.oid = p.pronamespace
-  where n.nspname in ('public', 'private', 'graphql_public')
+  where n.nspname in ('public', 'private', 'internal', 'graphql_public')
     and not exists (
       select 1
       from pg_depend d
@@ -61,6 +66,14 @@ create temporary view definers_without_empty_search_path as
   select f.signature
   from pg_temp.app_functions f
   where f.prosecdef
+    and not ('search_path=""' = any (coalesce(f.proconfig, '{}'::text[])));
+
+-- Functions in internal without an empty search_path, security definer or
+-- not.
+create temporary view internal_functions_without_empty_search_path as
+  select f.signature
+  from pg_temp.app_functions f
+  where f.signature like 'internal.%'
     and not ('search_path=""' = any (coalesce(f.proconfig, '{}'::text[])));
 
 -- Main assertions -----------------------------------------------------------
@@ -131,6 +144,44 @@ select ok(
       and f.signature = 'public.submit_answer(uuid, uuid, uuid[])'
   ),
   'the catalog query sees submit_answer() among the security definer functions'
+);
+
+-- The internal schema ---------------------------------------------------------
+
+-- Sanity: the view sees internal's functions, so the checks below can't
+-- pass vacuously.
+select ok(
+  exists (
+    select 1 from pg_temp.app_functions f
+    where f.signature = 'internal.check_quiz_publish_rules()'
+  ),
+  'the catalog query sees internal.check_quiz_publish_rules()'
+);
+
+select is_empty(
+  $$ select signature from pg_temp.app_functions
+     where signature like 'internal.%'
+       and (has_function_privilege('anon', oid, 'execute')
+            or has_function_privilege('authenticated', oid, 'execute'))
+     order by 1 $$,
+  'anon and authenticated can execute no function in internal'
+);
+
+select ok(
+  not has_schema_privilege('anon', 'internal', 'usage')
+  and not has_schema_privilege('authenticated', 'internal', 'usage'),
+  'anon and authenticated have no usage on schema internal'
+);
+
+select ok(
+  not has_schema_privilege('anon', 'internal', 'create')
+  and not has_schema_privilege('authenticated', 'internal', 'create'),
+  'anon and authenticated cannot create objects in schema internal'
+);
+
+select is_empty(
+  $$ select signature from pg_temp.internal_functions_without_empty_search_path order by 1 $$,
+  'every function in internal sets an empty search_path'
 );
 
 -- Probe cases ---------------------------------------------------------------
@@ -266,6 +317,47 @@ drop function private.function_privileges_public_path_probe();
 select is_empty(
   $$ select signature from pg_temp.definers_without_empty_search_path order by 1 $$,
   'the search_path check is clean again once that probe function is gone'
+);
+
+-- Negative case: an internal function without search_path ------------------
+
+create function internal.function_privileges_invoker_probe()
+returns integer
+language sql
+as $$ select 1 $$;
+
+select results_eq(
+  $$ select signature from pg_temp.internal_functions_without_empty_search_path order by 1 $$,
+  $$ values ('internal.function_privileges_invoker_probe()'::text) $$,
+  'a security invoker function in internal without a search_path is reported'
+);
+
+drop function internal.function_privileges_invoker_probe();
+
+-- Negative case: an internal function granted to authenticated --------------
+
+create function internal.function_privileges_internal_probe()
+returns integer
+language sql
+set search_path = ''
+as $$ select 1 $$;
+
+grant execute on function internal.function_privileges_internal_probe() to authenticated;
+
+select results_eq(
+  $$ select signature from pg_temp.executable_by_authenticated
+     where signature like 'internal.%' $$,
+  $$ values ('internal.function_privileges_internal_probe()'::text) $$,
+  'an internal function granted to authenticated shows up in its executable list'
+);
+
+drop function internal.function_privileges_internal_probe();
+
+select is_empty(
+  $$ select signature from pg_temp.internal_functions_without_empty_search_path
+     union all
+     select signature from pg_temp.executable_by_authenticated where signature like 'internal.%' $$,
+  'the internal checks are clean again once the probe functions are gone'
 );
 
 select * from finish();

@@ -2,7 +2,7 @@
 -- admin. Nobody makes themselves admin: not by updating their role, not by
 -- inserting a profile, not with sign-up metadata.
 begin;
-select plan(55);
+select plan(60);
 
 -- Fixtures: three auth users. Their profiles must come from the signup trigger.
 insert into auth.users (id, email, raw_user_meta_data) values
@@ -84,6 +84,27 @@ select throws_ok(
      values ('77777777-7777-7777-7777-777777777777', 'Mallory', 'admin') $$,
   '42501', null,
   'an anonymous user cannot insert an admin profile'
+);
+
+-- Security review #37: the anonymous user's remaining negatives. The
+-- update passes the column grant but RLS leaves another user's row out; a
+-- delete has no grant at all.
+select is_empty(
+  $$ update public.profiles set display_name = 'Hacked'
+     where id = '22222222-2222-2222-2222-222222222222' returning 1 $$,
+  'an anonymous user cannot update another user''s profile'
+);
+
+select throws_ok(
+  $$ delete from public.profiles where id = '44444444-4444-4444-4444-444444444444' $$,
+  '42501', null,
+  'an anonymous user cannot delete their own profile'
+);
+
+select throws_ok(
+  $$ delete from public.profiles where id = '22222222-2222-2222-2222-222222222222' $$,
+  '42501', null,
+  'an anonymous user cannot delete another user''s profile'
 );
 
 reset role;
@@ -198,6 +219,22 @@ select throws_ok(
   'admin cannot delete profiles through the API'
 );
 
+-- Security review #37: no insert for an admin either, so not even an admin
+-- can create an admin profile through the API.
+select throws_ok(
+  $$ insert into public.profiles (id, display_name)
+     values ('99999999-9999-9999-9999-999999999999', 'Mallory') $$,
+  '42501', null,
+  'admin cannot insert a profile'
+);
+
+select throws_ok(
+  $$ insert into public.profiles (id, display_name, role)
+     values ('99999999-9999-9999-9999-999999999999', 'Mallory', 'admin') $$,
+  '42501', null,
+  'admin cannot insert an admin profile'
+);
+
 reset role;
 
 -- Effects, checked as the owner -------------------------------------------
@@ -210,7 +247,8 @@ select results_eq(
                   '22222222-2222-2222-2222-222222222222',
                   '33333333-3333-3333-3333-333333333333',
                   '44444444-4444-4444-4444-444444444444',
-                  '77777777-7777-7777-7777-777777777777')
+                  '77777777-7777-7777-7777-777777777777',
+                  '99999999-9999-9999-9999-999999999999')
      order by id $$,
   $$ values
        ('11111111-1111-1111-1111-111111111111', 'Alice Liddell', 'learner'),
