@@ -780,21 +780,30 @@ describe('learner header: category (/categories/[id])', () => {
     await waitFor(() => expect(result.getPathname()).toBe('/'));
   });
 
-  it('keeps the header with the up link while loading, on an error and when not found', async () => {
+  // #116 re-spec: was one test, "keeps the header with the up link while
+  // loading, on an error and when not found", that rendered three router
+  // trees without unmounting; expo-router's global routing queue then sent
+  // the last tree's navigation to the first tree. Split into one test per
+  // state, one tree each, with every assertion kept. The fresh mockServer
+  // of each test replaces the old `delete mockServer['categories.select']`.
+  it('keeps the header with the up link while loading', async () => {
     mockServer['categories.select'] = 'pending';
     await renderAt(`/categories/${GEOGRAFIE}`);
     expect(await screen.findByText(text('category.loading'))).toBeOnTheScreen();
     expect(headerControl(text('nav.categories'))).toBeOnTheScreen();
     mockRelease();
+  });
 
+  it('keeps the header with the up link on an error', async () => {
     mockServer['categories.select'] = { error: { code: '', message: 'Failed to fetch' } };
     await renderAt(`/categories/${GEOGRAFIE}`);
     expect(
       await screen.findByText(text('category.error'), {}, { timeout: 15_000 }),
     ).toBeOnTheScreen();
     expect(headerControl(text('nav.categories'))).toBeOnTheScreen();
+  });
 
-    delete mockServer['categories.select'];
+  it('keeps the header with the up link when not found, and the up link goes home', async () => {
     const result = await renderAt(`/categories/${UNKNOWN_CATEGORY}`);
     expect(await screen.findByText(text('category.notFound'))).toBeOnTheScreen();
     // The not-found state keeps its own link too.

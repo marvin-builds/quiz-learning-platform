@@ -565,7 +565,12 @@ describe('category list (/admin/categories)', () => {
 
     await renderAt('/admin/categories');
 
-    expect(await screen.findByText(text('admin.categories.title', 'en'))).toBeOnTheScreen();
+    // #116 re-spec: was `findByText(...)`. The admin header's breadcrumb now
+    // repeats this title as its current segment, so the query is scoped to the
+    // screen's own heading; it still proves the list shows its heading in English.
+    expect(
+      await screen.findByRole('heading', { name: text('admin.categories.title', 'en') }),
+    ).toBeOnTheScreen();
     expect(await screen.findByText('Musik')).toBeOnTheScreen();
     expect(screen.getAllByText(text('admin.categories.status.published', 'en'))).toHaveLength(3);
     expect(screen.getAllByText(text('admin.categories.status.draft', 'en'))).toHaveLength(1);
@@ -636,7 +641,12 @@ describe('category list (/admin/categories)', () => {
     await fireEvent.press(await findControl(text('admin.categories.create')));
 
     await waitFor(() => expect(result.getPathname()).toBe('/admin/categories/new'));
-    expect(await screen.findByText(text('admin.categories.form.createTitle'))).toBeOnTheScreen();
+    // #116 re-spec: was `findByText(...)`. The admin header's breadcrumb now
+    // repeats this title as its current segment, so the query is scoped to the
+    // screen's own heading; it still proves the create form opened.
+    expect(
+      await screen.findByRole('heading', { name: text('admin.categories.form.createTitle') }),
+    ).toBeOnTheScreen();
   });
 
   it('opens the edit form of a category at /admin/categories/<id>/edit', async () => {
@@ -646,7 +656,12 @@ describe('category list (/admin/categories)', () => {
     await fireEvent.press(control(label('admin.categories.actions.edit', { name: 'Musik' })));
 
     await waitFor(() => expect(result.getPathname()).toBe(`/admin/categories/${MUSIK.id}/edit`));
-    expect(await screen.findByText(text('admin.categories.form.editTitle'))).toBeOnTheScreen();
+    // #116 re-spec: was `findByText(...)`. The admin header's breadcrumb now
+    // repeats this title as its current segment, so the query is scoped to the
+    // screen's own heading; it still proves the edit form opened.
+    expect(
+      await screen.findByRole('heading', { name: text('admin.categories.form.editTitle') }),
+    ).toBeOnTheScreen();
   });
 });
 
