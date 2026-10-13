@@ -80,7 +80,9 @@ function Breadcrumb() {
   const crumbs = useCrumbs();
   const phone = useWindowDimensions().width < PHONE_WIDTH;
   // On a phone only "← parent" and the current title, so it never wraps;
-  // only "← parent" when the current page has no title (not found).
+  // only "← parent" when the current page has no title (not found). A long
+  // name is cut off with an ellipsis, on a desktop too, so it never reaches
+  // past the screen.
   const hasCurrent = crumbs.at(-1)?.href === undefined;
   const shown = phone ? crumbs.slice(hasCurrent ? -2 : -1) : crumbs;
 
@@ -102,7 +104,7 @@ function Breadcrumb() {
               href={crumb.href}
               label={crumb.label}
               sign={phone ? '←' : undefined}
-              singleLine={phone}
+              singleLine
             />
           ) : (
             <Text

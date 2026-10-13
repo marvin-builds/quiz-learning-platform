@@ -82,6 +82,18 @@
     "dashboard": {
       "title": "Admin area"
     },
+    "rowActions": {
+      "quizzes": "Quizzes",
+      "questions": "Questions",
+      "preview": "Preview",
+      "edit": "Edit",
+      "publish": "Publish",
+      "unpublish": "Unpublish",
+      "moveUp": "↑ Move up",
+      "moveDown": "↓ Move down",
+      "delete": "Delete",
+      "remove": "Remove"
+    },
     "categories": {
       "title": "Categories",
       "loading": "Loading categories …",
@@ -94,13 +106,13 @@
         "draft": "Draft"
       },
       "actions": {
-        "edit": "Edit {{name}}",
-        "quizzes": "Quizzes in {{name}}",
-        "publish": "Publish {{name}}",
-        "unpublish": "Unpublish {{name}}",
-        "delete": "Delete {{name}}",
-        "moveUp": "Move {{name}} up",
-        "moveDown": "Move {{name}} down"
+        "edit": "Edit: {{name}}",
+        "quizzes": "Quizzes: {{name}}",
+        "publish": "Publish: {{name}}",
+        "unpublish": "Unpublish: {{name}}",
+        "delete": "Delete: {{name}}",
+        "moveUp": "Move up: {{name}}",
+        "moveDown": "Move down: {{name}}"
       },
       "errors": {
         "toggle": "The status could not be changed. Try again.",
@@ -145,13 +157,14 @@
         "draft": "Draft"
       },
       "actions": {
-        "questions": "Questions of {{name}}",
-        "edit": "Edit {{name}}",
-        "publish": "Publish {{name}}",
-        "unpublish": "Unpublish {{name}}",
-        "delete": "Delete {{name}}",
-        "moveUp": "Move {{name}} up",
-        "moveDown": "Move {{name}} down"
+        "questions": "Questions: {{name}}",
+        "preview": "Preview: {{name}}",
+        "edit": "Edit: {{name}}",
+        "publish": "Publish: {{name}}",
+        "unpublish": "Unpublish: {{name}}",
+        "delete": "Delete: {{name}}",
+        "moveUp": "Move up: {{name}}",
+        "moveDown": "Move down: {{name}}"
       },
       "errors": {
         "toggle": "The status could not be changed. Please try again.",
@@ -192,12 +205,12 @@
       "notFound": "This quiz doesn't exist (any more).",
       "back": "Back to the categories",
       "create": "New question",
-      "preview": "Preview of {{name}}",
+      "preview": "Preview: {{name}}",
       "actions": {
-        "edit": "Edit {{name}}",
-        "delete": "Delete {{name}}",
-        "moveUp": "Move {{name}} up",
-        "moveDown": "Move {{name}} down"
+        "edit": "Edit: {{name}}",
+        "delete": "Delete: {{name}}",
+        "moveUp": "Move up: {{name}}",
+        "moveDown": "Move down: {{name}}"
       },
       "errors": {
         "delete": "The question could not be deleted. Please try again.",
@@ -222,14 +235,14 @@
           "title": "Answers",
           "text": "Answer {{number}}",
           "correct": "Answer {{number}} is correct",
-          "remove": "Remove answer {{number}}",
-          "moveUp": "Move answer {{number}} up",
-          "moveDown": "Move answer {{number}} down",
+          "remove": "Remove: Answer {{number}}",
+          "moveUp": "Move up: Answer {{number}}",
+          "moveDown": "Move down: Answer {{number}}",
           "add": "Add answer",
           "image": {
-            "pick": "Choose image for answer {{number}}",
-            "replace": "Replace image of answer {{number}}",
-            "remove": "Remove image of answer {{number}}",
+            "pick": "Choose image: Answer {{number}}",
+            "replace": "Replace image: Answer {{number}}",
+            "remove": "Remove image: Answer {{number}}",
             "alt": "Alt text of the image of answer {{number}}",
             "preview": "Preview of the image of answer {{number}}"
           }

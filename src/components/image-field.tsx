@@ -12,6 +12,8 @@ import { imageFileSchema, type ImageFile } from '@/lib/question-schema';
 type PickErrorKey = `admin.questions.form.errors.${'imageTooLarge' | 'imageType'}`;
 
 type Labels = { pick: string; replace: string; remove: string; alt: string; preview: string };
+/** The buttons' accessible names when they differ from their labels (an answer's: "<label>: Antwort n"). */
+type Names = { pick: string; replace: string; remove: string };
 
 /**
  * The image of a question or an answer in the question form: pick one from
@@ -24,6 +26,7 @@ type Labels = { pick: string; replace: string; remove: string; alt: string; prev
 export function ImageField({
   id,
   labels,
+  names = labels,
   path,
   file,
   alt,
@@ -34,6 +37,7 @@ export function ImageField({
 }: {
   id: string;
   labels: Labels;
+  names?: Names;
   path: string | null;
   file: ImageFile | null;
   alt: string | null;
@@ -83,10 +87,15 @@ export function ImageField({
         />
       ) : null}
       <View className="flex-row flex-wrap gap-2">
-        <RowAction label={path ? labels.replace : labels.pick} onPress={() => void pick()} />
+        <RowAction
+          label={path ? labels.replace : labels.pick}
+          name={path ? names.replace : names.pick}
+          onPress={() => void pick()}
+        />
         {path ? (
           <RowAction
             label={labels.remove}
+            name={names.remove}
             onPress={() => {
               setPickError(null);
               if (file) releaseImage(file.uri);
