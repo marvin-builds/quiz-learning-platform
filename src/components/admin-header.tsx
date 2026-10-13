@@ -98,7 +98,12 @@ function Breadcrumb() {
             </Text>
           ) : null}
           {crumb.href ? (
-            <NavLink href={crumb.href} label={crumb.label} sign={phone ? '←' : undefined} />
+            <NavLink
+              href={crumb.href}
+              label={crumb.label}
+              sign={phone ? '←' : undefined}
+              singleLine={phone}
+            />
           ) : (
             <Text
               {...{ 'aria-current': 'page' }}

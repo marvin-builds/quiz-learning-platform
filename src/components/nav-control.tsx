@@ -11,6 +11,8 @@ type Props = {
   label: string;
   /** A decorative sign before the label, such as ← or ✕; hidden from screen readers. */
   sign?: string;
+  /** Keeps the label on one line, cut off with an ellipsis, so the control can shrink. */
+  singleLine?: boolean;
 };
 
 /**
@@ -38,7 +40,7 @@ export function NavLink({ href, ...props }: Props & { href: string }) {
         }
       : { onPress: go };
   return (
-    <Pressable role="link" {...press} className={TARGET}>
+    <Pressable role="link" {...press} className={`${TARGET} ${props.singleLine ? 'shrink' : ''}`}>
       <Label {...props} />
     </Pressable>
   );
@@ -57,9 +59,12 @@ export function NavButton({ onPress, ...props }: Props & { onPress: () => void }
 const TARGET =
   'min-h-11 min-w-11 flex-row items-center justify-center rounded-lg px-2 hover:bg-gray-100 active:bg-gray-200';
 
-function Label({ label, sign }: Props) {
+function Label({ label, sign, singleLine }: Props) {
   return (
-    <Text className="text-base font-semibold text-blue-700">
+    <Text
+      numberOfLines={singleLine ? 1 : undefined}
+      className="shrink text-base font-semibold text-blue-700"
+    >
       {sign ? <Text aria-hidden>{`${sign} `}</Text> : null}
       {label}
     </Text>
