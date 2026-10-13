@@ -1,5 +1,5 @@
 import { type Href, router } from 'expo-router';
-import { Platform, Pressable, Text } from 'react-native';
+import { type GestureResponderEvent, Platform, Pressable, Text } from 'react-native';
 
 import { useLeaveGuard } from '@/components/leave-guard';
 
@@ -16,7 +16,10 @@ type Props = {
 /**
  * A link that leaves through the leave guard. On the web it is a real
  * anchor (open in a new tab works); a plain click is handled in the app,
- * like expo-router's Link does.
+ * like expo-router's Link does. react-native-web's Pressable replaces an
+ * `onClick` prop with its own click handler, which calls `onPress` with the
+ * click event (not for Alt+click), so the browser's own navigation is
+ * stopped there.
  */
 export function NavLink({ href, ...props }: Props & { href: string }) {
   const guard = useLeaveGuard();
@@ -25,10 +28,11 @@ export function NavLink({ href, ...props }: Props & { href: string }) {
     Platform.OS === 'web'
       ? {
           href,
-          onClick: (event: MouseEvent) => {
-            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-            if (event.button !== undefined && event.button !== 0) return;
-            event.preventDefault();
+          onPress: (event: GestureResponderEvent) => {
+            const click = event as unknown as MouseEvent;
+            if (click.metaKey || click.ctrlKey || click.shiftKey) return;
+            if (click.button !== undefined && click.button !== 0) return;
+            click.preventDefault();
             go();
           },
         }
