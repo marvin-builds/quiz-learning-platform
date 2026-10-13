@@ -3,7 +3,7 @@
 import { renderRouter } from 'expo-router/testing-library';
 
 import { AuthApiError, AuthRetryableFetchError } from '@supabase/supabase-js';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import type { TestInstance } from 'test-renderer';
 
@@ -19,8 +19,14 @@ import { ensureSession } from '@/lib/session';
 //   wrong-credentials and network-error states. Not guarded.
 // - `/admin`: guarded. A visitor without a session, an anonymous user or a
 //   learner is sent to `/admin/sign-in` or sees a "no access" state; only a
-//   user whose `profiles.role` is 'admin' sees the dashboard, which links to
-//   `/admin/categories` and signs out to the learner area.
+//   user whose `profiles.role` is 'admin' gets in.
+//
+// Re-spec (#116): the dashboard is gone. `/admin` and a successful sign-in
+// land on the category list at `/admin/categories` (the admin start), and
+// signing out moves into the admin header ("Abmelden", `nav.signOut`). The
+// tests that looked for the dashboard's heading now look for the category
+// list (its empty state, since this fake has no categories) at
+// `/admin/categories`; the guard's checks are unchanged.
 //
 // Boundary: the Supabase client (network). The fake answers like the local
 // stack would:
@@ -288,10 +294,12 @@ async function renderAt(url: string): Promise<{ getPathname(): string }> {
   return { getPathname: () => result.getPathname() };
 }
 
-const dashboardTitle = () => text('admin.dashboard.title');
+// Re-spec (#116): the admin start is the category list, not the dashboard.
+// This fake has no categories, so the list shows its empty state.
+const adminStart = () => text('admin.categories.empty');
 
 // The issue allows either: a redirect to the sign-in screen or a "no
-// access" state on /admin. Either way the dashboard stays hidden.
+// access" state on /admin. Either way the admin start stays hidden.
 async function expectKeptOut(result: { getPathname(): string }) {
   await waitFor(() => {
     const redirected = result.getPathname() === '/admin/sign-in';
@@ -300,7 +308,22 @@ async function expectKeptOut(result: { getPathname(): string }) {
       screen.queryByText(text('admin.guard.noAccess')) !== null;
     expect(redirected || noAccess).toBe(true);
   });
-  expect(screen.queryByText(dashboardTitle())).toBeNull();
+  expect(screen.queryByText(adminStart())).toBeNull();
+}
+
+// Re-spec (#116): "Abmelden" sits in the admin header (role banner), not on
+// the dashboard. The last banner is the current screen's.
+function headerSignOut(): TestInstance {
+  const banners = screen.container.queryAll(
+    (node) =>
+      typeof node.type === 'string' &&
+      String(node.props.role ?? node.props.accessibilityRole ?? '') === 'banner',
+  );
+  const header = banners[banners.length - 1];
+  if (!header) throw new Error('No element with role banner (the admin header)');
+  const [signOut] = within(header).queryAllByText(text('nav.signOut'));
+  if (!signOut) throw new Error('The admin header has no "Abmelden"');
+  return signOut;
 }
 
 async function fillIn(email: string, password: string) {
@@ -313,23 +336,6 @@ const submitButton = () => screen.getByRole('button', { name: text('admin.signIn
 async function signIn(email: string, password: string) {
   await fillIn(email, password);
   await fireEvent.press(submitButton());
-}
-
-// Resolves a string or `{ pathname, params }` href to the path it opens.
-function pathOf(href: unknown): string {
-  if (typeof href === 'string') return href;
-  const { pathname, params = {} } = href as {
-    pathname: string;
-    params?: Record<string, string>;
-  };
-  return pathname.replace(/\[(\w+)\]/g, (_, name: string) => params[name]);
-}
-
-function linkPathOf(element: TestInstance): string {
-  for (let node: TestInstance | null = element; node; node = node.parent) {
-    if (node.props.href !== undefined) return pathOf(node.props.href);
-  }
-  throw new Error('The element is not inside a link');
 }
 
 beforeEach(async () => {
@@ -360,9 +366,11 @@ describe('admin texts', () => {
     'admin.signIn.errors.network',
     'admin.guard.loading',
     'admin.guard.error',
+    // Kept (#116): the guard's page title still uses this key.
     'admin.dashboard.title',
-    'admin.dashboard.categories',
-    'admin.dashboard.signOut',
+    // Re-spec (#116): the dashboard's link and sign-out keys went with the
+    // dashboard; sign-out is the header's `nav.signOut`.
+    'nav.signOut',
   ];
 
   it.each(keys)('%s has a German and an English text', (key) => {
@@ -411,7 +419,7 @@ describe('admin sign-in screen (/admin/sign-in)', () => {
     await fillIn(ADMIN_EMAIL, ADMIN_PASSWORD);
     await fireEvent(screen.getByLabelText(text('admin.signIn.password')), 'submitEditing');
 
-    expect(await screen.findByText(dashboardTitle())).toBeOnTheScreen();
+    expect(await screen.findByText(adminStart())).toBeOnTheScreen();
     expect(mockAuth.passwordSignIns).toEqual([{ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }]);
   });
 
@@ -430,17 +438,17 @@ describe('admin sign-in screen (/admin/sign-in)', () => {
 
     expect(mockAuth.passwordSignIns).toHaveLength(1);
     pending.release();
-    expect(await screen.findByText(dashboardTitle())).toBeOnTheScreen();
+    expect(await screen.findByText(adminStart())).toBeOnTheScreen();
   });
 
-  it('signs in with the typed email and password and opens the dashboard', async () => {
+  it('signs in with the typed email and password and opens the category list', async () => {
     const result = await renderAt('/admin/sign-in');
     await screen.findByLabelText(text('admin.signIn.email'));
 
     await signIn(ADMIN_EMAIL, ADMIN_PASSWORD);
 
-    expect(await screen.findByText(dashboardTitle())).toBeOnTheScreen();
-    expect(result.getPathname()).toBe('/admin');
+    expect(await screen.findByText(adminStart())).toBeOnTheScreen();
+    expect(result.getPathname()).toBe('/admin/categories');
     expect(mockAuth.passwordSignIns).toEqual([{ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }]);
   });
 
@@ -465,7 +473,7 @@ describe('admin sign-in screen (/admin/sign-in)', () => {
     expect(mockAuth.passwordSignIns).toHaveLength(1);
 
     pending.release();
-    expect(await screen.findByText(dashboardTitle())).toBeOnTheScreen();
+    expect(await screen.findByText(adminStart())).toBeOnTheScreen();
     expect(mockAuth.passwordSignIns).toHaveLength(1);
   });
 
@@ -503,11 +511,11 @@ describe('admin sign-in screen (/admin/sign-in)', () => {
 
     await signIn(ADMIN_EMAIL, ADMIN_PASSWORD);
 
-    expect(await screen.findByText(dashboardTitle())).toBeOnTheScreen();
+    expect(await screen.findByText(adminStart())).toBeOnTheScreen();
     expect(screen.queryByText(text('admin.signIn.errors.invalidCredentials'))).toBeNull();
   });
 
-  it('keeps a learner who signs in with valid credentials out of the dashboard', async () => {
+  it('keeps a learner who signs in with valid credentials out of the admin area', async () => {
     const result = await renderAt('/admin/sign-in');
     await screen.findByLabelText(text('admin.signIn.email'));
 
@@ -542,29 +550,29 @@ describe('admin route guard (/admin)', () => {
     await expectKeptOut(result);
   });
 
-  it('shows the dashboard to an admin, read from profiles.role and not from metadata', async () => {
+  it('lets an admin in, read from profiles.role and not from metadata', async () => {
     mockAuth.session = sessionOf(ADMIN);
 
     const result = await renderAt('/admin');
 
-    expect(await screen.findByText(dashboardTitle())).toBeOnTheScreen();
-    expect(result.getPathname()).toBe('/admin');
+    expect(await screen.findByText(adminStart())).toBeOnTheScreen();
+    expect(result.getPathname()).toBe('/admin/categories');
     const profileReads = mockQueries.filter((query) => query.table === 'profiles');
     expect(profileReads.length).toBeGreaterThan(0);
     expect(profileReads.some((query) => /\brole\b/.test(query.select ?? ''))).toBe(true);
   });
 
-  it('shows a loading state, not the dashboard, while the role is being read', async () => {
+  it('shows a loading state, not the admin start, while the role is being read', async () => {
     mockAuth.session = sessionOf(ADMIN);
     mockProfileRead.state = 'pending';
 
     await renderAt('/admin');
 
     expect(await screen.findByText(text('admin.guard.loading'))).toBeOnTheScreen();
-    expect(screen.queryByText(dashboardTitle())).toBeNull();
+    expect(screen.queryByText(adminStart())).toBeNull();
   });
 
-  it('shows an error, not the dashboard, when the role cannot be read', async () => {
+  it('shows an error, not the admin start, when the role cannot be read', async () => {
     mockAuth.session = sessionOf(ADMIN);
     mockProfileRead.state = { error: { message: 'TypeError: Failed to fetch', code: '' } };
 
@@ -574,7 +582,7 @@ describe('admin route guard (/admin)', () => {
     expect(
       await screen.findByText(text('admin.guard.error'), {}, { timeout: 15_000 }),
     ).toBeOnTheScreen();
-    expect(screen.queryByText(dashboardTitle())).toBeNull();
+    expect(screen.queryByText(adminStart())).toBeNull();
   });
 
   it('keeps out a former admin whose profile now says learner', async () => {
@@ -587,34 +595,33 @@ describe('admin route guard (/admin)', () => {
   });
 });
 
-describe('admin dashboard (/admin)', () => {
-  it('shows the dashboard heading in English when the language is English', async () => {
+// Re-spec (#116): was "admin dashboard (/admin)". The dashboard is gone:
+// /admin lands on the category list, and sign-out is in the admin header.
+describe('admin start (/admin)', () => {
+  it('shows the category list in English when the language is English', async () => {
     await i18n.changeLanguage('en');
     mockAuth.session = sessionOf(ADMIN);
 
     await renderAt('/admin');
 
-    expect(await screen.findByText(text('admin.dashboard.title', 'en'))).toBeOnTheScreen();
+    expect(await screen.findByText(text('admin.categories.empty', 'en'))).toBeOnTheScreen();
   });
 
-  it('links to the categories at /admin/categories', async () => {
+  it('redirects /admin to the category list at /admin/categories', async () => {
     mockAuth.session = sessionOf(ADMIN);
-    await renderAt('/admin');
 
-    // The categories screen comes with the next slice, so the link's target
-    // is checked rather than followed.
-    const link = await screen.findByText(text('admin.dashboard.categories'));
+    const result = await renderAt('/admin');
 
-    expect(linkPathOf(link)).toBe('/admin/categories');
+    await waitFor(() => expect(result.getPathname()).toBe('/admin/categories'));
+    expect(await screen.findByText(adminStart())).toBeOnTheScreen();
   });
 
   it('signs out to the learner area, where the next session is a fresh anonymous one', async () => {
     mockAuth.session = sessionOf(ADMIN);
     const result = await renderAt('/admin');
+    await screen.findByText(adminStart());
 
-    await fireEvent.press(
-      await screen.findByRole('button', { name: text('admin.dashboard.signOut') }),
-    );
+    await fireEvent.press(await waitFor(() => headerSignOut()));
 
     await waitFor(() => expect(result.getPathname()).toBe('/'));
     expect(await screen.findByText(de.home.title)).toBeOnTheScreen();
@@ -629,9 +636,8 @@ describe('admin dashboard (/admin)', () => {
   it('keeps the visitor out of /admin again after signing out', async () => {
     mockAuth.session = sessionOf(ADMIN);
     const result = await renderAt('/admin');
-    await fireEvent.press(
-      await screen.findByRole('button', { name: text('admin.dashboard.signOut') }),
-    );
+    await screen.findByText(adminStart());
+    await fireEvent.press(await waitFor(() => headerSignOut()));
     await waitFor(() => expect(result.getPathname()).toBe('/'));
 
     await act(async () => router.navigate('/admin'));

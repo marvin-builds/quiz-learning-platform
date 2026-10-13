@@ -1,10 +1,11 @@
 import { type UseMutationOptions, useMutation, useQuery } from '@tanstack/react-query';
 import { Link, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { type QuizProgress, quizReports } from '@/components/learner-header';
 import { PageTitle } from '@/components/page-title';
 import { QuizImage } from '@/components/quiz-image';
 import { Button, ErrorState, NotFoundState, StatusMessage } from '@/components/status';
@@ -23,18 +24,29 @@ export default function QuizScreen() {
   const { t } = useTranslation();
   const { quizId } = useLocalSearchParams<{ quizId: string }>();
   const quiz = useQuery({ queryKey: ['quiz', quizId], queryFn: () => fetchQuiz(quizId) });
+  // Tells the header whether leaving asks first and when the result shows.
+  const [progress, setProgress] = useState<QuizProgress>('idle');
+  quizReports.useReport(useMemo(() => ({ quizId, progress }), [quizId, progress]));
 
   return (
     <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="px-4 py-8">
       <PageTitle title={quiz.data?.title ?? t('quiz.pageTitle')} />
       <View className="mx-auto w-full max-w-2xl">
-        <QuizBody quiz={quiz} />
+        <QuizBody quiz={quiz} onProgress={setProgress} />
       </View>
     </ScrollView>
   );
 }
 
-function QuizBody({ quiz }: { quiz: ReturnType<typeof useQuery<Quiz | null>> }) {
+type OnProgress = (progress: QuizProgress) => void;
+
+function QuizBody({
+  quiz,
+  onProgress,
+}: {
+  quiz: ReturnType<typeof useQuery<Quiz | null>>;
+  onProgress: OnProgress;
+}) {
   const { t } = useTranslation();
   if (quiz.isPending) return <StatusMessage text={t('quiz.loading')} />;
   if (quiz.isError) {
@@ -49,10 +61,10 @@ function QuizBody({ quiz }: { quiz: ReturnType<typeof useQuery<Quiz | null>> }) 
   if (quiz.data === null) {
     return <NotFoundState message={t('quiz.notFound')} backLabel={t('quiz.backToCategories')} />;
   }
-  return <QuizContent quiz={quiz.data} />;
+  return <QuizContent quiz={quiz.data} onProgress={onProgress} />;
 }
 
-function QuizContent({ quiz }: { quiz: Quiz }) {
+function QuizContent({ quiz, onProgress }: { quiz: Quiz; onProgress: OnProgress }) {
   const { t } = useTranslation();
   const start = useGuardedMutation({
     mutationFn: async () => {
@@ -75,6 +87,7 @@ function QuizContent({ quiz }: { quiz: Quiz }) {
           quiz={quiz}
           attemptId={start.data}
           onPlayAgain={() => start.run()}
+          onProgress={onProgress}
         />
       ) : (
         <>
@@ -119,10 +132,12 @@ function Player({
   quiz,
   attemptId,
   onPlayAgain,
+  onProgress,
 }: {
   quiz: Quiz;
   attemptId: string;
   onPlayAgain: () => void;
+  onProgress: OnProgress;
 }) {
   const { t } = useTranslation();
   // Read once per attempt: the questions must match the ones it started with.
@@ -134,6 +149,13 @@ function Player({
   const [index, setIndex] = useState(0);
   const [picks, setPicks] = useState<string[]>([]);
   const [showResult, setShowResult] = useState(false);
+  // An answer counts as given once it is sent, before submit_answer replies.
+  const [sent, setSent] = useState(false);
+  useEffect(() => {
+    onProgress(showResult ? 'finished' : sent ? 'answered' : 'idle');
+  }, [onProgress, sent, showResult]);
+  // A new attempt (Play again) or leaving the screen starts over.
+  useEffect(() => () => onProgress('idle'), [onProgress]);
   // The recorded result of the current question; its feedback shows until Next.
   const submit = useGuardedMutation({
     mutationFn: async (answer: { questionId: string; answerIds: string[] }) => {
@@ -168,7 +190,10 @@ function Player({
   const question = questions.data[index];
   const isLast = index === questions.data.length - 1;
   const feedback = submit.isSuccess ? submit.data : null;
-  const send = () => submit.run({ questionId: question.id, answerIds: picks });
+  const send = () => {
+    setSent(true);
+    submit.run({ questionId: question.id, answerIds: picks });
+  };
   const pick = (answerId: string) =>
     setPicks((current) => togglePick(current, answerId, question.multiple_correct));
   const next = () => {

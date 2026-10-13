@@ -808,7 +808,11 @@ describe('the preview (/admin/quizzes/<quizId>/preview)', () => {
     await renderAt(previewUrl(QUIZ));
 
     expect(await screen.findByText(FRANCE_TEXT)).toBeOnTheScreen();
-    expect(screen.getByText(QUIZ_TITLE)).toBeOnTheScreen();
+    // #116 re-spec: was `getByText(QUIZ_TITLE)`. The admin header's
+    // breadcrumb now shows the quiz title as a segment too, so the query is
+    // scoped to the preview's own heading; it still proves the preview shows
+    // the quiz's title.
+    expect(screen.getByRole('heading', { name: QUIZ_TITLE })).toBeOnTheScreen();
     expect(marker()).toBeOnTheScreen();
   });
 

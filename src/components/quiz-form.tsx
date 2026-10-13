@@ -3,6 +3,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 
+import { useFormChanged } from '@/components/admin-header';
 import { ErrorText } from '@/components/admin-list';
 import { Button } from '@/components/status';
 import { SwitchField } from '@/components/switch-field';
@@ -33,6 +34,8 @@ export function QuizForm({ initial, pending, failure, onSubmit }: Props) {
     },
   });
   const titleError = formState.errors.title?.message;
+  // Leaving through the header or breadcrumb asks while the input differs from the loaded values.
+  useFormChanged(formState.isDirty);
 
   const submit = handleSubmit((values) => {
     if (!pending) onSubmit(values);
