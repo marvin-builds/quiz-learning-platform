@@ -80,9 +80,7 @@
       "retry": "Try again"
     },
     "dashboard": {
-      "title": "Admin area",
-      "categories": "Categories",
-      "signOut": "Sign out"
+      "title": "Admin area"
     },
     "categories": {
       "title": "Categories",
@@ -271,6 +269,33 @@
       "notFound": "This quiz does not exist (any more).",
       "back": "Back to the categories",
       "correctAnswer": "Correct answer: {{answer}}"
+    }
+  },
+  "nav": {
+    "appName": "Quiz Learning Platform",
+    "categories": "Categories",
+    "leaveQuiz": "Leave quiz",
+    "leaveDialog": {
+      "title": "Leave the quiz?",
+      "message": "Your progress in this quiz will be lost.",
+      "confirm": "Leave",
+      "cancel": "Keep playing"
+    },
+    "admin": "Admin",
+    "toApp": "To the app",
+    "signOut": "Sign out",
+    "breadcrumb": {
+      "label": "Breadcrumb",
+      "categories": "Categories",
+      "preview": "Preview",
+      "question": "Question {{number}}",
+      "loading": "Loading name …"
+    },
+    "discardDialog": {
+      "title": "Discard changes?",
+      "message": "Your changes in this form will not be saved.",
+      "confirm": "Discard",
+      "cancel": "Keep editing"
     }
   }
 }

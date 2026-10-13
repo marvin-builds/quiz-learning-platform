@@ -46,7 +46,7 @@ export async function fetchCategoryWithQuizzes(categoryId: string) {
 }
 
 /**
- * The quiz with its category and number of questions, or null when it doesn't exist or is
+ * The quiz with its category (id and name) and number of questions, or null when it doesn't exist or is
  * hidden. The questions themselves are read once an attempt has started.
  */
 export async function fetchQuiz(quizId: string) {
@@ -57,15 +57,15 @@ export async function fetchQuiz(quizId: string) {
   // category is unpublished.
   const { data, error } = await supabase
     .from('quizzes')
-    .select('id, category_id, title, description, questions(id), categories!inner(published)')
+    .select('id, category_id, title, description, questions(id), categories!inner(name, published)')
     .eq('id', quizId)
     .eq('published', true)
     .eq('categories.published', true)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  const { questions, categories: _category, ...quiz } = data;
-  return { ...quiz, questionCount: questions.length };
+  const { questions, categories: category, ...quiz } = data;
+  return { ...quiz, categoryName: category.name, questionCount: questions.length };
 }
 
 /**

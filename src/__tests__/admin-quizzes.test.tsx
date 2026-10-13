@@ -918,7 +918,12 @@ describe('quiz list (/admin/categories/<categoryId>)', () => {
     await fireEvent.press(await findControl(text('admin.quizzes.create')));
 
     await waitFor(() => expect(result.getPathname()).toBe(newUrl(GEOGRAFIE)));
-    expect(await screen.findByText(text('admin.quizzes.form.createTitle'))).toBeOnTheScreen();
+    // #116 re-spec: was `findByText(...)`. The admin header's breadcrumb now
+    // repeats this title as its current segment, so the query is scoped to the
+    // screen's own heading; it still proves the create form opened.
+    expect(
+      await screen.findByRole('heading', { name: text('admin.quizzes.form.createTitle') }),
+    ).toBeOnTheScreen();
   });
 
   it('opens the edit form of a quiz at /admin/quizzes/<quizId>/edit', async () => {
@@ -930,7 +935,12 @@ describe('quiz list (/admin/categories/<categoryId>)', () => {
     );
 
     await waitFor(() => expect(result.getPathname()).toBe(editUrl(FLUESSE)));
-    expect(await screen.findByText(text('admin.quizzes.form.editTitle'))).toBeOnTheScreen();
+    // #116 re-spec: was `findByText(...)`. The admin header's breadcrumb now
+    // repeats this title as its current segment, so the query is scoped to the
+    // screen's own heading; it still proves the edit form opened.
+    expect(
+      await screen.findByRole('heading', { name: text('admin.quizzes.form.editTitle') }),
+    ).toBeOnTheScreen();
   });
 
   it('opens the question list of a quiz at /admin/quizzes/<quizId>', async () => {

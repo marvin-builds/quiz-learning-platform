@@ -45,7 +45,15 @@ export default function QuizPreviewScreen() {
   const title = list.data ? list.data.quiz.title : t('admin.preview.marker');
 
   return (
-    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="px-4 py-8">
+    // A tab stop, so the keyboard can scroll a long question that holds no
+    // control (the last one has no "next" button) below the header.
+    <ScrollView
+      className="flex-1 bg-gray-50"
+      contentContainerClassName="px-4 py-8"
+      tabIndex={0}
+      role="region"
+      aria-label={title}
+    >
       <PageTitle title={title} />
       <View className="mx-auto w-full max-w-2xl gap-4">
         <Text className="rounded-lg bg-amber-100 px-3 py-2 text-base font-semibold text-amber-900">

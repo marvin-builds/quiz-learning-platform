@@ -1246,7 +1246,12 @@ describe('question list (/admin/quizzes/<quizId>)', () => {
     await fireEvent.press(await findControl(text('admin.questions.create')));
 
     await waitFor(() => expect(result.getPathname()).toBe(newUrl(HAUPTSTAEDTE)));
-    expect(await screen.findByText(text('admin.questions.form.createTitle'))).toBeOnTheScreen();
+    // #116 re-spec: was `findByText(...)`. The admin header's breadcrumb now
+    // repeats this title as its current segment, so the query is scoped to the
+    // screen's own heading; it still proves the create form opened.
+    expect(
+      await screen.findByRole('heading', { name: text('admin.questions.form.createTitle') }),
+    ).toBeOnTheScreen();
   });
 
   it('opens the edit form of a question at /admin/quizzes/<quizId>/questions/<questionId>', async () => {
