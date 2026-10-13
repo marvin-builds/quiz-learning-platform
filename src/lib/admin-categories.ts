@@ -11,12 +11,13 @@ import type { TablesInsert } from '@/types/database';
 export const adminCategoriesKey = ['admin', 'categories'] as const;
 export const adminCategoryKey = (id: string) => [...adminCategoriesKey, id] as const;
 
-/** Every category, published or not, by sort_order. */
+/** Every category, published or not, by sort_order and then id, like the learner's list. */
 export async function fetchAdminCategories() {
   const { data, error } = await supabase
     .from('categories')
     .select('id, name, description, sort_order, published')
-    .order('sort_order', { ascending: true });
+    .order('sort_order', { ascending: true })
+    .order('id', { ascending: true });
   if (error) throw error;
   return data;
 }
@@ -57,4 +58,14 @@ export async function deleteCategory(id: string) {
   const { data, error } = await supabase.from('categories').delete().eq('id', id).select('id');
   if (error) throw error;
   requireWritten(data);
+}
+
+/**
+ * Puts the categories in the order of `ids`, which must name every category
+ * once: reorder_categories() refuses a stale or partial list and changes
+ * nothing.
+ */
+export async function reorderCategories(ids: string[]) {
+  const { error } = await supabase.rpc('reorder_categories', { category_ids: ids });
+  if (error) throw error;
 }

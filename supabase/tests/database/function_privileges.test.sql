@@ -91,6 +91,11 @@ select set_eq(
 -- image_alt (two trailing parameters) and each answer's (in the answers
 -- payload); the six-argument overload is dropped, not left behind
 -- (save_question_images.test.sql).
+-- Re-spec (#84): reorder_categories(), reorder_quizzes() and
+-- reorder_questions() are the admin's one-call reorders of a list's
+-- sort_order. Security definer (sort_order has no column grant), guarded by
+-- private.is_admin(), refused to everyone else; they return nothing, so no
+-- solution can leak through them (reorder_*.test.sql).
 select set_eq(
   $$ select signature from pg_temp.executable_by_authenticated $$,
   $$ values
@@ -104,7 +109,10 @@ select set_eq(
        ('public.submit_answer(uuid, uuid, uuid[])'),
        ('public.admin_question(uuid)'),
        ('public.admin_answers(uuid)'),
-       ('public.save_question(uuid, uuid, text, text, boolean, jsonb, text, text)') $$,
+       ('public.save_question(uuid, uuid, text, text, boolean, jsonb, text, text)'),
+       ('public.reorder_categories(uuid[])'),
+       ('public.reorder_quizzes(uuid, uuid[])'),
+       ('public.reorder_questions(uuid, uuid[])') $$,
   'authenticated can execute exactly the allow-listed functions'
 );
 
@@ -189,7 +197,10 @@ select results_eq(
       ('public.submit_answer(uuid, uuid, uuid[])'),
       ('public.admin_question(uuid)'),
       ('public.admin_answers(uuid)'),
-      ('public.save_question(uuid, uuid, text, text, boolean, jsonb, text, text)')
+      ('public.save_question(uuid, uuid, text, text, boolean, jsonb, text, text)'),
+      ('public.reorder_categories(uuid[])'),
+      ('public.reorder_quizzes(uuid, uuid[])'),
+      ('public.reorder_questions(uuid, uuid[])')
   $$,
   $$ values ('public.function_privileges_authenticated_probe()'::text) $$,
   'a function granted to authenticated shows up outside its allow-list'

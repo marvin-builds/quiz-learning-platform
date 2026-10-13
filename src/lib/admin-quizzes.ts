@@ -16,7 +16,7 @@ export const adminQuizKey = (id: string) => [...adminKey, 'quizzes', id] as cons
 export const adminCategoryQuizzesKey = (categoryId: string) =>
   [...adminCategoryKey(categoryId), 'quizzes'] as const;
 
-/** A category and its quizzes, published or not, by sort_order; null when the category doesn't exist. */
+/** A category and its quizzes, published or not, by sort_order and then id; null when the category doesn't exist. */
 export async function fetchCategoryQuizzes(categoryId: string) {
   if (!isUuid(categoryId)) return null;
   const [category, quizzes] = await Promise.all([
@@ -25,7 +25,8 @@ export async function fetchCategoryQuizzes(categoryId: string) {
       .from('quizzes')
       .select('id, title, description, sort_order, published')
       .eq('category_id', categoryId)
-      .order('sort_order', { ascending: true }),
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true }),
   ]);
   if (quizzes.error) throw quizzes.error;
   return category && { category, quizzes: quizzes.data };
@@ -61,4 +62,13 @@ export async function deleteQuiz(id: string) {
   const { data, error } = await supabase.from('quizzes').delete().eq('id', id).select('id');
   if (error) throw error;
   requireWritten(data);
+}
+
+/** Puts a category's quizzes in the order of `ids`, all of them (see reorderCategories). */
+export async function reorderQuizzes(categoryId: string, ids: string[]) {
+  const { error } = await supabase.rpc('reorder_quizzes', {
+    category_id: categoryId,
+    quiz_ids: ids,
+  });
+  if (error) throw error;
 }

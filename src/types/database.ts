@@ -296,6 +296,9 @@ export type Database = {
         }[];
       };
       health_check: { Args: Record<PropertyKey, never>; Returns: string };
+      reorder_categories: { Args: { category_ids: string[] }; Returns: undefined };
+      reorder_questions: { Args: { question_ids: string[]; quiz_id: string }; Returns: undefined };
+      reorder_quizzes: { Args: { category_id: string; quiz_ids: string[] }; Returns: undefined };
       save_question: {
         Args: {
           answers: Json;

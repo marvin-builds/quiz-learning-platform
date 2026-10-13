@@ -26,10 +26,40 @@ export function RowAction({
       aria-label={label}
       disabled={disabled}
       onPress={onPress}
-      className={`max-w-full rounded-lg border px-3 py-2 ${destructive ? 'border-red-700' : 'border-gray-500'}`}
+      className={`max-w-full rounded-lg border px-3 py-2 ${destructive ? 'border-red-700' : 'border-gray-500'} ${disabled ? 'opacity-50' : ''}`}
     >
       <Text className={`text-base ${destructive ? 'text-red-700' : 'text-gray-900'}`}>{label}</Text>
     </Pressable>
+  );
+}
+
+/**
+ * A row's move-up and move-down buttons at `index` of `count` rows: buttons,
+ * so they work by keyboard and screen reader. The first row can't go up and
+ * the last can't go down; those stay visible, disabled.
+ */
+export function MoveActions({
+  index,
+  count,
+  upLabel,
+  downLabel,
+  onMove,
+}: {
+  index: number;
+  count: number;
+  upLabel: string;
+  downLabel: string;
+  onMove: (from: number, to: number) => void;
+}) {
+  return (
+    <>
+      <RowAction label={upLabel} disabled={index === 0} onPress={() => onMove(index, index - 1)} />
+      <RowAction
+        label={downLabel}
+        disabled={index === count - 1}
+        onPress={() => onMove(index, index + 1)}
+      />
+    </>
   );
 }
 

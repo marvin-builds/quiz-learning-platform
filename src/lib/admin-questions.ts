@@ -20,7 +20,7 @@ export const adminAnswersKey = (questionId: string) =>
 export const adminQuizQuestionsKey = (quizId: string) =>
   [...adminQuizKey(quizId), 'questions'] as const;
 
-/** A quiz and its questions by sort_order, without explanations; null when the quiz doesn't exist. */
+/** A quiz and its questions by sort_order and then id, without explanations; null when the quiz doesn't exist. */
 export async function fetchQuizQuestions(quizId: string) {
   if (!isUuid(quizId)) return null;
   const [quiz, questions] = await Promise.all([
@@ -29,7 +29,8 @@ export async function fetchQuizQuestions(quizId: string) {
       .from('questions')
       .select('id, text, sort_order')
       .eq('quiz_id', quizId)
-      .order('sort_order', { ascending: true }),
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true }),
   ]);
   if (questions.error) throw questions.error;
   return quiz && { quiz, questions: questions.data };
@@ -74,6 +75,16 @@ export async function fetchAdminAnswers(questionId: string) {
       image_alt: image?.image_alt ?? null,
     };
   });
+}
+
+/**
+ * One question as the preview shows it: its text, image, explanation and
+ * answers with is_correct, through admin_question() and admin_answers();
+ * null when it doesn't exist.
+ */
+export async function fetchPreviewQuestion(id: string) {
+  const [question, answers] = await Promise.all([fetchAdminQuestion(id), fetchAdminAnswers(id)]);
+  return question && { ...question, answers };
 }
 
 /**
@@ -162,4 +173,10 @@ export async function deleteQuestion(id: string) {
   const { data, error } = await supabase.from('questions').delete().eq('id', id).select('id');
   if (error) throw error;
   requireWritten(data);
+}
+
+/** Puts a quiz's questions in the order of `ids`, all of them (see reorderCategories). */
+export async function reorderQuestions(quizId: string, ids: string[]) {
+  const { error } = await supabase.rpc('reorder_questions', { quiz_id: quizId, question_ids: ids });
+  if (error) throw error;
 }
