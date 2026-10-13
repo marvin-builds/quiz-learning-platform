@@ -98,7 +98,8 @@ export default function AdminQuestionsScreen() {
               href={`/admin/quizzes/${quizId}/questions/new`}
             />
             <RowLink
-              label={t('admin.questions.preview', { name: list.data.quiz.title })}
+              label={t('admin.rowActions.preview')}
+              name={t('admin.questions.preview', { name: list.data.quiz.title })}
               href={`/admin/quizzes/${quizId}/preview`}
             />
             {remove.isError ? (
@@ -123,19 +124,21 @@ export default function AdminQuestionsScreen() {
                   >
                     <Text className="text-lg font-semibold text-gray-900">{question.text}</Text>
                     <View className="flex-row flex-wrap gap-2">
+                      <RowLink
+                        label={t('admin.rowActions.edit')}
+                        name={t('admin.questions.actions.edit', { name: question.text })}
+                        href={`/admin/quizzes/${quizId}/questions/${question.id}`}
+                      />
                       <MoveActions
                         index={index}
                         count={questions.length}
-                        upLabel={t('admin.questions.actions.moveUp', { name: question.text })}
-                        downLabel={t('admin.questions.actions.moveDown', { name: question.text })}
+                        upName={t('admin.questions.actions.moveUp', { name: question.text })}
+                        downName={t('admin.questions.actions.moveDown', { name: question.text })}
                         onMove={move}
                       />
-                      <RowLink
-                        label={t('admin.questions.actions.edit', { name: question.text })}
-                        href={`/admin/quizzes/${quizId}/questions/${question.id}`}
-                      />
                       <RowAction
-                        label={t('admin.questions.actions.delete', { name: question.text })}
+                        label={t('admin.rowActions.delete')}
+                        name={t('admin.questions.actions.delete', { name: question.text })}
                         disabled={deleting.includes(question.id)}
                         onPress={() => setToDelete(question)}
                         destructive

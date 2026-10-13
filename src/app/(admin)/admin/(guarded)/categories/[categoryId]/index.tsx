@@ -192,23 +192,24 @@ function QuizRow({
         />
       </View>
       <View className="flex-row flex-wrap gap-2">
-        <MoveActions
-          index={index}
-          count={count}
-          upLabel={t('admin.quizzes.actions.moveUp', { name })}
-          downLabel={t('admin.quizzes.actions.moveDown', { name })}
-          onMove={onMove}
-        />
         <RowLink
-          label={t('admin.quizzes.actions.questions', { name })}
+          label={t('admin.rowActions.questions')}
+          name={t('admin.quizzes.actions.questions', { name })}
           href={`/admin/quizzes/${quiz.id}`}
         />
         <RowLink
-          label={t('admin.quizzes.actions.edit', { name })}
+          label={t('admin.rowActions.preview')}
+          name={t('admin.quizzes.actions.preview', { name })}
+          href={`/admin/quizzes/${quiz.id}/preview`}
+        />
+        <RowLink
+          label={t('admin.rowActions.edit')}
+          name={t('admin.quizzes.actions.edit', { name })}
           href={`/admin/quizzes/${quiz.id}/edit`}
         />
         <RowAction
-          label={
+          label={quiz.published ? t('admin.rowActions.unpublish') : t('admin.rowActions.publish')}
+          name={
             quiz.published
               ? t('admin.quizzes.actions.unpublish', { name })
               : t('admin.quizzes.actions.publish', { name })
@@ -216,8 +217,16 @@ function QuizRow({
           disabled={toggling || deleting}
           onPress={onToggle}
         />
+        <MoveActions
+          index={index}
+          count={count}
+          upName={t('admin.quizzes.actions.moveUp', { name })}
+          downName={t('admin.quizzes.actions.moveDown', { name })}
+          onMove={onMove}
+        />
         <RowAction
-          label={t('admin.quizzes.actions.delete', { name })}
+          label={t('admin.rowActions.delete')}
+          name={t('admin.quizzes.actions.delete', { name })}
           disabled={deleting || toggling}
           onPress={onDelete}
           destructive
