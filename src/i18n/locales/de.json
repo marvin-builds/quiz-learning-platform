@@ -80,9 +80,7 @@
       "retry": "Erneut versuchen"
     },
     "dashboard": {
-      "title": "Admin-Bereich",
-      "categories": "Kategorien",
-      "signOut": "Abmelden"
+      "title": "Admin-Bereich"
     },
     "categories": {
       "title": "Kategorien",
@@ -284,6 +282,15 @@
       "cancel": "Weiterspielen"
     },
     "admin": "Verwaltung",
+    "toApp": "Zur App",
+    "signOut": "Abmelden",
+    "breadcrumb": {
+      "label": "Brotkrümelnavigation",
+      "categories": "Kategorien",
+      "preview": "Vorschau",
+      "question": "Frage {{number}}",
+      "loading": "Name wird geladen …"
+    },
     "discardDialog": {
       "title": "Änderungen verwerfen?",
       "message": "Deine Änderungen in diesem Formular werden nicht gespeichert.",
