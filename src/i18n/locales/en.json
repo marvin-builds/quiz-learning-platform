@@ -80,9 +80,7 @@
       "retry": "Try again"
     },
     "dashboard": {
-      "title": "Admin area",
-      "categories": "Categories",
-      "signOut": "Sign out"
+      "title": "Admin area"
     },
     "categories": {
       "title": "Categories",
@@ -284,6 +282,15 @@
       "cancel": "Keep playing"
     },
     "admin": "Admin",
+    "toApp": "To the app",
+    "signOut": "Sign out",
+    "breadcrumb": {
+      "label": "Breadcrumb",
+      "categories": "Categories",
+      "preview": "Preview",
+      "question": "Question {{number}}",
+      "loading": "Loading name …"
+    },
     "discardDialog": {
       "title": "Discard changes?",
       "message": "Your changes in this form will not be saved.",

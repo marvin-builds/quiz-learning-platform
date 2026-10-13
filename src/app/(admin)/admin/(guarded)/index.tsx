@@ -1,26 +1,6 @@
-import { Link } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { ScrollView, Text, View } from 'react-native';
+import { Redirect } from 'expo-router';
 
-import { PageTitle } from '@/components/page-title';
-import { SignOutButton } from '@/components/sign-out-button';
-import { ListCard } from '@/components/status';
-
-export default function AdminDashboardScreen() {
-  const { t } = useTranslation();
-
-  return (
-    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="px-4 py-8">
-      <PageTitle title={t('admin.dashboard.title')} />
-      <View className="mx-auto w-full max-w-2xl gap-6">
-        <Text role="heading" className="text-2xl font-bold text-gray-900">
-          {t('admin.dashboard.title')}
-        </Text>
-        <Link href="/admin/categories" asChild>
-          <ListCard title={t('admin.dashboard.categories')} description={null} />
-        </Link>
-        <SignOutButton />
-      </View>
-    </ScrollView>
-  );
+// The admin start is the category list; /admin has no page of its own.
+export default function AdminStart() {
+  return <Redirect href="/admin/categories" />;
 }

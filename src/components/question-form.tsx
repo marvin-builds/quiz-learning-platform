@@ -3,6 +3,7 @@ import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 
+import { useFormChanged } from '@/components/admin-header';
 import { ErrorText, MoveActions, RowAction } from '@/components/admin-list';
 import { CheckboxField } from '@/components/checkbox-field';
 import { ImageField } from '@/components/image-field';
@@ -79,6 +80,8 @@ export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
   // keyName: the answers have an `id` of their own.
   const answers = useFieldArray({ control, name: 'answers', keyName: 'key' });
   const { errors } = formState;
+  // Leaving through the header or breadcrumb asks while the input differs from the loaded values.
+  useFormChanged(formState.isDirty);
   const textError = errors.text?.message;
   const answersError = errors.answers?.root?.message ?? errors.answers?.message;
 
@@ -97,19 +100,25 @@ export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
     file: (image?.image_file as ImageFile | null | undefined) ?? null,
     alt: image?.image_alt ?? null,
     onPicked: (path: string, file: ImageFile) => {
-      setValue(`${prefix}image_path`, path);
-      setValue(`${prefix}image_file`, file);
+      setValue(`${prefix}image_path`, path, { shouldDirty: true });
+      setValue(`${prefix}image_file`, file, { shouldDirty: true });
     },
     // The alt text check reports on image_alt: after a save attempt, check
     // it again when the image or its alt text changes, so no outdated
     // message stays.
     onRemove: () => {
-      setValue(`${prefix}image_path`, null);
-      setValue(`${prefix}image_file`, null);
-      setValue(`${prefix}image_alt`, null, { shouldValidate: formState.isSubmitted });
+      setValue(`${prefix}image_path`, null, { shouldDirty: true });
+      setValue(`${prefix}image_file`, null, { shouldDirty: true });
+      setValue(`${prefix}image_alt`, null, {
+        shouldDirty: true,
+        shouldValidate: formState.isSubmitted,
+      });
     },
     onAltChange: (alt: string) =>
-      setValue(`${prefix}image_alt`, alt, { shouldValidate: formState.isSubmitted }),
+      setValue(`${prefix}image_alt`, alt, {
+        shouldDirty: true,
+        shouldValidate: formState.isSubmitted,
+      }),
   });
   const errorText = (message: string | undefined) => (message ? t(message as ErrorKey) : undefined);
 
