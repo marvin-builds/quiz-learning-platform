@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { router, usePathname } from 'expo-router';
+import { type Href, router, usePathname } from 'expo-router';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
@@ -68,7 +68,7 @@ function QuizBar({ quizId, finished }: { quizId: string; finished: boolean }) {
   const { t } = useTranslation();
   // The quiz screen's own read.
   const quiz = useQuery({ queryKey: ['quiz', quizId], queryFn: () => fetchQuiz(quizId) });
-  const categoryHref = quiz.data ? `/categories/${quiz.data.category_id}` : '/';
+  const categoryHref: Href = quiz.data ? `/categories/${quiz.data.category_id}` : '/';
   return (
     <Bar title={quiz.data?.title}>
       {finished && quiz.data ? (
