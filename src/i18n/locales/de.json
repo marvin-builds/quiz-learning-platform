@@ -272,5 +272,23 @@
       "back": "Zurück zu den Kategorien",
       "correctAnswer": "Richtige Antwort: {{answer}}"
     }
+  },
+  "nav": {
+    "appName": "Quiz-Lernplattform",
+    "categories": "Kategorien",
+    "leaveQuiz": "Quiz verlassen",
+    "leaveDialog": {
+      "title": "Quiz verlassen?",
+      "message": "Dein bisheriger Fortschritt in diesem Quiz geht verloren.",
+      "confirm": "Verlassen",
+      "cancel": "Weiterspielen"
+    },
+    "admin": "Verwaltung",
+    "discardDialog": {
+      "title": "Änderungen verwerfen?",
+      "message": "Deine Änderungen in diesem Formular werden nicht gespeichert.",
+      "confirm": "Verwerfen",
+      "cancel": "Weiter bearbeiten"
+    }
   }
 }

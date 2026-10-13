@@ -272,5 +272,23 @@
       "back": "Back to the categories",
       "correctAnswer": "Correct answer: {{answer}}"
     }
+  },
+  "nav": {
+    "appName": "Quiz Learning Platform",
+    "categories": "Categories",
+    "leaveQuiz": "Leave quiz",
+    "leaveDialog": {
+      "title": "Leave the quiz?",
+      "message": "Your progress in this quiz will be lost.",
+      "confirm": "Leave",
+      "cancel": "Keep playing"
+    },
+    "admin": "Admin",
+    "discardDialog": {
+      "title": "Discard changes?",
+      "message": "Your changes in this form will not be saved.",
+      "confirm": "Discard",
+      "cancel": "Keep editing"
+    }
   }
 }

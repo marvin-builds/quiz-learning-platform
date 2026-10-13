@@ -1,4 +1,5 @@
 import { isAuthApiError, type Session } from '@supabase/supabase-js';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
@@ -36,6 +37,22 @@ export async function fetchIsAdmin(userId: string): Promise<boolean> {
     .maybeSingle();
   if (error) throw error;
   return data?.role === 'admin';
+}
+
+/**
+ * Whether the current user is an admin. Only a signed-in, non-anonymous user
+ * can be one, so nobody else's profile is read. Keyed by user, so a sign-in
+ * or sign-out never reuses another user's role.
+ */
+export function useIsAdmin() {
+  const { ready, session } = useAuthSession();
+  const userId = session && !session.user.is_anonymous ? session.user.id : null;
+  const isAdmin = useQuery({
+    queryKey: ['isAdmin', userId],
+    queryFn: () => fetchIsAdmin(userId!),
+    enabled: userId !== null,
+  });
+  return { ready, userId, isAdmin };
 }
 
 /**
