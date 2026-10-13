@@ -162,23 +162,21 @@ function CategoryRow({
         />
       </View>
       <View className="flex-row flex-wrap gap-2">
-        <MoveActions
-          index={index}
-          count={count}
-          upLabel={t('admin.categories.actions.moveUp', { name })}
-          downLabel={t('admin.categories.actions.moveDown', { name })}
-          onMove={onMove}
-        />
         <RowLink
-          label={t('admin.categories.actions.quizzes', { name })}
+          label={t('admin.rowActions.quizzes')}
+          name={t('admin.categories.actions.quizzes', { name })}
           href={`/admin/categories/${category.id}`}
         />
         <RowLink
-          label={t('admin.categories.actions.edit', { name })}
+          label={t('admin.rowActions.edit')}
+          name={t('admin.categories.actions.edit', { name })}
           href={`/admin/categories/${category.id}/edit`}
         />
         <RowAction
           label={
+            category.published ? t('admin.rowActions.unpublish') : t('admin.rowActions.publish')
+          }
+          name={
             category.published
               ? t('admin.categories.actions.unpublish', { name })
               : t('admin.categories.actions.publish', { name })
@@ -186,8 +184,16 @@ function CategoryRow({
           disabled={toggling || deleting}
           onPress={onToggle}
         />
+        <MoveActions
+          index={index}
+          count={count}
+          upName={t('admin.categories.actions.moveUp', { name })}
+          downName={t('admin.categories.actions.moveDown', { name })}
+          onMove={onMove}
+        />
         <RowAction
-          label={t('admin.categories.actions.delete', { name })}
+          label={t('admin.rowActions.delete')}
+          name={t('admin.categories.actions.delete', { name })}
           disabled={deleting}
           onPress={onDelete}
           destructive

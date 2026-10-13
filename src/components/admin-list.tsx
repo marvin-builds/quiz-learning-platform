@@ -1,21 +1,25 @@
 import { Link, type Href } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 
 import { StatusMessage } from '@/components/status';
 
 // The pieces the admin's list and form screens share.
 
-// A row's controls repeat the row's name, which can be long: max-w-full lets
-// a label wrap inside the card instead of widening the page.
+// A row's controls show a short label ("Bearbeiten") and are named
+// "<label>: <row>" (`name`), so the actions of different rows differ for a
+// screen reader and the name starts with what a sighted user reads.
 
-/** A row's action, named with the row so the actions of different rows differ. */
+/** A row's action: `label` is shown, `name` (default: the label) is announced. */
 export function RowAction({
   label,
+  name = label,
   onPress,
   disabled = false,
   destructive = false,
 }: {
   label: string;
+  name?: string;
   onPress: () => void;
   disabled?: boolean;
   destructive?: boolean;
@@ -23,7 +27,7 @@ export function RowAction({
   return (
     <Pressable
       role="button"
-      aria-label={label}
+      aria-label={name}
       disabled={disabled}
       onPress={onPress}
       className={`max-w-full rounded-lg border px-3 py-2 ${destructive ? 'border-red-700' : 'border-gray-500'} ${disabled ? 'opacity-50' : ''}`}
@@ -41,21 +45,28 @@ export function RowAction({
 export function MoveActions({
   index,
   count,
-  upLabel,
-  downLabel,
+  upName,
+  downName,
   onMove,
 }: {
   index: number;
   count: number;
-  upLabel: string;
-  downLabel: string;
+  upName: string;
+  downName: string;
   onMove: (from: number, to: number) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
-      <RowAction label={upLabel} disabled={index === 0} onPress={() => onMove(index, index - 1)} />
       <RowAction
-        label={downLabel}
+        label={t('admin.rowActions.moveUp')}
+        name={upName}
+        disabled={index === 0}
+        onPress={() => onMove(index, index - 1)}
+      />
+      <RowAction
+        label={t('admin.rowActions.moveDown')}
+        name={downName}
         disabled={index === count - 1}
         onPress={() => onMove(index, index + 1)}
       />
@@ -63,13 +74,13 @@ export function MoveActions({
   );
 }
 
-/** A row's link to another screen, styled like its actions. */
-export function RowLink({ label, href }: { label: string; href: Href }) {
+/** A row's link to another screen, styled and named like its actions. */
+export function RowLink({ label, name, href }: { label: string; name: string; href: Href }) {
   return (
     <Link href={href} asChild>
       <Pressable
         role="link"
-        aria-label={label}
+        aria-label={name}
         className="max-w-full rounded-lg border border-gray-500 px-3 py-2"
       >
         <Text className="text-base text-gray-900">{label}</Text>

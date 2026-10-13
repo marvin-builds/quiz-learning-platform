@@ -82,6 +82,18 @@
     "dashboard": {
       "title": "Admin-Bereich"
     },
+    "rowActions": {
+      "quizzes": "Quizze",
+      "questions": "Fragen",
+      "preview": "Vorschau",
+      "edit": "Bearbeiten",
+      "publish": "Veröffentlichen",
+      "unpublish": "Zurückziehen",
+      "moveUp": "↑ Nach oben",
+      "moveDown": "↓ Nach unten",
+      "delete": "Löschen",
+      "remove": "Entfernen"
+    },
     "categories": {
       "title": "Kategorien",
       "loading": "Kategorien werden geladen …",
@@ -94,13 +106,13 @@
         "draft": "Entwurf"
       },
       "actions": {
-        "edit": "{{name}} bearbeiten",
-        "quizzes": "Quizze in {{name}}",
-        "publish": "{{name}} veröffentlichen",
-        "unpublish": "{{name}} zurückziehen",
-        "delete": "{{name}} löschen",
-        "moveUp": "{{name}} nach oben verschieben",
-        "moveDown": "{{name}} nach unten verschieben"
+        "edit": "Bearbeiten: {{name}}",
+        "quizzes": "Quizze: {{name}}",
+        "publish": "Veröffentlichen: {{name}}",
+        "unpublish": "Zurückziehen: {{name}}",
+        "delete": "Löschen: {{name}}",
+        "moveUp": "Nach oben: {{name}}",
+        "moveDown": "Nach unten: {{name}}"
       },
       "errors": {
         "toggle": "Der Status konnte nicht geändert werden. Versuche es erneut.",
@@ -145,13 +157,14 @@
         "draft": "Entwurf"
       },
       "actions": {
-        "questions": "Fragen von {{name}}",
-        "edit": "{{name}} bearbeiten",
-        "publish": "{{name}} veröffentlichen",
-        "unpublish": "{{name}} zurückziehen",
-        "delete": "{{name}} löschen",
-        "moveUp": "{{name}} nach oben verschieben",
-        "moveDown": "{{name}} nach unten verschieben"
+        "questions": "Fragen: {{name}}",
+        "preview": "Vorschau: {{name}}",
+        "edit": "Bearbeiten: {{name}}",
+        "publish": "Veröffentlichen: {{name}}",
+        "unpublish": "Zurückziehen: {{name}}",
+        "delete": "Löschen: {{name}}",
+        "moveUp": "Nach oben: {{name}}",
+        "moveDown": "Nach unten: {{name}}"
       },
       "errors": {
         "toggle": "Der Status konnte nicht geändert werden. Versuche es erneut.",
@@ -192,12 +205,12 @@
       "notFound": "Dieses Quiz gibt es nicht (mehr).",
       "back": "Zurück zu den Kategorien",
       "create": "Neue Frage",
-      "preview": "Vorschau von {{name}}",
+      "preview": "Vorschau: {{name}}",
       "actions": {
-        "edit": "{{name}} bearbeiten",
-        "delete": "{{name}} löschen",
-        "moveUp": "{{name}} nach oben verschieben",
-        "moveDown": "{{name}} nach unten verschieben"
+        "edit": "Bearbeiten: {{name}}",
+        "delete": "Löschen: {{name}}",
+        "moveUp": "Nach oben: {{name}}",
+        "moveDown": "Nach unten: {{name}}"
       },
       "errors": {
         "delete": "Die Frage konnte nicht gelöscht werden. Versuche es erneut.",
@@ -222,14 +235,14 @@
           "title": "Antworten",
           "text": "Antwort {{number}}",
           "correct": "Antwort {{number}} ist richtig",
-          "remove": "Antwort {{number}} entfernen",
-          "moveUp": "Antwort {{number}} nach oben verschieben",
-          "moveDown": "Antwort {{number}} nach unten verschieben",
+          "remove": "Entfernen: Antwort {{number}}",
+          "moveUp": "Nach oben: Antwort {{number}}",
+          "moveDown": "Nach unten: Antwort {{number}}",
           "add": "Antwort hinzufügen",
           "image": {
-            "pick": "Bild für Antwort {{number}} auswählen",
-            "replace": "Bild von Antwort {{number}} ersetzen",
-            "remove": "Bild von Antwort {{number}} entfernen",
+            "pick": "Bild auswählen: Antwort {{number}}",
+            "replace": "Bild ersetzen: Antwort {{number}}",
+            "remove": "Bild entfernen: Antwort {{number}}",
             "alt": "Alternativtext des Bildes von Antwort {{number}}",
             "preview": "Vorschau des Bildes von Antwort {{number}}"
           }
