@@ -1,6 +1,6 @@
 import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, View } from 'react-native';
 
@@ -34,7 +34,16 @@ export default function AdminQuestionsScreen() {
   const params = useLocalSearchParams<{ quizId: string; [IMAGES_LEFT_PARAM]?: string }>();
   const { quizId } = params;
   // A save that returned here left an image object it couldn't remove (#125).
-  const imagesLeft = params[IMAGES_LEFT_PARAM] === '1';
+  // The notice is kept in state and the parameter dropped, so a reload, a
+  // bookmark or the history doesn't show it again.
+  const navigation = useNavigation<{ replaceParams(params: { quizId: string }): void }>();
+  const imagesLeftParam = params[IMAGES_LEFT_PARAM];
+  const [imagesLeft, setImagesLeft] = useState(false);
+  if (imagesLeftParam === '1' && !imagesLeft) setImagesLeft(true);
+  useEffect(() => {
+    // setParams would only set it to undefined, which the URL still names.
+    if (imagesLeftParam !== undefined) navigation.replaceParams({ quizId });
+  }, [imagesLeftParam, navigation, quizId]);
   const queryClient = useQueryClient();
   const list = useQuery({
     queryKey: adminQuizQuestionsKey(quizId),
