@@ -155,7 +155,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          curl -fsS -X POST -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+          curl -sS --fail-with-body -X POST -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
             -H 'Content-Type: application/json' \
             "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/database/query" \
             -d "{\"query\": \"select id, public, file_size_limit, allowed_mime_types from storage.buckets where id = 'quiz-images'\"}" \
@@ -177,5 +177,5 @@ jobs:
             sleep 10
           done
           curl -fsS "https://small-quiz-poc.pages.dev/$entry" | grep -qF "$EXPO_PUBLIC_SUPABASE_URL"
-          test "$(curl -fsS -X POST "$EXPO_PUBLIC_SUPABASE_URL/rest/v1/rpc/health_check" \
+          test "$(curl -sS --fail-with-body -X POST "$EXPO_PUBLIC_SUPABASE_URL/rest/v1/rpc/health_check" \
             -H "apikey: $EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" -H 'Content-Type: application/json')" = '"ok"'
