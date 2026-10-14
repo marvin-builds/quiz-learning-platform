@@ -22,7 +22,7 @@ uses one shared client codebase and one backend, released in stages.
 |---|---|---|
 | Client | **Expo (React Native) + TypeScript + Expo Router** | One codebase for web, Android and iOS. Web output is real HTML, so SEO (a nice to have) comes almost free |
 | Backend | **Supabase** (hosted, EU/Frankfurt region, self-hostable later) | The data lives in Postgres, a normal SQL database I already know. Supabase adds login (including anonymous), file storage for images, row-level security and **Realtime** for future features such as live quizzes or leaderboards |
-| Admin | Screens **inside the same app**, shown only to users with `role = 'admin'` in `profiles` and enforced by row-level security, used in the web browser | One codebase and one login system; admin is just a role |
+| Admin | Screens **inside the same app**, shown only to users with `role = 'admin'` in `profiles` whose session is `aal2` (password and a TOTP second factor), enforced by row-level security, used in the web browser | One codebase and one login system; admin is just a role, guarded by a second factor |
 | Desktop | Later, by wrapping the web build with **Tauri** | Small effort, not part of the MVP |
 | Platform order | Web and admin first, then the Android and iOS store release from the same code | Fastest feedback; app store review comes once the content works |
 
@@ -69,6 +69,18 @@ Supabase: Postgres + row-level security · Auth · Storage (images) · Realtime 
   correct answers, the explanation and the points. Learners can't see the
   solutions in advance or fake a score, and no extra server code is needed
   (see the [ADR 0002 amendment](../adr/0002-supabase-backend.md#amendment-2026-10-03-answers-are-recorded-before-they-are-checked)).
+- Admin rights need `profiles.role = 'admin'` **and** an `aal2` session:
+  the password plus a TOTP code from an authenticator app (#122).
+  `private.is_admin()` checks both, so every admin policy, Storage policy
+  and admin function refuses an `aal1` (password-only) admin session like a
+  learner's. An admin without a verified factor enrolls one right after the
+  password sign-in; until then (the first sign-in, or after a reset) the
+  password alone (`aal1`) reaches only the enrollment screen, never admin
+  data. The app never offers enrolling another factor or removing one.
+- Recovery when an admin loses the authenticator: there are no recovery
+  codes; the owner deletes the admin's TOTP factor in the Supabase dashboard
+  (Authentication → Users → the user → remove the factor), and the admin
+  enrolls a new one at the next sign-in.
 - Admins have full write access, still without selecting the solution
   columns: the editor reads them through the admin-only functions
   `admin_question(question_id)` and `admin_answers(question_id)` and saves
@@ -128,7 +140,8 @@ phases are re-estimated there after each phase.
    - Server-recorded answers (`submit_answer`), explanation and result screen
    - Anonymous sign-in
 2. **Admin editor (about 3 weeks; re-estimated at 1 to 2 days of agent time):**
-   - Admin-guarded routes
+   - Admin-guarded routes; admins sign in with email + password and a TOTP
+     code (second factor, `aal2`)
    - Create, edit and delete categories, quizzes, questions and answers
    - Image upload to Storage, reordering, publish toggle and preview
 3. **Accounts and progress (about 2 weeks):**
