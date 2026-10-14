@@ -38,6 +38,8 @@ jobs:
           EXPO_NO_DOTENV: '1'
           # The build plugin from package-lock.json; unset, eas-cli downloads it at run time.
           EAS_LOCAL_BUILD_PLUGIN_PATH: ${{ github.workspace }}/node_modules/.bin/eas-cli-local-build-plugin
+          # Else the plugin's setup downloads expo-doctor (not in the lockfile) with npx.
+          EAS_BUILD_DISABLE_EXPO_DOCTOR_STEP: '1'
         run: |
           # An empty key would build an APK that fails on start.
           test -n "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" || { echo "SUPABASE_PUBLISHABLE_KEY is not set"; exit 1; }
