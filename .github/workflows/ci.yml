@@ -17,7 +17,8 @@ concurrency:
 
 env:
   # Not a credential: the ref is part of the public Supabase URL. It must match
-  # [remotes.production] in supabase/config.toml.
+  # [remotes.production] in supabase/config.toml, and clean-up-images.yml has
+  # its own copy.
   SUPABASE_PROJECT_REF: kiywcqhicsesgknlwjyy
 
 jobs:

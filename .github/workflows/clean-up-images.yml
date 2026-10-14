@@ -15,6 +15,12 @@ concurrency:
   group: clean-up-images
   cancel-in-progress: false
 
+env:
+  # Not a credential: the ref is part of the public Supabase URL. Keep it equal
+  # to SUPABASE_PROJECT_REF in ci.yml and [remotes.production] in
+  # supabase/config.toml.
+  SUPABASE_PROJECT_REF: kiywcqhicsesgknlwjyy
+
 jobs:
   clean-up:
     name: Remove unreferenced images
@@ -29,6 +35,6 @@ jobs:
       # The secret key goes only to this step. It must match the URL's project.
       - name: Remove unreferenced images past the grace period
         env:
-          SUPABASE_URL: https://kiywcqhicsesgknlwjyy.supabase.co
+          SUPABASE_URL: https://${{ env.SUPABASE_PROJECT_REF }}.supabase.co
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: node scripts/clean-up-images.mjs
