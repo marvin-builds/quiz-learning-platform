@@ -1,0 +1,34 @@
+# Removes the quiz images no question or answer names any more, once they are
+# past the grace period (scripts/clean-up-images.mjs, #125). Runs daily and by
+# hand, never on pushes or PRs.
+name: Clean up images
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clean-up-images
+  cancel-in-progress: false
+
+jobs:
+  clean-up:
+    name: Remove unreferenced images
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      # The script needs no dependencies, so no npm install runs here.
+      # The secret key goes only to this step. It must match the URL's project.
+      - name: Remove unreferenced images past the grace period
+        env:
+          SUPABASE_URL: https://kiywcqhicsesgknlwjyy.supabase.co
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: node scripts/clean-up-images.mjs
