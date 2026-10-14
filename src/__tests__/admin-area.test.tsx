@@ -44,6 +44,16 @@ import { ensureSession } from '@/lib/session';
 //   read pending or fails it. Every other table answers with no rows.
 // The JWT metadata of the users below deliberately claims the opposite of
 // their profile, so a guard that trusts client-side metadata fails.
+//
+// Re-spec (#122): admin rights need a second factor. The password sign-in
+// gives an aal1 session; the admin, who has a verified TOTP factor like the
+// seed admin, then enters CODE and the session becomes aal2. So the
+// sign-in tests that reached the admin start enter the code after the
+// password (`enterCode`), and the sessions an admin starts with are aal2.
+// The fake's `auth.mfa` answers like supabase-js and GoTrue: the level from
+// the session, the verified factor, a challenge and a verify that accepts
+// CODE and reports MFA_CHALLENGE_VERIFIED. The checks are unchanged;
+// admin-mfa.test.tsx covers the second factor itself.
 
 // Reads a text from de.json or en.json by path, so keys that don't exist yet
 // fail at run time with their name instead of breaking the typecheck.
@@ -66,7 +76,8 @@ type User = {
   user_metadata: Record<string, unknown>;
   app_metadata: Record<string, unknown>;
 };
-type Session = { access_token: string; refresh_token: string; user: User };
+type Aal = 'aal1' | 'aal2';
+type Session = { access_token: string; refresh_token: string; user: User; aal: Aal };
 type PostgrestError = { message: string; code: string; details?: string; hint?: string };
 type Query = { table: string; select?: string; filters: [string, unknown][] };
 type Listener = (event: string, session: Session | null) => void;
@@ -104,9 +115,20 @@ const ACCOUNTS: Record<string, { password: string; user: User }> = {
   [LEARNER_EMAIL]: { password: LEARNER_PASSWORD, user: LEARNER },
 };
 
-function sessionOf(user: User): Session {
-  return { access_token: `token-${user.id}`, refresh_token: `refresh-${user.id}`, user };
+function sessionOf(user: User, aal: Aal = 'aal1'): Session {
+  return { access_token: `token-${user.id}`, refresh_token: `refresh-${user.id}`, user, aal };
 }
+
+const CODE = '246810';
+// The admin's verified TOTP factor, like the seed admin's.
+const ADMIN_FACTOR = {
+  id: 'f0000000-0000-4000-8000-0000000000aa',
+  factor_type: 'totp',
+  status: 'verified',
+  friendly_name: '',
+  created_at: '2026-10-01T00:00:00Z',
+  updated_at: '2026-10-01T00:00:00Z',
+};
 
 const mockAuth = {
   session: null as Session | null,
@@ -118,6 +140,7 @@ const mockAuth = {
   listeners: new Set<Listener>(),
 };
 const mockProfiles: Record<string, Role> = {};
+const mockChallenges = new Set<string>();
 const mockProfileRead: { state: 'ok' | 'pending' | { error: PostgrestError } } = { state: 'ok' };
 const mockQueries: Query[] = [];
 
@@ -212,6 +235,60 @@ const mockSupabase = {
       return {
         data: { subscription: { unsubscribe: () => mockAuth.listeners.delete(listener) } },
       };
+    },
+    mfa: {
+      getAuthenticatorAssuranceLevel: () => {
+        const session = mockAuth.session;
+        const current = session ? session.aal : null;
+        const next = session?.user.id === ADMIN.id ? 'aal2' : current;
+        return Promise.resolve({
+          data: { currentLevel: current, nextLevel: next, currentAuthenticationMethods: [] },
+          error: null,
+        });
+      },
+      listFactors: () => {
+        const totp = mockAuth.session?.user.id === ADMIN.id ? [ADMIN_FACTOR] : [];
+        return Promise.resolve({ data: { all: totp, totp, phone: [] }, error: null });
+      },
+      challenge: ({ factorId }: { factorId: string }) => {
+        if (factorId !== ADMIN_FACTOR.id || mockAuth.session?.user.id !== ADMIN.id) {
+          return Promise.resolve({
+            data: null,
+            error: new AuthApiError('Factor not found', 404, 'mfa_factor_not_found'),
+          });
+        }
+        const id = `c0000000-0000-4000-8000-${String(mockChallenges.size + 1).padStart(12, '0')}`;
+        mockChallenges.add(id);
+        return Promise.resolve({ data: { id, type: 'totp', expires_at: 0 }, error: null });
+      },
+      verify: (params: { factorId: string; challengeId: string; code: string }) => {
+        const session = mockAuth.session;
+        if (
+          !session ||
+          params.factorId !== ADMIN_FACTOR.id ||
+          !mockChallenges.has(params.challengeId)
+        ) {
+          return Promise.resolve({
+            data: null,
+            error: new AuthApiError('Factor not found', 404, 'mfa_factor_not_found'),
+          });
+        }
+        if (params.code !== CODE) {
+          return Promise.resolve({
+            data: null,
+            error: new AuthApiError('Invalid TOTP code entered', 422, 'mfa_verification_failed'),
+          });
+        }
+        mockChallenges.delete(params.challengeId);
+        mockAuth.session = sessionOf(session.user, 'aal2');
+        mockEmit('MFA_CHALLENGE_VERIFIED');
+        return Promise.resolve({ data: mockAuth.session, error: null });
+      },
+      challengeAndVerify: async (params: { factorId: string; code: string }) => {
+        const challenge = await mockSupabase.auth.mfa.challenge({ factorId: params.factorId });
+        if (challenge.error) return challenge;
+        return mockSupabase.auth.mfa.verify({ ...params, challengeId: challenge.data!.id });
+      },
     },
     signInWithPassword: async (credentials: { email: string; password: string }) => {
       mockAuth.passwordSignIns.push(credentials);
@@ -333,6 +410,12 @@ async function fillIn(email: string, password: string) {
 
 const submitButton = () => screen.getByRole('button', { name: text('admin.signIn.submit') });
 
+// Re-spec (#122): the second step of the admin's sign-in.
+async function enterCode() {
+  await fireEvent.changeText(await screen.findByLabelText(text('admin.mfa.code')), CODE);
+  await fireEvent.press(screen.getByRole('button', { name: text('admin.mfa.submit') }));
+}
+
 async function signIn(email: string, password: string) {
   await fillIn(email, password);
   await fireEvent.press(submitButton());
@@ -352,6 +435,7 @@ beforeEach(async () => {
   mockProfiles[ANONYMOUS.id] = 'learner';
   mockProfileRead.state = 'ok';
   mockQueries.length = 0;
+  mockChallenges.clear();
   await i18n.changeLanguage('de');
 });
 
@@ -418,6 +502,7 @@ describe('admin sign-in screen (/admin/sign-in)', () => {
 
     await fillIn(ADMIN_EMAIL, ADMIN_PASSWORD);
     await fireEvent(screen.getByLabelText(text('admin.signIn.password')), 'submitEditing');
+    await enterCode();
 
     expect(await screen.findByText(adminStart())).toBeOnTheScreen();
     expect(mockAuth.passwordSignIns).toEqual([{ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }]);
@@ -438,6 +523,7 @@ describe('admin sign-in screen (/admin/sign-in)', () => {
 
     expect(mockAuth.passwordSignIns).toHaveLength(1);
     pending.release();
+    await enterCode();
     expect(await screen.findByText(adminStart())).toBeOnTheScreen();
   });
 
@@ -446,6 +532,7 @@ describe('admin sign-in screen (/admin/sign-in)', () => {
     await screen.findByLabelText(text('admin.signIn.email'));
 
     await signIn(ADMIN_EMAIL, ADMIN_PASSWORD);
+    await enterCode();
 
     expect(await screen.findByText(adminStart())).toBeOnTheScreen();
     expect(result.getPathname()).toBe('/admin/categories');
@@ -473,6 +560,7 @@ describe('admin sign-in screen (/admin/sign-in)', () => {
     expect(mockAuth.passwordSignIns).toHaveLength(1);
 
     pending.release();
+    await enterCode();
     expect(await screen.findByText(adminStart())).toBeOnTheScreen();
     expect(mockAuth.passwordSignIns).toHaveLength(1);
   });
@@ -510,6 +598,7 @@ describe('admin sign-in screen (/admin/sign-in)', () => {
     await screen.findByText(text('admin.signIn.errors.invalidCredentials'));
 
     await signIn(ADMIN_EMAIL, ADMIN_PASSWORD);
+    await enterCode();
 
     expect(await screen.findByText(adminStart())).toBeOnTheScreen();
     expect(screen.queryByText(text('admin.signIn.errors.invalidCredentials'))).toBeNull();
@@ -551,7 +640,7 @@ describe('admin route guard (/admin)', () => {
   });
 
   it('lets an admin in, read from profiles.role and not from metadata', async () => {
-    mockAuth.session = sessionOf(ADMIN);
+    mockAuth.session = sessionOf(ADMIN, 'aal2');
 
     const result = await renderAt('/admin');
 
@@ -563,7 +652,7 @@ describe('admin route guard (/admin)', () => {
   });
 
   it('shows a loading state, not the admin start, while the role is being read', async () => {
-    mockAuth.session = sessionOf(ADMIN);
+    mockAuth.session = sessionOf(ADMIN, 'aal2');
     mockProfileRead.state = 'pending';
 
     await renderAt('/admin');
@@ -573,7 +662,7 @@ describe('admin route guard (/admin)', () => {
   });
 
   it('shows an error, not the admin start, when the role cannot be read', async () => {
-    mockAuth.session = sessionOf(ADMIN);
+    mockAuth.session = sessionOf(ADMIN, 'aal2');
     mockProfileRead.state = { error: { message: 'TypeError: Failed to fetch', code: '' } };
 
     await renderAt('/admin');
@@ -587,7 +676,7 @@ describe('admin route guard (/admin)', () => {
 
   it('keeps out a former admin whose profile now says learner', async () => {
     mockProfiles[ADMIN.id] = 'learner';
-    mockAuth.session = sessionOf(ADMIN);
+    mockAuth.session = sessionOf(ADMIN, 'aal2');
 
     const result = await renderAt('/admin');
 
@@ -600,7 +689,7 @@ describe('admin route guard (/admin)', () => {
 describe('admin start (/admin)', () => {
   it('shows the category list in English when the language is English', async () => {
     await i18n.changeLanguage('en');
-    mockAuth.session = sessionOf(ADMIN);
+    mockAuth.session = sessionOf(ADMIN, 'aal2');
 
     await renderAt('/admin');
 
@@ -608,7 +697,7 @@ describe('admin start (/admin)', () => {
   });
 
   it('redirects /admin to the category list at /admin/categories', async () => {
-    mockAuth.session = sessionOf(ADMIN);
+    mockAuth.session = sessionOf(ADMIN, 'aal2');
 
     const result = await renderAt('/admin');
 
@@ -617,7 +706,7 @@ describe('admin start (/admin)', () => {
   });
 
   it('signs out to the learner area, where the next session is a fresh anonymous one', async () => {
-    mockAuth.session = sessionOf(ADMIN);
+    mockAuth.session = sessionOf(ADMIN, 'aal2');
     const result = await renderAt('/admin');
     await screen.findByText(adminStart());
 
@@ -634,7 +723,7 @@ describe('admin start (/admin)', () => {
   });
 
   it('keeps the visitor out of /admin again after signing out', async () => {
-    mockAuth.session = sessionOf(ADMIN);
+    mockAuth.session = sessionOf(ADMIN, 'aal2');
     const result = await renderAt('/admin');
     await screen.findByText(adminStart());
     await fireEvent.press(await waitFor(() => headerSignOut()));

@@ -7,6 +7,8 @@
 -- submit_answer needs a visible quiz). A second quiz in the same category is
 -- the control. Fixtures are created here as the owner, independent of
 -- seed.sql, and vanish on rollback.
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(11);
 
@@ -69,7 +71,7 @@ insert into public.attempt_answers
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select lives_ok(
   $$ delete from public.quizzes where id = 'd0000000-0000-0000-0000-000000000001' $$,

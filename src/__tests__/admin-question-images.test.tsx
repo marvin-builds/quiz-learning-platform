@@ -405,6 +405,32 @@ jest.mock('@/lib/supabase', () => ({
     auth: {
       getSession: () => Promise.resolve({ data: { session: SESSION }, error: null }),
       getUser: () => Promise.resolve({ data: { user: ADMIN }, error: null }),
+      // Re-spec (#122): admin rights need an aal2 session (password and TOTP).
+      // The app reads the level and the factors through auth.mfa. Here the
+      // session is always the admin's: aal2 with one verified TOTP factor;
+      // admin-mfa.test.tsx covers the step-up itself.
+      mfa: {
+        getAuthenticatorAssuranceLevel: () => {
+          const level = 'aal2';
+          return Promise.resolve({
+            data: { currentLevel: level, nextLevel: level, currentAuthenticationMethods: [] },
+            error: null,
+          });
+        },
+        listFactors: () => {
+          const totp = [
+            {
+              id: 'f0000000-0000-4000-8000-000000000001',
+              factor_type: 'totp',
+              status: 'verified',
+              friendly_name: '',
+              created_at: '2026-10-01T00:00:00Z',
+              updated_at: '2026-10-01T00:00:00Z',
+            },
+          ];
+          return Promise.resolve({ data: { all: totp, totp, phone: [] }, error: null });
+        },
+      },
       onAuthStateChange: (listener: Listener) => {
         mockAuth.listeners.add(listener);
         void Promise.resolve().then(() => listener('INITIAL_SESSION', SESSION));

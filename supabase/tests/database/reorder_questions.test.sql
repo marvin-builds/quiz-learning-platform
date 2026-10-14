@@ -25,6 +25,8 @@
 -- for a list that breaks the contract. anon's refusal is the missing grant
 -- (42501). Fixtures are created here as the owner, independent of seed.sql,
 -- and vanish on rollback.
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(53);
 
@@ -403,7 +405,7 @@ select is(
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select is(
   pg_temp.refused($$ select public.reorder_questions(
@@ -614,7 +616,7 @@ select is(
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select is(
   pg_temp.refused($$ select public.reorder_questions(
@@ -655,7 +657,7 @@ update public.profiles set role = 'learner' where id = '33333333-3333-3333-3333-
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select is(
   pg_temp.refused($$ select public.reorder_questions(

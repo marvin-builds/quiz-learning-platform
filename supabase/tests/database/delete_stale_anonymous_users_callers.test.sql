@@ -7,6 +7,8 @@
 -- owner, deletes the stale user. The function's rules are in
 -- delete_stale_anonymous_users.test.sql; function_privileges.test.sql keeps
 -- it off the API allow-lists.
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(13);
 
@@ -100,7 +102,7 @@ select is(pg_temp.stale_user_count(), 1, 'a learner''s call deletes nothing');
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select throws_ok(
   $$ select private.delete_stale_anonymous_users() $$,

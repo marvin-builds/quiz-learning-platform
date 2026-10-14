@@ -1,4 +1,5 @@
--- private.is_admin(): true only for a caller whose profiles.role is 'admin'.
+-- private.is_admin(): true only for a caller whose profiles.role is 'admin'
+-- and whose session is aal2 (#122: password and TOTP).
 -- The admin read policies build on it, so it must never trust anything the
 -- client controls: not the JWT's user_metadata or app_metadata, not the
 -- sign-up metadata. It runs as security definer with an empty search_path,
@@ -8,7 +9,7 @@
 --
 -- Pinned name: private.is_admin(), no arguments, returning boolean.
 begin;
-select plan(19);
+select plan(30);
 
 -- Fixtures ----------------------------------------------------------------
 
@@ -155,10 +156,12 @@ select results_eq(
 reset role;
 
 -- admin (carol) -----------------------------------------------------------
+-- Re-spec (#122): an admin is an admin only in an aal2 session (password and
+-- TOTP). The claims gained "aal": "aal2"; the assertions are unchanged.
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select results_eq(
   $$ select private.is_admin() $$,
@@ -175,13 +178,113 @@ select is_empty(
 
 reset role;
 
+-- The second factor (#122) ---------------------------------------------------
+-- is_admin also requires the session's assurance level, the JWT's top-level
+-- "aal" claim, to be exactly 'aal2'. A missing, null, 'aal1' or any other
+-- value makes it false, and it never raises: the policies call it for
+-- everyone, so an error there would break the learner side too.
+
+set local role authenticated;
+
+select set_config('request.jwt.claims',
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+select results_eq(
+  $$ select private.is_admin() $$,
+  $$ values (false) $$,
+  'is_admin is false for an admin whose JWT has no aal claim'
+);
+
+select set_config('request.jwt.claims',
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": null}', true);
+select results_eq(
+  $$ select private.is_admin() $$,
+  $$ values (false) $$,
+  'is_admin is false for an admin whose aal claim is null'
+);
+
+select set_config('request.jwt.claims',
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal1"}', true);
+select results_eq(
+  $$ select private.is_admin() $$,
+  $$ values (false) $$,
+  'is_admin is false for an admin in an aal1 session (password only)'
+);
+
+select set_config('request.jwt.claims',
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "AAL2"}', true);
+select results_eq(
+  $$ select private.is_admin() $$,
+  $$ values (false) $$,
+  'is_admin is false for an aal claim that only resembles aal2 (AAL2)'
+);
+
+select set_config('request.jwt.claims',
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal3"}', true);
+select results_eq(
+  $$ select private.is_admin() $$,
+  $$ values (false) $$,
+  'is_admin is false for an unknown aal value (aal3)'
+);
+
+select set_config('request.jwt.claims',
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": 2}', true);
+select results_eq(
+  $$ select private.is_admin() $$,
+  $$ values (false) $$,
+  'is_admin is false for an aal claim that is not a string'
+);
+
+-- Only the top-level claim counts, not one the user can write themselves.
+select set_config('request.jwt.claims',
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal1",
+    "user_metadata": {"aal": "aal2"}, "app_metadata": {"aal": "aal2"}}', true);
+select results_eq(
+  $$ select private.is_admin() $$,
+  $$ values (false) $$,
+  'is_admin is false for an aal1 admin whose JWT metadata says aal2'
+);
+
+select set_config('request.jwt.claims',
+  '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated", "aal": "aal2"}', true);
+select results_eq(
+  $$ select private.is_admin() $$,
+  $$ values (false) $$,
+  'is_admin is false for a learner in an aal2 session'
+);
+
+select set_config('request.jwt.claims',
+  '{"sub": "44444444-4444-4444-4444-444444444444", "role": "authenticated",
+    "is_anonymous": true, "aal": "aal2"}', true);
+select results_eq(
+  $$ select private.is_admin() $$,
+  $$ values (false) $$,
+  'is_admin is false for an anonymous user with an aal2 claim'
+);
+
+select set_config('request.jwt.claims', '', true);
+select results_eq(
+  $$ select private.is_admin() $$,
+  $$ values (false) $$,
+  'is_admin is false, without raising, when no claims are set at all'
+);
+
+select set_config('request.jwt.claims',
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
+select results_eq(
+  $$ select private.is_admin() $$,
+  $$ values (true) $$,
+  'is_admin is true for an admin in an aal2 session (password and TOTP)'
+);
+
+reset role;
+
 -- The role is read on every call, not cached in the session ---------------
 
 update public.profiles set role = 'learner' where id = '33333333-3333-3333-3333-333333333333';
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select results_eq(
   $$ select private.is_admin() $$,
@@ -195,7 +298,7 @@ update public.profiles set role = 'admin' where id = '11111111-1111-1111-1111-11
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}', true);
+  '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated", "aal": "aal2"}', true);
 
 select results_eq(
   $$ select private.is_admin() $$,

@@ -2,6 +2,7 @@ import { expect, type Locator, type Page, test } from '@playwright/test';
 
 import de from '../src/i18n/locales/de.json';
 import { expectNoSeriousAxeViolations } from './axe';
+import { enterTotpCode, SEED_ADMIN } from './admin-auth';
 
 // Issue #116 on the seed content (supabase/seed.sql), once per project in
 // playwright.config.ts (phone 390 px and desktop 1280 px): every screen has a
@@ -184,6 +185,8 @@ test('an admin goes categories → quiz → question → preview → back up to 
   await page.getByLabel(text('admin.signIn.email'), { exact: true }).fill(ADMIN_EMAIL);
   await page.getByLabel(text('admin.signIn.password'), { exact: true }).fill(ADMIN_PASSWORD);
   await page.getByRole('button', { name: text('admin.signIn.submit'), exact: true }).click();
+  // Re-spec (#122): the TOTP code after the password.
+  await enterTotpCode(page, SEED_ADMIN.totpSecret);
 
   // The admin start is the category list.
   await expect(page).toHaveURL(/\/admin\/categories\/?$/);
@@ -261,6 +264,8 @@ test('/admin lands on the category list and "Abmelden" in the header signs out',
   await page.getByLabel(text('admin.signIn.email'), { exact: true }).fill(ADMIN_EMAIL);
   await page.getByLabel(text('admin.signIn.password'), { exact: true }).fill(ADMIN_PASSWORD);
   await page.getByRole('button', { name: text('admin.signIn.submit'), exact: true }).click();
+  // Re-spec (#122): the TOTP code after the password.
+  await enterTotpCode(page, SEED_ADMIN.totpSecret);
   await expect(page).toHaveURL(/\/admin\/categories\/?$/);
 
   await page.goto('/admin');
@@ -280,6 +285,8 @@ test('a header link asks before it leaves a changed admin form or a started quiz
   await page.getByLabel(text('admin.signIn.email'), { exact: true }).fill(ADMIN_EMAIL);
   await page.getByLabel(text('admin.signIn.password'), { exact: true }).fill(ADMIN_PASSWORD);
   await page.getByRole('button', { name: text('admin.signIn.submit'), exact: true }).click();
+  // Re-spec (#122): the TOTP code after the password.
+  await enterTotpCode(page, SEED_ADMIN.totpSecret);
   await expect(page).toHaveURL(/\/admin\/categories\/?$/);
 
   await page.goto(`/admin/quizzes/${HAUPTSTAEDTE}/questions/${ITALY}`);

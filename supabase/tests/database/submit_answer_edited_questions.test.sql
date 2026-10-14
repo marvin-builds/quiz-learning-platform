@@ -9,6 +9,8 @@
 -- submit_answer.test.sql has the function's other rules. Points are compared
 -- as text so the scale (2 decimals) is pinned. Fixtures are created here as
 -- the owner, independent of seed.sql, and vanish on rollback.
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(14);
 
@@ -74,7 +76,7 @@ grant execute on function pg_temp.question(text) to authenticated;
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select lives_ok(
   $$ select public.save_question(
@@ -146,7 +148,7 @@ reset role;
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select lives_ok(
   $$ select public.save_question(
