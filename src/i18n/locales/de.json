@@ -79,6 +79,27 @@
       "noAccess": "Dieses Konto hat keinen Zugang zum Admin-Bereich.",
       "retry": "Erneut versuchen"
     },
+    "mfa": {
+      "enroll": {
+        "title": "Zweiten Faktor einrichten",
+        "intro": "Der Admin-Bereich braucht neben dem Passwort einen Code aus einer Authenticator-App. Scanne den QR-Code mit der App oder tippe den Schlüssel ein und gib dann den angezeigten Code ein.",
+        "qrAlt": "QR-Code zum Einrichten der Authenticator-App",
+        "secret": "Schlüssel zum Eintippen",
+        "loading": "Einrichtung wird vorbereitet …",
+        "error": "Die Einrichtung konnte nicht vorbereitet werden."
+      },
+      "challenge": {
+        "title": "Code bestätigen",
+        "intro": "Gib den aktuellen Code aus deiner Authenticator-App ein."
+      },
+      "code": "Code aus der Authenticator-App",
+      "submit": "Bestätigen",
+      "submitting": "Code wird geprüft …",
+      "errors": {
+        "invalidCode": "Der Code ist falsch oder abgelaufen. Gib den aktuellen Code ein.",
+        "network": "Der Code konnte nicht geprüft werden. Prüfe deine Verbindung und versuche es erneut."
+      }
+    },
     "dashboard": {
       "title": "Admin-Bereich"
     },
