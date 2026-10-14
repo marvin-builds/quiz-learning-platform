@@ -148,12 +148,19 @@ jobs:
           npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
           npx supabase db push --yes
           npx supabase config push --project-ref "$SUPABASE_PROJECT_REF" --yes
-          # config push doesn't create buckets; the migration must have. A missing bucket
-          # and a missing object look the same through the public URL, so ask the API.
-          curl -fsS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/storage/buckets" \
-            | jq -e '.[] | select(.id == "quiz-images" and .public == true)' > /dev/null \
-            || { echo "The hosted project has no public quiz-images bucket"; exit 1; }
+      # config push doesn't create buckets or change their limits; the migrations must
+      # have. The API's bucket list lacks the limits, so read the row of storage.buckets
+      # through the API's SQL endpoint and compare it with supabase/config.toml.
+      - name: Check the hosted quiz-images bucket against config.toml
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          curl -sS --fail-with-body -X POST -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H 'Content-Type: application/json' \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/database/query" \
+            -d "{\"query\": \"select id, public, file_size_limit, allowed_mime_types from storage.buckets where id = 'quiz-images'\"}" \
+            > "$RUNNER_TEMP/buckets.json"
+          node scripts/check-quiz-images-bucket.mjs "$RUNNER_TEMP/buckets.json"
       # The job's EXPO_PUBLIC_* variables take precedence over the local values in .env.
       - run: npx expo export --platform web
       - name: Deploy to Cloudflare Pages
@@ -170,5 +177,5 @@ jobs:
             sleep 10
           done
           curl -fsS "https://small-quiz-poc.pages.dev/$entry" | grep -qF "$EXPO_PUBLIC_SUPABASE_URL"
-          test "$(curl -fsS -X POST "$EXPO_PUBLIC_SUPABASE_URL/rest/v1/rpc/health_check" \
+          test "$(curl -sS --fail-with-body -X POST "$EXPO_PUBLIC_SUPABASE_URL/rest/v1/rpc/health_check" \
             -H "apikey: $EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" -H 'Content-Type: application/json')" = '"ok"'

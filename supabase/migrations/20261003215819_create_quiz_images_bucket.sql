@@ -2,6 +2,9 @@
 -- push` doesn't create buckets, so this migration does on the hosted project;
 -- locally, `supabase start` and `db reset` also create it from config.toml
 -- and upload the seed images. Keep both in step (tests/repo checks it).
+-- `on conflict do nothing` leaves an existing bucket as it is; the later
+-- migration 20261014120000_enforce_quiz_images_limits.sql updates the limits
+-- of an existing bucket.
 --
 -- Public means anyone can read an object by its URL. Nobody can write, list
 -- or delete objects: storage.objects and storage.buckets have no policies
