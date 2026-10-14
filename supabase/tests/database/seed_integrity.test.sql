@@ -5,10 +5,10 @@
 -- the integrity checks from passing vacuously on an empty database.
 --
 -- Seed admin: the e2e tests and ui-verifier sign in as admin@example.com with
--- the password admin-password. seed.sql runs only locally (`db reset`); CI's
+-- the password admin-password and a TOTP code from the seeded factor (#122). seed.sql runs only locally (`db reset`); CI's
 -- `db push` never seeds the hosted project.
 begin;
-select plan(19);
+select plan(21);
 
 -- Integrity ---------------------------------------------------------------
 
@@ -178,6 +178,31 @@ select results_eq(
      where u.email = 'admin@example.com' $$,
   $$ values ('admin'::text) $$,
   'the seed admin''s profile has role admin'
+);
+
+-- Seed admin's second factor (#122) ---------------------------------------
+-- Admin rights need an aal2 session, so the seed admin has a verified TOTP
+-- factor with a fixed, local-only secret (base32, 160 bits like the secrets
+-- GoTrue generates); the e2e helper computes the codes from the same secret.
+
+select results_eq(
+  $$ select f.factor_type::text, f.status::text
+     from auth.mfa_factors f
+     join auth.users u on u.id = f.user_id
+     where u.email = 'admin@example.com' $$,
+  $$ values ('totp'::text, 'verified'::text) $$,
+  'the seed admin has exactly one factor, a verified TOTP factor'
+);
+
+select ok(
+  coalesce(
+    (select f.secret ~ '^[A-Z2-7]{32}$'
+     from auth.mfa_factors f
+     join auth.users u on u.id = f.user_id
+     where u.email = 'admin@example.com'),
+    false
+  ),
+  'the seed admin''s TOTP secret is a 32-character base32 string'
 );
 
 select * from finish();

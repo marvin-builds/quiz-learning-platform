@@ -5,6 +5,7 @@ import { type APIRequestContext, expect, type Page, test, type TestInfo } from '
 
 import de from '../src/i18n/locales/de.json';
 import { expectNoSeriousAxeViolations } from './axe';
+import { enterTotpCode, SEED_ADMIN, seedAdminAccessToken } from './admin-auth';
 
 // Issue #117, short action labels in the admin lists, against the local
 // stack, once per project in playwright.config.ts (phone 390 px and desktop
@@ -56,19 +57,16 @@ async function signInAsAdmin(page: Page) {
   await page.getByLabel(text('admin.signIn.email'), { exact: true }).fill(ADMIN_EMAIL);
   await page.getByLabel(text('admin.signIn.password'), { exact: true }).fill(ADMIN_PASSWORD);
   await page.getByRole('button', { name: text('admin.signIn.submit'), exact: true }).click();
+  // Re-spec (#122): the TOTP code after the password.
+  await enterTotpCode(page, SEED_ADMIN.totpSecret);
   await expect(page).toHaveURL(/\/admin\/categories\/?$/);
 }
 
 // The admin's API headers, as supabase-js sends them after signing in.
 async function adminHeaders(request: APIRequestContext): Promise<Record<string, string>> {
-  const apiUrl = setting('EXPO_PUBLIC_SUPABASE_URL');
   const key = setting('EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
-  const signIn = await request.post(`${apiUrl}/auth/v1/token?grant_type=password`, {
-    headers: { apikey: key },
-    data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
-  });
-  expect(signIn.ok(), await signIn.text()).toBe(true);
-  const { access_token: token } = (await signIn.json()) as { access_token: string };
+  // Re-spec (#122): admin rights need an aal2 session (password and TOTP).
+  const token = await seedAdminAccessToken(request);
   return { apikey: key, Authorization: `Bearer ${token}` };
 }
 

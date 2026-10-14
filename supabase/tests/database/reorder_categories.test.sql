@@ -24,6 +24,8 @@
 -- Fixtures are created here as the owner and vanish on rollback. The full
 -- list names every category, so the seed's categories are deleted first in
 -- this transaction (their quizzes cascade) and only the fixtures remain.
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(37);
 
@@ -317,7 +319,7 @@ select is(
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select is(
   pg_temp.refused($$ select public.reorder_categories(
@@ -454,7 +456,7 @@ select is(
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select is(
   pg_temp.refused(current_setting('test.call')),
@@ -470,7 +472,7 @@ update public.profiles set role = 'learner' where id = '33333333-3333-3333-3333-
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select is(
   pg_temp.refused($$ select public.reorder_categories(

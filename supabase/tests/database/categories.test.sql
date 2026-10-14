@@ -9,6 +9,8 @@
 -- or delete passes the grant but RLS lets it touch no row, so those tests
 -- target a published row the role can see and check afterwards, as the
 -- owner, that it is unchanged. anon has no write grant at all.
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(78);
 
@@ -347,7 +349,7 @@ select set_config('test.next_sort_order',
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select results_eq(
   $$ select id, name, description, sort_order, published from public.categories
@@ -568,7 +570,7 @@ delete from public.categories;
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select lives_ok(
   $$ insert into public.categories (name) values ('Erstes Thema') $$,

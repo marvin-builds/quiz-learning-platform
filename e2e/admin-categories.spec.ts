@@ -5,6 +5,7 @@ import { type Browser, expect, type Page, test, type TestInfo } from '@playwrigh
 
 import de from '../src/i18n/locales/de.json';
 import { expectNoSeriousAxeViolations } from './axe';
+import { enterTotpCode, SEED_ADMIN, seedAdminAccessToken } from './admin-auth';
 
 // Category CRUD with the publish toggle (#80) against the local stack: the
 // seed admin (supabase/seed.sql, admin@example.com / admin-password) creates
@@ -66,6 +67,8 @@ async function signInAsAdmin(page: Page) {
   await page.getByLabel(text('admin.signIn.email'), { exact: true }).fill(ADMIN_EMAIL);
   await page.getByLabel(text('admin.signIn.password'), { exact: true }).fill(ADMIN_PASSWORD);
   await page.getByRole('button', { name: text('admin.signIn.submit'), exact: true }).click();
+  // Re-spec (#122): the TOTP code after the password.
+  await enterTotpCode(page, SEED_ADMIN.totpSecret);
   // Re-spec (#116): the sign-in lands on the category list, not the dashboard.
   await expect(page).toHaveURL(/\/admin\/categories\/?$/);
   await expect(
@@ -107,12 +110,9 @@ test.afterEach(async ({ request }) => {
   if (names.length === 0) return;
   const apiUrl = setting('EXPO_PUBLIC_SUPABASE_URL');
   const key = setting('EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
-  const signIn = await request.post(`${apiUrl}/auth/v1/token?grant_type=password`, {
-    headers: { apikey: key },
-    data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
-  });
-  if (!signIn.ok()) return;
-  const { access_token: token } = (await signIn.json()) as { access_token: string };
+  // Re-spec (#122): admin rights need an aal2 session (password and TOTP).
+  const token = await seedAdminAccessToken(request).catch(() => null);
+  if (!token) return;
   for (const name of names) {
     await request.delete(`${apiUrl}/rest/v1/categories?name=eq.${encodeURIComponent(name)}`, {
       headers: { apikey: key, Authorization: `Bearer ${token}` },

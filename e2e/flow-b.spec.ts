@@ -13,6 +13,7 @@ import {
 
 import de from '../src/i18n/locales/de.json';
 import { expectNoSeriousAxeViolations } from './axe';
+import { enterTotpCode, SEED_ADMIN, seedAdminAccessToken } from './admin-auth';
 import { expectCspWithoutViolations, watchCsp } from './csp';
 
 // E2E flow B (#84) against the local stack, at both sizes (the phone and
@@ -122,12 +123,8 @@ let adminSession: Headers | undefined;
 
 async function adminHeaders(request: APIRequestContext): Promise<Headers> {
   if (adminSession) return adminSession;
-  const signIn = await request.post(`${apiUrl()}/auth/v1/token?grant_type=password`, {
-    headers: { apikey: apiKey() },
-    data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
-  });
-  expect(signIn.ok(), await signIn.text()).toBe(true);
-  const { access_token: token } = (await signIn.json()) as { access_token: string };
+  // Re-spec (#122): admin rights need an aal2 session (password and TOTP).
+  const token = await seedAdminAccessToken(request);
   adminSession = await tokenHeaders(token);
   return adminSession;
 }
@@ -433,6 +430,8 @@ test('flow B: an admin creates, publishes and previews a quiz with an image, and
   await expect(page.getByLabel(text('admin.signIn.email'), { exact: true })).toBeVisible();
   await expectNoSeriousAxeViolations(page);
   await signInAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  // Re-spec (#122): the TOTP code after the password.
+  await enterTotpCode(page, SEED_ADMIN.totpSecret);
 
   // The category: list, create form, back on the list.
   await expect(page).toHaveURL(/\/admin\/categories\/?$/);
@@ -721,6 +720,8 @@ test('an admin reorders categories, quizzes, questions and answers by keyboard, 
   for (const id of quizIds) await publishQuiz(request, id);
 
   await signInAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  // Re-spec (#122): the TOTP code after the password.
+  await enterTotpCode(page, SEED_ADMIN.totpSecret);
   // Re-spec (#116): the sign-in lands on the category list, not the dashboard.
   await expect(page).toHaveURL(/\/admin\/categories\/?$/);
 

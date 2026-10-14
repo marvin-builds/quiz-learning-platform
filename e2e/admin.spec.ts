@@ -2,6 +2,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 import de from '../src/i18n/locales/de.json';
 import { expectNoSeriousAxeViolations } from './axe';
+import { enterTotpCode, SEED_ADMIN } from './admin-auth';
 
 // The admin area against the local stack: the seed admin (supabase/seed.sql,
 // admin@example.com / admin-password) signs in at /admin/sign-in and reaches
@@ -88,6 +89,8 @@ test('the seed admin signs in and reaches the category list at /admin/categories
   const errors = watchErrors(page);
 
   await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  // Re-spec (#122): the TOTP code after the password.
+  await enterTotpCode(page, SEED_ADMIN.totpSecret);
 
   await expect(adminStartHeading(page)).toBeVisible();
   await expect(page).toHaveURL(/\/admin\/categories\/?$/);
@@ -125,6 +128,8 @@ test('an anonymous visitor opening /admin does not see the admin start', async (
 
 test('signing out returns to the learner area and closes /admin again', async ({ page }) => {
   await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  // Re-spec (#122): the TOTP code after the password.
+  await enterTotpCode(page, SEED_ADMIN.totpSecret);
   await expect(adminStartHeading(page)).toBeVisible();
 
   // Re-spec (#116): "Abmelden" is in the admin header, a link or a button.
@@ -147,6 +152,8 @@ test('signing out returns to the learner area and closes /admin again', async ({
 // Deutschland a draft in Geografie, Komponisten a published quiz in Musik.
 test('a signed-in admin sees the learner area without drafts', async ({ page }) => {
   await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  // Re-spec (#122): the TOTP code after the password.
+  await enterTotpCode(page, SEED_ADMIN.totpSecret);
   await expect(adminStartHeading(page)).toBeVisible();
 
   await page.goto('/');
