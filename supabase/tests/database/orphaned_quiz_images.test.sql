@@ -29,6 +29,9 @@ returns timestamptz
 language sql
 as $$ select '2100-01-01 00:00:00+00'::timestamptz $$;
 
+-- the service_role block below calls the helper too
+grant execute on function pg_temp.cutoff() to service_role;
+
 insert into storage.buckets (id, name, public)
 values ('orphan-test-other', 'orphan-test-other', false);
 
