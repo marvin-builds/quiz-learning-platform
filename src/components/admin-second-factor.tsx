@@ -16,6 +16,10 @@ const enrollmentKey = (userId: string) => ['adminEnrollment', userId] as const;
 // with the aal1 session and is dropped, as after the password sign-in.
 const GUARD_KEYS = new Set<unknown>(['isAdmin', 'adminAssurance', 'adminEnrollment']);
 
+// 'always': offline, the request fails and shows the try-again message,
+// instead of pausing on the loading state until the connection is back.
+const OFFLINE_FAILS = 'always';
+
 /** An admin without a verified factor: QR code, secret and the code. */
 export function AdminEnrollment({ userId }: { userId: string }) {
   const { t } = useTranslation();
@@ -26,6 +30,7 @@ export function AdminEnrollment({ userId }: { userId: string }) {
     retry: false,
     staleTime: Infinity,
     gcTime: 0,
+    networkMode: OFFLINE_FAILS,
   });
 
   return (
@@ -97,6 +102,7 @@ function CodeForm({ factorId, userId }: { factorId: string; userId: string }) {
   const codeInput = useRef<TextInput>(null);
   const verify = useMutation({
     mutationFn: () => verifyTotpCode(factorId, code),
+    networkMode: OFFLINE_FAILS,
     onSuccess: async () => {
       queryClient.removeQueries({ predicate: (query) => !GUARD_KEYS.has(query.queryKey[0]) });
       // The guard reads the new level and shows the admin screens.
