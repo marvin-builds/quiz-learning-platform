@@ -112,3 +112,12 @@ values (
 );
 
 update public.profiles set role = 'admin' where id = '50000000-0000-4000-8000-000000000001';
+
+-- Admin rights need an aal2 session (#122), so the seed admin has a verified
+-- TOTP factor. Its secret is local-only and shared with the e2e helper
+-- (e2e/admin-auth.ts), which computes the codes from it.
+insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, secret, created_at, updated_at)
+values (
+  '50000000-0000-4000-8000-000000000002', '50000000-0000-4000-8000-000000000001',
+  'Seed admin', 'totp', 'verified', 'LOCALONLYADMINTOTPSECRETDONTUSE2', now(), now()
+);
