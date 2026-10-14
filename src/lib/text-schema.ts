@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+// Every form schema builds on this module, so zod is configured here: without
+// `jitless`, zod probes `new Function` on the first parse, which the web
+// app's CSP (no 'unsafe-eval', scripts/security-headers.mjs) reports as a
+// violation even though zod catches it.
+z.config({ jitless: true });
+
 // The database's rule for names, titles and texts (the *_check constraints):
 // not empty once spaces, tabs and line breaks are trimmed. A schema must
 // never be looser.
