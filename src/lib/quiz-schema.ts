@@ -1,6 +1,5 @@
-import { z } from 'zod';
-
 import { optionalText, requiredText } from '@/lib/text-schema';
+import { z } from '@/lib/zod';
 
 /**
  * What the admin may write for a quiz: title, description and published. The
