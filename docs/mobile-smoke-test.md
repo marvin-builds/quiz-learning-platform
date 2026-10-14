@@ -88,11 +88,14 @@ JDK 17. Alternatively, with an Expo account,
 
 ```sh
 EAS_LOCAL_BUILD_PLUGIN_PATH=./node_modules/.bin/eas-cli-local-build-plugin \
+EAS_BUILD_DISABLE_EXPO_DOCTOR_STEP=1 \
   npx --no-install eas build --local -p android --profile development
 ```
 
 builds an installable development client APK with the build plugin from the
-lockfile (without the variable, eas-cli downloads it with `npx` at run time).
+lockfile (without the variable, eas-cli downloads it with `npx` at run time)
+and without the plugin's expo-doctor step, which would download expo-doctor
+with `npx`; it isn't in the lockfile either.
 Then start the dev server and
 open the app on the phone:
 
