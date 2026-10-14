@@ -50,7 +50,7 @@ function tomlTable(text, table) {
 }
 
 function bytes(size) {
-  const match = /^(\d+)\s*(B|KB|KiB|MB|MiB|GB|GiB)?$/i.exec(String(size));
+  const match = /^(\d+(?:\.\d+)?)\s*(B|KB|KiB|MB|MiB|GB|GiB)?$/i.exec(String(size));
   if (!match) throw new CheckError(`can't read the size "${String(size)}"`);
   return Number(match[1]) * SIZE_FACTORS[(match[2] ?? 'B').toLowerCase()];
 }
