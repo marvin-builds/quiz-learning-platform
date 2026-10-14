@@ -23,6 +23,7 @@ import {
 } from '@/lib/admin-questions';
 import { adminKey } from '@/lib/admin-quizzes';
 import { isRuleViolation, movedIds } from '@/lib/admin-rows';
+import { IMAGES_LEFT_PARAM } from '@/lib/use-save-question';
 
 type Question = NonNullable<Awaited<ReturnType<typeof fetchQuizQuestions>>>['questions'][number];
 
@@ -30,7 +31,10 @@ const deleteKey = [...adminKey, 'questions', 'delete'] as const;
 
 export default function AdminQuestionsScreen() {
   const { t } = useTranslation();
-  const { quizId } = useLocalSearchParams<{ quizId: string }>();
+  const params = useLocalSearchParams<{ quizId: string; [IMAGES_LEFT_PARAM]?: string }>();
+  const { quizId } = params;
+  // A save that returned here left an image object it couldn't remove (#125).
+  const imagesLeft = params[IMAGES_LEFT_PARAM] === '1';
   const queryClient = useQueryClient();
   const list = useQuery({
     queryKey: adminQuizQuestionsKey(quizId),
@@ -102,6 +106,7 @@ export default function AdminQuestionsScreen() {
               name={t('admin.questions.preview', { name: list.data.quiz.title })}
               href={`/admin/quizzes/${quizId}/preview`}
             />
+            {imagesLeft ? <ErrorText text={t('admin.questions.errors.imageRemove')} /> : null}
             {remove.isError ? (
               <ErrorText
                 text={t(

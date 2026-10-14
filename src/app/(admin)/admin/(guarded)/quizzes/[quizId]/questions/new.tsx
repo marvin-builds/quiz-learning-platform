@@ -1,19 +1,18 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import { useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { AdminNotFound } from '@/components/admin-list';
 import { FormScreen } from '@/components/form-screen';
 import { QuestionForm } from '@/components/question-form';
 import { ErrorState, StatusMessage } from '@/components/status';
-import { saveFailureKey, saveQuestion } from '@/lib/admin-questions';
-import { adminKey, adminQuizKey, fetchAdminQuiz } from '@/lib/admin-quizzes';
-import type { QuestionWithAnswersValues } from '@/lib/question-schema';
+import { saveFailureKey } from '@/lib/admin-questions';
+import { adminQuizKey, fetchAdminQuiz } from '@/lib/admin-quizzes';
+import { useSaveQuestion } from '@/lib/use-save-question';
 
 export default function NewQuestionScreen() {
   const { t } = useTranslation();
   const { quizId } = useLocalSearchParams<{ quizId: string }>();
-  const queryClient = useQueryClient();
   // The quiz must exist before a question can go into it. Read like the
   // quiz's edit form (same key, so the same options).
   const quiz = useQuery({
@@ -22,13 +21,7 @@ export default function NewQuestionScreen() {
     retry: false,
     gcTime: 0,
   });
-  const create = useMutation({
-    mutationFn: (values: QuestionWithAnswersValues) => saveQuestion(quizId, null, values),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: adminKey });
-      router.replace(`/admin/quizzes/${quizId}`);
-    },
-  });
+  const { mutation: create, imagesLeft } = useSaveQuestion(quizId, null);
 
   return (
     <FormScreen title={t('admin.questions.form.createTitle')}>
@@ -51,6 +44,7 @@ export default function NewQuestionScreen() {
         <QuestionForm
           pending={create.isPending}
           failure={create.isError ? t(saveFailureKey(create.error)) : null}
+          notice={create.isError && imagesLeft ? t('admin.questions.errors.imageRemove') : null}
           onSubmit={(values) => create.mutate(values)}
         />
       )}

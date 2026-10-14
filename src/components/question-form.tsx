@@ -31,6 +31,8 @@ type Props = {
   pending: boolean;
   /** The translated message of a failed save, or null. */
   failure: string | null;
+  /** A translated notice beside the failure (an image still online), or null. */
+  notice?: string | null;
   onSubmit: (values: QuestionWithAnswersValues) => void;
 };
 
@@ -55,7 +57,7 @@ type ErrorKey = `admin.questions.form.errors.${
  * Validates with the shared schema before anything is sent and shows the
  * answer rules next to the answers; the input stays when saving fails.
  */
-export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
+export function QuestionForm({ initial, pending, failure, notice = null, onSubmit }: Props) {
   const { t } = useTranslation();
   const { control, handleSubmit, formState, trigger, setValue } = useForm<
     QuestionWithAnswersInput,
@@ -264,6 +266,7 @@ export function QuestionForm({ initial, pending, failure, onSubmit }: Props) {
         />
       </View>
       {failure ? <ErrorText text={failure} /> : null}
+      {notice ? <ErrorText text={notice} /> : null}
       <Button
         label={pending ? t('admin.questions.form.saving') : t('admin.questions.form.save')}
         disabled={pending}
