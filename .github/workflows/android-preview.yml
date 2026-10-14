@@ -36,10 +36,12 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
           EXPO_NO_DOTENV: '1'
+          # The build plugin from package-lock.json; unset, eas-cli downloads it at run time.
+          EAS_LOCAL_BUILD_PLUGIN_PATH: ${{ github.workspace }}/node_modules/.bin/eas-cli-local-build-plugin
         run: |
           # An empty key would build an APK that fails on start.
           test -n "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" || { echo "SUPABASE_PUBLISHABLE_KEY is not set"; exit 1; }
-          npx -y eas-cli@24.10.0 build --local -p android --profile preview \
+          npx --no-install eas build --local -p android --profile preview \
             --non-interactive --output quiz-preview.apk
       - name: Check that the APK talks to the hosted backend, not the local stack
         run: |
