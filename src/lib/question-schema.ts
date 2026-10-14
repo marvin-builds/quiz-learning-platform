@@ -1,7 +1,6 @@
-import { z } from 'zod';
-
 import { isImageType, MAX_IMAGE_BYTES } from '@/lib/images';
 import { isBlank, optionalText, requiredText } from '@/lib/text-schema';
+import { z } from '@/lib/zod';
 
 /**
  * What the admin may write for a question: text, explanation and

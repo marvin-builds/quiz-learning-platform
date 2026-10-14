@@ -36,8 +36,14 @@ export default defineConfig({
   ],
   webServer: {
     // `expo serve` answers unknown paths with 404; `serve -s` falls back to
-    // index.html like Cloudflare Pages does.
-    command: `npx expo export -p web && npx serve -s dist -l tcp://127.0.0.1:${PORT} --no-port-switching`,
+    // index.html like Cloudflare Pages does. export:web is the deploy's build,
+    // dist/_headers included, and the server sends those headers too. No
+    // ETag: serve answers a revalidation with a bare 304, without them.
+    command: [
+      'npm run -s export:web',
+      'node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON e2e/serve-config.mjs dist .expo/serve.json',
+      `npx serve -s dist -c ../.expo/serve.json --no-etag -l tcp://127.0.0.1:${PORT} --no-port-switching`,
+    ].join(' && '),
     url: baseURL,
     // Never test whatever else answers on the port (another worktree's build).
     reuseExistingServer: false,

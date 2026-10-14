@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 
 // The database's rule for names, titles and texts (the *_check constraints):
 // not empty once spaces, tabs and line breaks are trimmed. A schema must
