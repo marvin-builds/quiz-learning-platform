@@ -77,6 +77,9 @@ Supabase: Postgres + row-level security · Auth · Storage (images) · Realtime 
   password sign-in; until then (the first sign-in, or after a reset) the
   password alone (`aal1`) reaches only the enrollment screen, never admin
   data. The app never offers enrolling another factor or removing one.
+- Signing out ends the session on this device only (`scope: 'local'`): an
+  admin's other devices stay signed in until they sign out there, since a
+  global sign-out would also end sessions mid-way through a TOTP step.
 - Recovery when an admin loses the authenticator: there are no recovery
   codes; the owner deletes the admin's TOTP factor in the Supabase dashboard
   (Authentication → Users → the user → remove the factor), and the admin
