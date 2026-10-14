@@ -3,6 +3,7 @@
 import { renderRouter } from 'expo-router/testing-library';
 
 import { AuthApiError, AuthRetryableFetchError } from '@supabase/supabase-js';
+import { onlineManager } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import type { TestInstance } from 'test-renderer';
@@ -1144,5 +1145,44 @@ describe('the guard with the assurance level', () => {
     expect(screen.queryByText(adminStart())).toBeNull();
     expect(callsOf('enroll')).toEqual([]);
     expect(callsOf('verify')).toEqual([]);
+  });
+});
+
+// Offline, the browser fails every request at once. React Query would pause
+// a request it sees offline until the connection is back, so the code step
+// would hang on its loading state instead of showing the try-again message
+// (found by the ui-verifier).
+describe('the second factor offline', () => {
+  afterEach(() => onlineManager.setOnline(true));
+
+  it('shows the try-again message when the code is verified offline', async () => {
+    mockSetSession(ADMIN, 'aal1');
+    await renderAt('/admin');
+    await screen.findByText(challengeTitle());
+    onlineManager.setOnline(false);
+    mockMfa.next.challenge = [networkError()];
+
+    await enterCode(CODE);
+
+    expect(await screen.findByText(text('admin.mfa.errors.network'))).toBeOnTheScreen();
+    expect(screen.queryByText(text('admin.mfa.submitting'))).toBeNull();
+    expect(verifyButton()).toBeEnabled();
+  });
+
+  it('shows the try-again state when the enrollment is prepared offline', async () => {
+    const level = deferred();
+    mockMfa.next.aal = [level.promise];
+    mockSetSession(NEW_ADMIN, 'aal1');
+    await renderAt('/admin');
+    await waitFor(() => expect(callsOf('aal').length).toBeGreaterThan(0));
+    // Offline once the guard has asked for the level, before the enrollment.
+    onlineManager.setOnline(false);
+    mockMfa.next.listFactors = [networkError()];
+    level.release();
+
+    expect(
+      await screen.findByText(text('admin.mfa.enroll.error'), {}, { timeout: 15_000 }),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText(text('admin.mfa.enroll.loading'))).toBeNull();
   });
 });
