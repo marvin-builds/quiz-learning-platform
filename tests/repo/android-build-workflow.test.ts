@@ -111,13 +111,24 @@ describe('the manual Android build workflow', () => {
     );
   });
 
-  it('builds the preview APK for Android locally on the runner with a pinned eas-cli', () => {
+  it('builds the preview APK for Android locally on the runner with the eas-cli the lockfile pins', () => {
     const step = steps(buildJob())[buildStepIndex(steps(buildJob()))];
+    const pkg = JSON.parse(readFileSync(path.join(process.cwd(), 'package.json'), 'utf8')) as {
+      devDependencies?: Record<string, string>;
+    };
+    const lock = JSON.parse(
+      readFileSync(path.join(process.cwd(), 'package-lock.json'), 'utf8'),
+    ) as { packages: Record<string, { version?: string }> };
 
     expect(step).toMatch(/\s--local\b/);
     expect(step).toMatch(/\s(?:-p|--platform)[\s=]android\b/);
     expect(step).toMatch(/\s--profile[\s=]preview\b/);
-    expect(step).toMatch(/\beas-cli@\d+\.\d+\.\d+(?![\w.-])/);
+    // Runs the installed eas bin and never downloads one (#126).
+    expect(step).toMatch(/(?:\bnpx\s+--no-install|\bnpm\s+exec\s+--no\s+--)\s+eas\s+build\b/);
+    expect(step).not.toMatch(/\bnpx\b[^\n]*\s(?:-y|--yes)\b/);
+    expect(step).not.toMatch(/\beas(?:-cli)?@/);
+    expect(pkg.devDependencies?.['eas-cli']).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(lock.packages['node_modules/eas-cli']?.version).toBe(pkg.devDependencies?.['eas-cli']);
   });
 
   it('passes the Expo token and the publishable key to the build step only', () => {
