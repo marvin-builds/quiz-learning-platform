@@ -215,7 +215,8 @@
       "errors": {
         "delete": "Die Frage konnte nicht gelöscht werden. Versuche es erneut.",
         "deleteLastPublished": "Die letzte Frage eines veröffentlichten Quiz kann nicht gelöscht werden. Ziehe das Quiz zuerst zurück.",
-        "reorder": "Die Reihenfolge konnte nicht geändert werden. Die Liste zeigt die gespeicherte Reihenfolge. Versuche es erneut."
+        "reorder": "Die Reihenfolge konnte nicht geändert werden. Die Liste zeigt die gespeicherte Reihenfolge. Versuche es erneut.",
+        "imageRemove": "Ein Bild konnte nicht gelöscht werden und ist vorerst noch öffentlich erreichbar. Es wird innerhalb etwa eines Tages automatisch entfernt."
       },
       "form": {
         "createTitle": "Neue Frage",

@@ -101,13 +101,17 @@ export async function fetchPreviewQuestion(id: string) {
  * for it are removed again and the stored ones stay. A save that fails in
  * transport keeps them (see below). Once the save went through, the
  * objects of `storedPaths` (the images the question and its answers had)
- * that no longer are named are removed, best effort.
+ * that no longer are named are removed. A removal that fails leaves an image
+ * publicly reachable without failing the save: `onImagesLeft` is called (before
+ * a failed save throws), so the admin is told, and the scheduled cleanup
+ * removes the object later.
  */
 export async function saveQuestion(
   quizId: string,
   questionId: string | null,
   values: QuestionWithAnswersValues,
   storedPaths: string[] = [],
+  onImagesLeft: () => void = () => {},
 ) {
   // A new file gets a fresh name per attempt; a stored image keeps its own.
   const named = <T extends { image_path: string | null; image_file: ImageFile | null }>(
@@ -146,11 +150,13 @@ export async function saveQuestion(
     // code) proves the save rolled back. A transport error (no code) may
     // follow a commit whose response got lost, and the row may then name the
     // new objects, so they stay: worst case an orphan, which is accepted.
-    if (!saveSent || refusedByDatabase(error)) await removeImages(uploaded);
+    if (!saveSent || refusedByDatabase(error)) {
+      if (!(await removeImages(uploaded))) onImagesLeft();
+    }
     throw error;
   }
   const kept = new Set(images.map((image) => image.image_path));
-  await removeImages(storedPaths.filter((path) => !kept.has(path)));
+  if (!(await removeImages(storedPaths.filter((path) => !kept.has(path))))) onImagesLeft();
 }
 
 const refusedByDatabase = (error: unknown) => {
