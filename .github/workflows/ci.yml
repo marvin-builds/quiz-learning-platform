@@ -161,8 +161,9 @@ jobs:
             -d "{\"query\": \"select id, public, file_size_limit, allowed_mime_types from storage.buckets where id = 'quiz-images'\"}" \
             > "$RUNNER_TEMP/buckets.json"
           node scripts/check-quiz-images-bucket.mjs "$RUNNER_TEMP/buckets.json"
-      # The job's EXPO_PUBLIC_* variables take precedence over the local values in .env.
-      - run: npx expo export --platform web
+      # The job's EXPO_PUBLIC_* variables take precedence over the local values in .env,
+      # for the bundle and for the CSP in dist/_headers alike.
+      - run: npm run export:web
       - name: Deploy to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -179,3 +180,9 @@ jobs:
           curl -fsS "https://small-quiz-poc.pages.dev/$entry" | grep -qF "$EXPO_PUBLIC_SUPABASE_URL"
           test "$(curl -sS --fail-with-body -X POST "$EXPO_PUBLIC_SUPABASE_URL/rest/v1/rpc/health_check" \
             -H "apikey: $EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" -H 'Content-Type: application/json')" = '"ok"'
+          # Pages must serve the generated dist/_headers, or production runs without its CSP.
+          expected=$(sed -n 's/^  Content-Security-Policy: //p' dist/_headers)
+          served=$(curl -fsS -o /dev/null -D - https://small-quiz-poc.pages.dev/ \
+            | tr -d '\r' | sed -n 's/^content-security-policy: //Ip')
+          test -n "$expected" && test "$served" = "$expected" \
+            || { echo "https://small-quiz-poc.pages.dev/ does not send the CSP from dist/_headers"; exit 1; }

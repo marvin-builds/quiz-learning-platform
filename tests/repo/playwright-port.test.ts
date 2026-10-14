@@ -38,8 +38,26 @@ function loadConfig(cwd: string): Config {
   return JSON.parse(execFileSync(process.execPath, ['-e', script], { cwd, env, encoding: 'utf8' }));
 }
 
+// Re-spec (#123): the export may run through an npm script (export:web, which
+// also writes the security headers); its body counts when finding the server.
+// The port assertions below still check the webServer command itself.
+const SCRIPTS = (
+  JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8')) as {
+    scripts?: Record<string, string>;
+  }
+).scripts;
+
+function expandScripts(command: string): string {
+  return command.replace(
+    /\bnpm run (?:-s |--silent )?([\w:-]+)/g,
+    (whole, name: string) => SCRIPTS?.[name] ?? whole,
+  );
+}
+
 function exportServer(config: Config): WebServer | undefined {
-  return [config.webServer ?? []].flat().find((s) => /\bexpo export\b/.test(s.command ?? ''));
+  return [config.webServer ?? []]
+    .flat()
+    .find((s) => /\bexpo export\b/.test(expandScripts(s.command ?? '')));
 }
 
 describe('playwright.config.ts port', () => {

@@ -79,6 +79,25 @@ module.exports = defineConfig([
     },
   },
   {
+    // zod only through src/lib/zod.ts, which sets `jitless` before any parse:
+    // otherwise zod probes `new Function`, which the web CSP forbids.
+    files: ['src/**/*.{js,jsx,ts,tsx}'],
+    ignores: ['src/lib/zod.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            { name: 'zod', message: "Import { z } from '@/lib/zod' (jitless under the CSP)." },
+          ],
+          patterns: [
+            { regex: '^zod/', message: "Import { z } from '@/lib/zod' (jitless under the CSP)." },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // @axe-core/playwright documents `import AxeBuilder from …`, which also
     // matches a named export of the same class.
     files: ['e2e/**/*.ts'],

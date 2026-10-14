@@ -2,6 +2,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 import de from '../src/i18n/locales/de.json';
 import { expectNoSeriousAxeViolations } from './axe';
+import { expectCspWithoutViolations, watchCsp } from './csp';
 
 // E2E flow A on the seed content (supabase/seed.sql): an anonymous visitor
 // opens Geografie from the category list, plays "Hauptstädte Europas" with
@@ -116,6 +117,8 @@ test('flow A: an anonymous visitor plays the seeded quiz from its category to th
   page,
 }) => {
   const seen = watch(page);
+  // #123: the whole flow runs under the deployed CSP without a violation.
+  const csp = await watchCsp(page);
 
   await page.goto('/');
   await expect(page.getByRole('link', { name: /Geografie/ })).toBeVisible();
@@ -191,6 +194,7 @@ test('flow A: an anonymous visitor plays the seeded quiz from its category to th
 
   expect(seen.signUps).toBe(1);
   expect(seen.errors).toEqual([]);
+  await expectCspWithoutViolations(csp);
 });
 
 test('Play again on the result starts a new attempt at question 1 with nothing picked', async ({
