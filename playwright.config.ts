@@ -30,9 +30,20 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   // Playwright's default browser is Chromium.
+  // `setup` signs the seed admin in once with password and TOTP code and
+  // saves the aal2 session for the run (e2e/seed-admin.setup.ts).
   projects: [
-    { name: 'phone', use: { viewport: { width: 390, height: 844 } } },
-    { name: 'desktop', use: { viewport: { width: 1280, height: 800 } } },
+    { name: 'setup', testMatch: /seed-admin\.setup\.ts/ },
+    {
+      name: 'phone',
+      use: { viewport: { width: 390, height: 844 } },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'desktop',
+      use: { viewport: { width: 1280, height: 800 } },
+      dependencies: ['setup'],
+    },
   ],
   webServer: {
     // `expo serve` answers unknown paths with 404; `serve -s` falls back to
