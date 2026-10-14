@@ -58,7 +58,9 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - Local seed admin: `admin@example.com` / `admin-password` (`supabase/seed.sql`)
   plus a verified TOTP factor (admins need `aal2`); its local-only secret is
   `totpSecret` in `e2e/admin-auth.ts`, which computes the codes (`e2e/totp.ts`).
-  For `/admin/sign-in`, the e2e tests and `ui-verifier`; local only
+  For `/admin/sign-in`, the e2e tests and `ui-verifier`; local only. Seven
+  more local admins (`admin-mfa-phone@` etc., `TEST_ADMINS` and `API_ADMIN`
+  there) are for the e2e tests that sign in or out themselves
 - `npm run db:types`: regenerate `src/types/database.ts` from the local
   database; run it after every schema change
 

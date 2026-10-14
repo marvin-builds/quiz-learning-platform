@@ -121,3 +121,53 @@ values (
   '50000000-0000-4000-8000-000000000002', '50000000-0000-4000-8000-000000000001',
   'Seed admin', 'totp', 'verified', 'LOCALONLYADMINTOTPSECRETDONTUSE2', now(), now()
 );
+
+-- Dedicated e2e admins (#122), local only like the seed admin: a TOTP verify
+-- ends the user's other sessions below aal2, so the e2e tests that sign in
+-- with password and code (or sign out) each get their own admin per spec file
+-- and Playwright project (TEST_ADMINS and API_ADMIN in e2e/admin-auth.ts,
+-- which holds the same secrets). Password: the local part plus `-password`.
+create temporary table e2e_admin_seed (id uuid, factor_id uuid, email text, secret text);
+insert into e2e_admin_seed (id, factor_id, email, secret) values
+  ('51000000-0000-4000-8000-000000000001', '52000000-0000-4000-8000-000000000001',
+   'admin-mfa-phone@example.com', 'LOCALONLYMFAPHONETOTPDONTUSEABCD'),
+  ('51000000-0000-4000-8000-000000000002', '52000000-0000-4000-8000-000000000002',
+   'admin-mfa-desktop@example.com', 'LOCALONLYMFADESKTOPTOTPDONTUSEAB'),
+  ('51000000-0000-4000-8000-000000000003', '52000000-0000-4000-8000-000000000003',
+   'admin-sign-in-phone@example.com', 'LOCALONLYSIGNINPHONETOTPDONTUSEA'),
+  ('51000000-0000-4000-8000-000000000004', '52000000-0000-4000-8000-000000000004',
+   'admin-sign-in-desktop@example.com', 'LOCALONLYSIGNINDESKTOPTOTPDONTUS'),
+  ('51000000-0000-4000-8000-000000000005', '52000000-0000-4000-8000-000000000005',
+   'admin-nav-phone@example.com', 'LOCALONLYNAVPHONETOTPDONTUSEABCD'),
+  ('51000000-0000-4000-8000-000000000006', '52000000-0000-4000-8000-000000000006',
+   'admin-nav-desktop@example.com', 'LOCALONLYNAVDESKTOPTOTPDONTUSEAB'),
+  ('51000000-0000-4000-8000-000000000007', '52000000-0000-4000-8000-000000000007',
+   'admin-api-aal1@example.com', 'LOCALONLYAPIAALONETOTPDONTUSEABC');
+
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  confirmation_token, recovery_token, email_change, email_change_token_new,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+)
+select
+  '00000000-0000-0000-0000-000000000000', id,
+  'authenticated', 'authenticated', email,
+  extensions.crypt(split_part(email, '@', 1) || '-password', extensions.gen_salt('bf')), now(),
+  '', '', '', '',
+  '{"provider": "email", "providers": ["email"]}', '{}', now(), now()
+from e2e_admin_seed;
+
+insert into auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+select
+  id::text, id,
+  jsonb_build_object('sub', id::text, 'email', email, 'email_verified', true),
+  'email', now(), now(), now()
+from e2e_admin_seed;
+
+update public.profiles set role = 'admin' where id in (select id from e2e_admin_seed);
+
+insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, secret, created_at, updated_at)
+select factor_id, id, 'E2E admin', 'totp', 'verified', secret, now(), now()
+from e2e_admin_seed;
+
+drop table e2e_admin_seed;
