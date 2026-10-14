@@ -88,9 +88,13 @@ describe('docs for the admin second factor', () => {
     expect(paragraph).toMatch(/TOTP/);
     expect(paragraph).toMatch(/e2e\/admin-auth\.ts|seed\.sql/);
     // Where the secret lives, not the secret itself (read from the helper,
-    // so this check follows a changed secret).
-    const secret = /totpSecret:\s*'([A-Z2-7]+)'/.exec(read('e2e', 'admin-auth.ts'))?.[1];
+    // so this check follows a changed secret). Re-spec: the helper also holds
+    // the dedicated e2e admins' secrets; CLAUDE.md contains none of them.
+    const helper = read('e2e', 'admin-auth.ts');
+    const secret = /totpSecret:\s*'([A-Z2-7]+)'/.exec(helper)?.[1];
     expect(secret).toBeDefined();
-    expect(claude).not.toContain(secret!);
+    const secrets = [...helper.matchAll(/'([A-Z2-7]{32})'/g)].map((match) => match[1]!);
+    expect(secrets).toContain(secret);
+    for (const each of secrets) expect(claude).not.toContain(each);
   });
 });

@@ -8,7 +8,7 @@
 -- the password admin-password and a TOTP code from the seeded factor (#122). seed.sql runs only locally (`db reset`); CI's
 -- `db push` never seeds the hosted project.
 begin;
-select plan(21);
+select plan(29);
 
 -- Integrity ---------------------------------------------------------------
 
@@ -203,6 +203,114 @@ select ok(
     false
   ),
   'the seed admin''s TOTP secret is a 32-character base32 string'
+);
+
+-- Dedicated e2e admins (#122) -------------------------------------------
+-- Every TOTP verify makes GoTrue end all of that user's sessions below aal2,
+-- so the e2e tests that sign in with password and code (or sign out)
+-- themselves can't share the seed admin with the tests running at the same
+-- time: each spec file that does gets its own admin per Playwright project
+-- (TEST_ADMINS and API_ADMIN in e2e/admin-auth.ts). Each is set up like the
+-- seed admin: a confirmed email user GoTrue can sign in with the password
+-- `<local part>-password`, role admin, and exactly one verified TOTP factor
+-- with its own local-only 32-character base32 secret (the Jest test
+-- tests/repo/admin-mfa-config.test.ts checks the secrets match the helper's).
+
+create temporary table e2e_admins (email text primary key) on commit drop;
+insert into e2e_admins (email) values
+  ('admin-mfa-phone@example.com'),
+  ('admin-mfa-desktop@example.com'),
+  ('admin-sign-in-phone@example.com'),
+  ('admin-sign-in-desktop@example.com'),
+  ('admin-nav-phone@example.com'),
+  ('admin-nav-desktop@example.com'),
+  ('admin-api-aal1@example.com');
+
+select results_eq(
+  $$ select e.email, count(u.id)::int
+     from e2e_admins e
+     left join auth.users u on u.email = e.email
+     group by e.email
+     order by e.email $$,
+  $$ select email, 1 from e2e_admins order by email $$,
+  'the seed has each dedicated e2e admin exactly once'
+);
+
+select is_empty(
+  $$ select e.email
+     from e2e_admins e
+     left join auth.users u on u.email = e.email
+     where u.id is null
+        or u.encrypted_password is distinct from extensions.crypt(
+             split_part(e.email, '@', 1) || '-password', u.encrypted_password) $$,
+  'each dedicated e2e admin''s password is its local part followed by -password (bcrypt)'
+);
+
+select is_empty(
+  $$ select e.email
+     from e2e_admins e
+     left join auth.users u on u.email = e.email
+     where not coalesce(
+       u.email_confirmed_at is not null
+       and not u.is_anonymous
+       and u.aud = 'authenticated'
+       and u.role = 'authenticated',
+       false) $$,
+  'each dedicated e2e admin is a confirmed, non-anonymous authenticated user'
+);
+
+select is_empty(
+  $$ select e.email
+     from e2e_admins e
+     left join auth.users u on u.email = e.email
+     where not coalesce(
+       u.confirmation_token is not null
+       and u.recovery_token is not null
+       and u.email_change is not null
+       and u.email_change_token_new is not null,
+       false) $$,
+  'each dedicated e2e admin''s token columns are empty strings, not null'
+);
+
+select is_empty(
+  $$ select e.email
+     from e2e_admins e
+     where not exists (
+       select 1
+       from auth.identities i
+       join auth.users u on u.id = i.user_id
+       where u.email = e.email and i.provider = 'email'
+     ) $$,
+  'each dedicated e2e admin has an email identity'
+);
+
+select results_eq(
+  $$ select e.email, p.role::text
+     from e2e_admins e
+     left join auth.users u on u.email = e.email
+     left join public.profiles p on p.id = u.id
+     order by e.email $$,
+  $$ select email, 'admin'::text from e2e_admins order by email $$,
+  'each dedicated e2e admin''s profile has role admin'
+);
+
+select results_eq(
+  $$ select e.email, f.factor_type::text, f.status::text, f.secret ~ '^[A-Z2-7]{32}$'
+     from e2e_admins e
+     left join auth.users u on u.email = e.email
+     left join auth.mfa_factors f on f.user_id = u.id
+     order by e.email, f.id $$,
+  $$ select email, 'totp'::text, 'verified'::text, true from e2e_admins order by email $$,
+  'each dedicated e2e admin has exactly one factor, a verified TOTP factor with a 32-character base32 secret'
+);
+
+select results_eq(
+  $$ select count(distinct f.secret)::int
+     from auth.mfa_factors f
+     join auth.users u on u.id = f.user_id
+     where u.email in (select email from e2e_admins) or u.email = 'admin@example.com' $$,
+  $$ select count(*)::int + 1 from e2e_admins $$,
+  'the dedicated e2e admins and the seed admin each have their own TOTP secret'
 );
 
 select * from finish();

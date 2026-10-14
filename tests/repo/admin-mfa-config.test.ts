@@ -63,12 +63,40 @@ describe('TOTP for admins in supabase/config.toml', () => {
 
 // The seed admin's TOTP factor (supabase/seed.sql) and the e2e helper that
 // computes its codes (e2e/admin-auth.ts) must use the same secret.
+// Re-spec: the same holds for the dedicated e2e admins (TEST_ADMINS and
+// API_ADMIN in the helper), each with its own secret, which seed.sql seeds
+// for that admin's email.
 describe("the seed admin's TOTP secret", () => {
+  const helper = readFileSync(path.join(process.cwd(), 'e2e', 'admin-auth.ts'), 'utf8');
+  const seed = readFileSync(path.join(process.cwd(), 'supabase', 'seed.sql'), 'utf8');
+
   it('seed.sql seeds the secret the e2e helper computes the codes from', () => {
-    const helper = readFileSync(path.join(process.cwd(), 'e2e', 'admin-auth.ts'), 'utf8');
     const secret = /totpSecret:\s*'([A-Z2-7]+)'/.exec(helper)?.[1];
     expect(secret).toBeDefined();
-    const seed = readFileSync(path.join(process.cwd(), 'supabase', 'seed.sql'), 'utf8');
     expect(seed).toContain(secret!);
+  });
+
+  it("seed.sql seeds every dedicated e2e admin's secret, each its own", () => {
+    const admins = [
+      ...helper.matchAll(/testAdmin\(\s*'([a-z0-9-]+)',\s*'([A-Z2-7]{32})',?\s*\)/g),
+    ].map((match) => ({ email: `${match[1]}@example.com`, secret: match[2]! }));
+    expect(admins.map(({ email }) => email).sort()).toEqual(
+      [
+        'admin-mfa-phone@example.com',
+        'admin-mfa-desktop@example.com',
+        'admin-sign-in-phone@example.com',
+        'admin-sign-in-desktop@example.com',
+        'admin-nav-phone@example.com',
+        'admin-nav-desktop@example.com',
+        'admin-api-aal1@example.com',
+      ].sort(),
+    );
+    const seedAdminSecret = /totpSecret:\s*'([A-Z2-7]+)'/.exec(helper)?.[1];
+    const secrets = admins.map(({ secret }) => secret);
+    expect(new Set([...secrets, seedAdminSecret]).size).toBe(secrets.length + 1);
+    for (const { email, secret } of admins) {
+      expect(seed).toContain(email);
+      expect(seed).toContain(secret);
+    }
   });
 });

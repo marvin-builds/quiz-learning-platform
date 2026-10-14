@@ -2,23 +2,29 @@ import { expect, type Page, test } from '@playwright/test';
 
 import de from '../src/i18n/locales/de.json';
 import {
+  adminFor,
   createAdminWithoutFactor,
   enterTotpCode,
   removeAdmin,
-  SEED_ADMIN,
   signInWithPassword,
+  TEST_ADMINS,
 } from './admin-auth';
 import { expectNoSeriousAxeViolations } from './axe';
 import { totp } from './totp';
 
 // Admin rights need a second factor (#122), against the local stack, once
 // per project of playwright.config.ts (phone 390 px and desktop 1280 px):
-// - The seed admin (supabase/seed.sql) has a verified TOTP factor: after the
-//   password the admin area asks for the code, not the category list; a
-//   wrong code shows its own message; the right code opens the category
-//   list. The challenge passes axe.
+// - An admin with a verified TOTP factor: after the password the admin area
+//   asks for the code, not the category list; a wrong code shows its own
+//   message; the right code opens the category list. The challenge passes
+//   axe. Re-spec: was the seed admin; now this file's dedicated admin for
+//   the project (TEST_ADMINS.mfa in ./admin-auth, seeded like the seed
+//   admin), its tests one after the other, since a TOTP verify ends the
+//   user's other half-done sign-ins and the seed admin's sessions are
+//   shared by the tests running at the same time.
 // - An admin without a factor (created for the test, as the hosted admin is
-//   right after the deploy) gets the enrollment: a QR code with an alt text
+//   right after the deploy, and removed afterwards; a fresh user per test,
+//   so no other test verifies it at the same time) gets the enrollment: a QR code with an alt text
 //   and the secret as text; the code from that secret opens the category
 //   list, and the next sign-in asks for the code instead. The enrollment
 //   passes axe.
@@ -68,50 +74,59 @@ function wrongCode(secret: string): string {
   throw new Error('unreachable');
 }
 
-test('after the password the seed admin is asked for the code, and the challenge passes axe', async ({
-  page,
-}) => {
-  const errors = watchErrors(page);
+test.describe('an admin with a verified factor', () => {
+  test.describe.configure({ mode: 'serial' });
 
-  await signInWithPassword(page, SEED_ADMIN.email, SEED_ADMIN.password);
+  test('after the password the admin is asked for the code, and the challenge passes axe', async ({
+    page,
+  }, testInfo) => {
+    const admin = adminFor(TEST_ADMINS.mfa, testInfo);
+    const errors = watchErrors(page);
 
-  await expect(heading(page, 'admin.mfa.challenge.title')).toBeVisible();
-  await expect(page.getByLabel(text('admin.mfa.code'), { exact: true })).toBeVisible();
-  await expect(heading(page, 'admin.categories.title')).toBeHidden();
-  await expect(heading(page, 'admin.mfa.enroll.title')).toBeHidden();
-  await expectNoSeriousAxeViolations(page);
-  expect(errors).toEqual([]);
-});
+    await signInWithPassword(page, admin.email, admin.password);
 
-test('a wrong code shows the wrong-code message; the right code opens the category list', async ({
-  page,
-}) => {
-  await signInWithPassword(page, SEED_ADMIN.email, SEED_ADMIN.password);
-  await expect(heading(page, 'admin.mfa.challenge.title')).toBeVisible();
+    await expect(heading(page, 'admin.mfa.challenge.title')).toBeVisible();
+    await expect(page.getByLabel(text('admin.mfa.code'), { exact: true })).toBeVisible();
+    await expect(heading(page, 'admin.categories.title')).toBeHidden();
+    await expect(heading(page, 'admin.mfa.enroll.title')).toBeHidden();
+    await expectNoSeriousAxeViolations(page);
+    expect(errors).toEqual([]);
+  });
 
-  await page
-    .getByLabel(text('admin.mfa.code'), { exact: true })
-    .fill(wrongCode(SEED_ADMIN.totpSecret));
-  await page.getByRole('button', { name: text('admin.mfa.submit'), exact: true }).click();
+  test('a wrong code shows the wrong-code message; the right code opens the category list', async ({
+    page,
+  }, testInfo) => {
+    const admin = adminFor(TEST_ADMINS.mfa, testInfo);
+    await signInWithPassword(page, admin.email, admin.password);
+    await expect(heading(page, 'admin.mfa.challenge.title')).toBeVisible();
 
-  await expect(page.getByText(text('admin.mfa.errors.invalidCode'), { exact: true })).toBeVisible();
-  await expect(heading(page, 'admin.categories.title')).toBeHidden();
+    await page
+      .getByLabel(text('admin.mfa.code'), { exact: true })
+      .fill(wrongCode(admin.totpSecret));
+    await page.getByRole('button', { name: text('admin.mfa.submit'), exact: true }).click();
 
-  await enterTotpCode(page, SEED_ADMIN.totpSecret);
+    await expect(
+      page.getByText(text('admin.mfa.errors.invalidCode'), { exact: true }),
+    ).toBeVisible();
+    await expect(heading(page, 'admin.categories.title')).toBeHidden();
 
-  await expect(heading(page, 'admin.categories.title')).toBeVisible();
-  await expect(page).toHaveURL(/\/admin\/categories\/?$/);
-  await expect(page.getByText('Geografie', { exact: true })).toBeVisible();
-});
+    await enterTotpCode(page, admin.totpSecret);
 
-test('sign-out in the admin header works on the code challenge', async ({ page }) => {
-  await signInWithPassword(page, SEED_ADMIN.email, SEED_ADMIN.password);
-  await expect(heading(page, 'admin.mfa.challenge.title')).toBeVisible();
+    await expect(heading(page, 'admin.categories.title')).toBeVisible();
+    await expect(page).toHaveURL(/\/admin\/categories\/?$/);
+    await expect(page.getByText('Geografie', { exact: true })).toBeVisible();
+  });
 
-  await signOut(page).click();
+  test('sign-out in the admin header works on the code challenge', async ({ page }, testInfo) => {
+    const admin = adminFor(TEST_ADMINS.mfa, testInfo);
+    await signInWithPassword(page, admin.email, admin.password);
+    await expect(heading(page, 'admin.mfa.challenge.title')).toBeVisible();
 
-  await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByText(de.home.title, { exact: true })).toBeVisible();
+    await signOut(page).click();
+
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByText(de.home.title, { exact: true })).toBeVisible();
+  });
 });
 
 test.describe('an admin without a factor', () => {
