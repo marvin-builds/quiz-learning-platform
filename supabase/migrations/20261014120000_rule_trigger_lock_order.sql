@@ -25,7 +25,8 @@
 -- Answer writes record only their question, never its quiz, as before.
 -- The table belongs to the function owner, so the API roles can't read or
 -- fill it; a table of that name the session created itself makes the write
--- fail rather than being trusted.
+-- and the check fail rather than being trusted
+-- (internal.rule_check_parents_exists).
 --
 -- Not covered: the row locks the writes themselves take when they run
 -- (an UPDATE or DELETE locks its row at once). Two transactions writing the
@@ -47,6 +48,34 @@
 
 -- The record of a transaction's parents ---------------------------------------
 
+-- Whether the session's pg_temp.rule_check_parents exists; raises when one
+-- exists that the functions' owner didn't create, so neither the recording
+-- trigger nor the lock function ever reads a table the session made itself.
+
+create function internal.rule_check_parents_exists()
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  table_owner oid;
+begin
+  select c.relowner into table_owner
+  from pg_catalog.pg_class c
+  where c.oid = pg_catalog.to_regclass('pg_temp.rule_check_parents');
+
+  if table_owner is null then
+    return false;
+  elsif table_owner is distinct from (
+    select r.oid from pg_catalog.pg_roles r where r.rolname = current_user
+  ) then
+    raise exception 'pg_temp.rule_check_parents is not the rule checks'' table';
+  end if;
+  return true;
+end;
+$$;
+
 create function internal.record_rule_check_parent()
 returns trigger
 language plpgsql
@@ -56,7 +85,6 @@ as $$
 declare
   parent_kind text := tg_argv[0];
   parent_id uuid;
-  table_owner oid;
 begin
   if parent_kind = 'quiz' then
     if tg_table_name = 'questions' then
@@ -72,20 +100,12 @@ begin
     parent_id := new.question_id;
   end if;
 
-  select c.relowner into table_owner
-  from pg_catalog.pg_class c
-  where c.oid = pg_catalog.to_regclass('pg_temp.rule_check_parents');
-
-  if table_owner is null then
+  if not internal.rule_check_parents_exists() then
     create temporary table rule_check_parents (
       kind text not null,
       id uuid not null,
       primary key (kind, id)
     ) on commit delete rows;
-  elsif table_owner is distinct from (
-    select r.oid from pg_catalog.pg_roles r where r.rolname = current_user
-  ) then
-    raise exception 'pg_temp.rule_check_parents is not the rule checks'' table';
   end if;
 
   insert into pg_temp.rule_check_parents (kind, id)
@@ -136,7 +156,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if pg_catalog.to_regclass('pg_temp.rule_check_parents') is null then
+  if not internal.rule_check_parents_exists() then
     return;
   end if;
 
