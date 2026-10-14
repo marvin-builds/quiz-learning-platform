@@ -172,7 +172,9 @@ begin
   order by q.id
   for no key update;
 
-  delete from pg_temp.rule_check_parents;
+  -- `where true`: the API sessions load pg_safeupdate, which refuses a
+  -- delete without a WHERE clause.
+  delete from pg_temp.rule_check_parents where true;
 end;
 $$;
 
