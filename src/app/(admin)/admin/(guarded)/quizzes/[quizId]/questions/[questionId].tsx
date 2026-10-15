@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import { useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { AdminNotFound } from '@/components/admin-list';
@@ -13,15 +13,12 @@ import {
   fetchAdminAnswers,
   fetchAdminQuestion,
   saveFailureKey,
-  saveQuestion,
 } from '@/lib/admin-questions';
-import { adminKey } from '@/lib/admin-quizzes';
-import type { QuestionWithAnswersValues } from '@/lib/question-schema';
+import { useSaveQuestion } from '@/lib/use-save-question';
 
 export default function EditQuestionScreen() {
   const { t } = useTranslation();
   const { quizId, questionId } = useLocalSearchParams<{ quizId: string; questionId: string }>();
-  const queryClient = useQueryClient();
   // Read through admin_question() and admin_answers() (the explanation and
   // is_correct are no columns anyone may select), after the screen opened
   // and without retries, like the quiz's edit form. A malformed quiz id names
@@ -57,22 +54,12 @@ export default function EditQuestionScreen() {
     })),
   };
 
-  const update = useMutation({
-    // The stored images, whose objects go once the save replaced or removed them.
-    mutationFn: (values: QuestionWithAnswersValues) =>
-      saveQuestion(
-        quizId,
-        questionId,
-        values,
-        [initial, ...(initial?.answers ?? [])].flatMap((image) =>
-          image?.image_path ? [image.image_path] : [],
-        ),
-      ),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: adminKey });
-      router.replace(`/admin/quizzes/${quizId}`);
-    },
-  });
+  // The stored images, whose objects go once the save replaced or removed them.
+  const { mutation: update, imagesLeft } = useSaveQuestion(quizId, questionId, () =>
+    [initial, ...(initial?.answers ?? [])].flatMap((image) =>
+      image?.image_path ? [image.image_path] : [],
+    ),
+  );
   return (
     <FormScreen title={t('admin.questions.form.editTitle')}>
       {question.isError || answers.isError ? (
@@ -100,6 +87,7 @@ export default function EditQuestionScreen() {
           initial={initial}
           pending={update.isPending}
           failure={update.isError ? t(saveFailureKey(update.error)) : null}
+          notice={update.isError && imagesLeft ? t('admin.questions.errors.imageRemove') : null}
           onSubmit={(values) => update.mutate(values)}
         />
       )}

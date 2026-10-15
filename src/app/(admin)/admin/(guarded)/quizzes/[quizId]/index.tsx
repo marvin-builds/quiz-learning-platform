@@ -1,6 +1,6 @@
 import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, View } from 'react-native';
 
@@ -23,6 +23,7 @@ import {
 } from '@/lib/admin-questions';
 import { adminKey } from '@/lib/admin-quizzes';
 import { isRuleViolation, movedIds } from '@/lib/admin-rows';
+import { IMAGES_LEFT_PARAM } from '@/lib/use-save-question';
 
 type Question = NonNullable<Awaited<ReturnType<typeof fetchQuizQuestions>>>['questions'][number];
 
@@ -30,7 +31,19 @@ const deleteKey = [...adminKey, 'questions', 'delete'] as const;
 
 export default function AdminQuestionsScreen() {
   const { t } = useTranslation();
-  const { quizId } = useLocalSearchParams<{ quizId: string }>();
+  const params = useLocalSearchParams<{ quizId: string; [IMAGES_LEFT_PARAM]?: string }>();
+  const { quizId } = params;
+  // A save that returned here left an image object it couldn't remove (#125).
+  // The notice is kept in state and the parameter dropped, so a reload, a
+  // bookmark or the history doesn't show it again.
+  const navigation = useNavigation<{ replaceParams(params: { quizId: string }): void }>();
+  const imagesLeftParam = params[IMAGES_LEFT_PARAM];
+  const [imagesLeft, setImagesLeft] = useState(false);
+  if (imagesLeftParam === '1' && !imagesLeft) setImagesLeft(true);
+  useEffect(() => {
+    // setParams would only set it to undefined, which the URL still names.
+    if (imagesLeftParam !== undefined) navigation.replaceParams({ quizId });
+  }, [imagesLeftParam, navigation, quizId]);
   const queryClient = useQueryClient();
   const list = useQuery({
     queryKey: adminQuizQuestionsKey(quizId),
@@ -102,6 +115,7 @@ export default function AdminQuestionsScreen() {
               name={t('admin.questions.preview', { name: list.data.quiz.title })}
               href={`/admin/quizzes/${quizId}/preview`}
             />
+            {imagesLeft ? <ErrorText text={t('admin.questions.errors.imageRemove')} /> : null}
             {remove.isError ? (
               <ErrorText
                 text={t(

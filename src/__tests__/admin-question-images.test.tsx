@@ -24,8 +24,12 @@ import en from '@/i18n/locales/en.json';
 //   only then calls save_question with image_path and image_alt for the
 //   question and each answer, never the local file.
 // - Once the save went through, the objects of replaced or removed images
-//   are removed. A failed removal still counts as saved: the orphan is
-//   accepted and documented, not an error for the admin.
+//   are removed. A failed removal still counts as saved, but (re-spec, #125)
+//   the admin is told that the image could not be deleted and is still
+//   publicly reachable: a removal fails when the request rejects, when it
+//   returns an error, or when its result doesn't list every object it was
+//   asked to remove (Storage deletes nothing it may not see and says so only
+//   by leaving the object out). The scheduled cleanup removes what stays.
 // - If the save fails, the objects uploaded for it are removed again and the
 //   stored ones stay; the form keeps the input and explains the failure.
 // - If Storage refuses an upload (too large, wrong type, no permission), the
@@ -43,7 +47,10 @@ import en from '@/i18n/locales/en.json';
 // the bucket root; else 23514). Storage holds a set of object names;
 // `mockServer['storage.upload' | 'storage.remove' | 'rpc.save_question']`
 // fails every such request, `mockServer['storage.upload#<n>']` only the
-// n-th upload (1-based). Every request is logged in order in `mockLog`.
+// n-th upload (1-based). `mockRemoval` makes Storage's remove() reject
+// ('reject'), delete nothing and list nothing ('nothing', as without a select
+// policy) or delete and list only the first object it is given ('first').
+// Every request is logged in order in `mockLog`.
 
 jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn(),
@@ -113,6 +120,7 @@ const mockServer: Record<string, 'ok' | Failure> = {};
 const mockLog: { kind: string; detail: unknown }[] = [];
 let mockNextId = 1;
 let mockUploadCount = 0;
+let mockRemoval: 'normal' | 'reject' | 'nothing' | 'first' = 'normal';
 
 function mockReset() {
   mockAuth.listeners.clear();
@@ -164,6 +172,7 @@ function mockReset() {
   for (const key of Object.keys(mockServer)) delete mockServer[key];
   mockLog.splice(0);
   mockUploadCount = 0;
+  mockRemoval = 'normal';
 }
 
 const mockError = (code: string, message: string) => ({ data: null, error: { code, message } });
@@ -381,7 +390,11 @@ const mockStorage = {
       mockLog.push({ kind: 'storage.remove', detail: { bucket, paths } });
       const state = mockServer['storage.remove'];
       if (state && state !== 'ok') return Promise.resolve({ data: null, error: state.error });
-      const removed = paths.filter((path) => mockObjects.delete(path));
+      if (mockRemoval === 'reject') return Promise.reject(new TypeError('Failed to fetch'));
+      if (mockRemoval === 'nothing') return Promise.resolve({ data: [], error: null });
+      const removed = (mockRemoval === 'first' ? paths.slice(0, 1) : paths).filter((path) =>
+        mockObjects.delete(path),
+      );
       return Promise.resolve({ data: removed.map((name) => ({ name })), error: null });
     },
   }),
@@ -833,5 +846,166 @@ describe('admin question screens: images', () => {
       image_path: STORED_ANSWER_PATH,
       image_alt: 'Ein roter Fuchs',
     });
+  });
+});
+
+// #125: a removal that fails leaves the image publicly reachable, so the admin
+// is told, in the app's own words, never Storage's. The save itself still
+// counts as done (see 'counts the save as done when removing the old object
+// afterwards fails' above), so after a save that went through the notice
+// shows on the question list the editor returns to.
+describe('admin question screens: a failed image removal (#125)', () => {
+  const NOTICE = 'admin.questions.errors.imageRemove';
+
+  // Each way a removal can fail, and what the fake does for it.
+  const failures: [string, () => void][] = [
+    [
+      'returns an error',
+      () => {
+        mockServer['storage.remove'] = {
+          error: { message: 'Internal Server Error', statusCode: '500' },
+        };
+      },
+    ],
+    [
+      'rejects',
+      () => {
+        mockRemoval = 'reject';
+      },
+    ],
+    [
+      'deletes nothing',
+      () => {
+        mockRemoval = 'nothing';
+      },
+    ],
+    [
+      'deletes only some of the objects',
+      () => {
+        mockRemoval = 'first';
+      },
+    ],
+  ];
+
+  async function replaceBothImages() {
+    await replaceQuestionImage();
+    await replaceFirstAnswerImage();
+  }
+
+  it('has the notice in German and English', () => {
+    for (const lng of ['de', 'en'] as const) {
+      const value = NOTICE.split('.').reduce<unknown>(
+        (node, part) => (node as Record<string, unknown> | undefined)?.[part],
+        lng === 'de' ? de : en,
+      );
+      expect(typeof value).toBe('string');
+      expect((value as string).trim()).not.toBe('');
+    }
+  });
+
+  it.each(failures)(
+    'tells the admin on the question list that an old image is still online when its removal after the save %s',
+    async (_case, fail) => {
+      fail();
+      const result = await renderAt(editUrl);
+      await replaceBothImages();
+
+      await save();
+
+      await waitFor(() => expect(result.getPathname()).toBe(listUrl));
+      expect(saveArgs()).toHaveLength(1);
+      expect(removedPaths()).toEqual(expect.arrayContaining([STORED_PATH, STORED_ANSWER_PATH]));
+      expect(await screen.findByText(label(NOTICE))).toBeOnTheScreen();
+      expect(screen.queryByText(label('admin.questions.form.errors.save'))).toBeNull();
+      expect(screen.queryByText('Internal Server Error', { exact: false })).toBeNull();
+      expect(screen.queryByText('Failed to fetch', { exact: false })).toBeNull();
+    },
+  );
+
+  it('shows no such notice when the old images were removed', async () => {
+    const result = await renderAt(editUrl);
+    await replaceBothImages();
+
+    await save();
+
+    await waitFor(() => expect(result.getPathname()).toBe(listUrl));
+    await waitFor(() => expect(removedPaths()).toEqual([STORED_PATH, STORED_ANSWER_PATH]));
+    await flush();
+    expect(mockObjects.has(STORED_PATH)).toBe(false);
+    expect(mockObjects.has(STORED_ANSWER_PATH)).toBe(false);
+    expect(screen.queryByText(label(NOTICE))).toBeNull();
+  });
+
+  it.each(failures)(
+    'tells the admin that the images it just uploaded are still online when the database refused the save and their removal %s',
+    async (_case, fail) => {
+      fail();
+      mockServer['rpc.save_question'] = {
+        error: { message: 'permission denied for function save_question', code: '42501' },
+      };
+      const result = await renderAt(editUrl);
+      await replaceBothImages();
+
+      await save();
+
+      expect(await screen.findByText(label('admin.questions.form.errors.save'))).toBeOnTheScreen();
+      const uploaded = uploads().map((upload) => upload.path);
+      expect(uploaded).toHaveLength(2);
+      await waitFor(() => expect(removedPaths()).toEqual(expect.arrayContaining(uploaded)));
+      expect(await screen.findByText(label(NOTICE))).toBeOnTheScreen();
+      expect(screen.queryByText('Internal Server Error', { exact: false })).toBeNull();
+      expect(screen.queryByText('Failed to fetch', { exact: false })).toBeNull();
+      expect(result.getPathname()).toBe(editUrl);
+    },
+  );
+
+  // A refused second upload leaves one uploaded object to remove, and 'first'
+  // removes a single object fully, so that mode is no failure here.
+  it.each(failures.filter(([name]) => name !== 'deletes only some of the objects'))(
+    'tells the admin that the image it already uploaded is still online when a later upload is refused and its removal %s',
+    async (_case, fail) => {
+      fail();
+      mockServer['storage.upload#2'] = {
+        error: {
+          message: 'The object exceeded the maximum allowed size',
+          statusCode: '413',
+          status: 400,
+        },
+      };
+      const result = await renderAt(editUrl);
+      await replaceBothImages();
+
+      await save();
+
+      expect(
+        await screen.findByText(label('admin.questions.form.errors.imageUpload')),
+      ).toBeOnTheScreen();
+      expect(uploads()).toHaveLength(2);
+      const [firstUpload] = uploads();
+      await waitFor(() => expect(removedPaths()).toContain(firstUpload.path));
+      expect(saveArgs()).toEqual([]);
+      expect(await screen.findByText(label(NOTICE))).toBeOnTheScreen();
+      expect(screen.queryByText('Internal Server Error', { exact: false })).toBeNull();
+      expect(screen.queryByText('Failed to fetch', { exact: false })).toBeNull();
+      expect(screen.queryByText('maximum allowed size', { exact: false })).toBeNull();
+      expect(result.getPathname()).toBe(editUrl);
+    },
+  );
+
+  it('shows no such notice when the database refused the save and the images it just uploaded were removed', async () => {
+    mockServer['rpc.save_question'] = {
+      error: { message: 'permission denied for function save_question', code: '42501' },
+    };
+    await renderAt(editUrl);
+    await replaceBothImages();
+
+    await save();
+
+    expect(await screen.findByText(label('admin.questions.form.errors.save'))).toBeOnTheScreen();
+    const uploaded = uploads().map((upload) => upload.path);
+    await waitFor(() => expect(removedPaths()).toEqual(uploaded));
+    await flush();
+    expect(uploaded.some((path) => mockObjects.has(path))).toBe(false);
+    expect(screen.queryByText(label(NOTICE))).toBeNull();
   });
 });

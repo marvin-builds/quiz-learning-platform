@@ -20,6 +20,8 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `npm ci`: install exactly what the lockfile pins
 - `npx expo start --web`: dev server on the web (`npm start` for all platforms)
 - `npm test`: Jest; one file with `npx jest <path>`
+- `npm run test:stack`: integration tests in `tests/stack/` against the running
+  local stack (the image cleanup); `npm test` skips them, CI's db job runs them
 - `npm run test:timing [-- <path>]`: duration budgets (`*.timing.test.ts`),
   serially and alone, since load makes them flaky; `npm test` skips them
 - `npm run lint`: ESLint with Prettier and the no-hard-coded-strings rule

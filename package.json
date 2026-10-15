@@ -64,6 +64,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:timing": "jest --runInBand --testPathIgnorePatterns /node_modules/ '/\\.stryker-tmp/' '--testPathPattern=\\.timing\\.test\\.ts$'",
+    "test:stack": "jest --runInBand --testPathIgnorePatterns /node_modules/ --testPathPattern=tests/stack/",
     "test:e2e": "node scripts/e2e-lock.mjs playwright test",
     "export:web": "expo export -p web && node scripts/security-headers.mjs",
     "check": "expo lint --quiet && tsc --noEmit --pretty false && jest --silent --reporters=summary && npm run -s test:timing -- --silent --reporters=summary",
@@ -95,7 +96,8 @@
       "/node_modules/",
       "<rootDir>/.stryker-tmp/",
       "<rootDir>/e2e/",
-      "\\.timing\\.test\\.ts$"
+      "\\.timing\\.test\\.ts$",
+      "<rootDir>/tests/stack/"
     ],
     "modulePathIgnorePatterns": [
       "<rootDir>/.stryker-tmp/"

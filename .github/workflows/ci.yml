@@ -17,7 +17,8 @@ concurrency:
 
 env:
   # Not a credential: the ref is part of the public Supabase URL. It must match
-  # [remotes.production] in supabase/config.toml.
+  # [remotes.production] in supabase/config.toml, and clean-up-images.yml has
+  # its own copy.
   SUPABASE_PROJECT_REF: kiywcqhicsesgknlwjyy
 
 jobs:
@@ -63,6 +64,8 @@ jobs:
       # Storage stays: start creates the quiz-images bucket and uploads the seed images.
       - run: npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,mailpit,realtime,supavisor
       - run: npx supabase test db
+      # Integration tests against the running stack (tests/stack/), e.g. the image cleanup.
+      - run: npm run test:stack -- --ci
       - name: Fail when the generated database types are stale
         run: npm run db:types && git diff --exit-code src/types/database.ts
 

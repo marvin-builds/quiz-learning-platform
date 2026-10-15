@@ -215,7 +215,8 @@
       "errors": {
         "delete": "The question could not be deleted. Please try again.",
         "deleteLastPublished": "The last question of a published quiz can't be deleted. Unpublish the quiz first.",
-        "reorder": "The order could not be changed. The list shows the saved order. Please try again."
+        "reorder": "The order could not be changed. The list shows the saved order. Please try again.",
+        "imageRemove": "An image could not be deleted and is still publicly reachable for now. It is removed automatically within about a day."
       },
       "form": {
         "createTitle": "New question",
