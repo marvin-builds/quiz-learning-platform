@@ -1,6 +1,8 @@
 -- public.health_check(): the one value the deployed page reads to prove it
 -- reaches the database. Callable by every API role; returns a fixed value and
 -- touches no data.
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(7);
 
@@ -70,7 +72,7 @@ reset role;
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select results_eq(
   $$ select public.health_check() $$,

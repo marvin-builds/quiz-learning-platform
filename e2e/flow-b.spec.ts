@@ -13,12 +13,14 @@ import {
 
 import de from '../src/i18n/locales/de.json';
 import { expectNoSeriousAxeViolations } from './axe';
+import { openAdminAsSeedAdmin, seedAdminAccessToken } from './admin-auth';
 import { expectCspWithoutViolations, watchCsp } from './csp';
 
 // E2E flow B (#84) against the local stack, at both sizes (the phone and
 // desktop projects of playwright.config.ts):
 //
-// 1. The seed admin (admin@example.com / admin-password) signs in, creates a
+// 1. The seed admin (admin@example.com) opens the admin area with the aal2
+//    session the setup project saved (e2e/seed-admin.setup.ts, #122), creates a
 //    category and a quiz in it, adds a question with an image (alt text
 //    included), publishes the quiz and the category, and previews the quiz
 //    (marked as a preview, with the correct answer and the explanation). A
@@ -49,8 +51,6 @@ import { expectCspWithoutViolations, watchCsp } from './csp';
 // Registered learners it creates stay behind (no API role may delete
 // users); they have no admin role and no content.
 
-const ADMIN_EMAIL = 'admin@example.com';
-const ADMIN_PASSWORD = 'admin-password';
 const FIXTURE = path.join(__dirname, 'fixtures', 'fuchs.png');
 
 // Reads a text from de.json by path, so keys that don't exist yet fail at run
@@ -122,12 +122,8 @@ let adminSession: Headers | undefined;
 
 async function adminHeaders(request: APIRequestContext): Promise<Headers> {
   if (adminSession) return adminSession;
-  const signIn = await request.post(`${apiUrl()}/auth/v1/token?grant_type=password`, {
-    headers: { apikey: apiKey() },
-    data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
-  });
-  expect(signIn.ok(), await signIn.text()).toBe(true);
-  const { access_token: token } = (await signIn.json()) as { access_token: string };
+  // Re-spec (#122): admin rights need an aal2 session (password and TOTP).
+  const token = await seedAdminAccessToken();
   adminSession = await tokenHeaders(token);
   return adminSession;
 }
@@ -432,7 +428,11 @@ test('flow B: an admin creates, publishes and previews a quiz with an image, and
   await page.goto('/admin/sign-in');
   await expect(page.getByLabel(text('admin.signIn.email'), { exact: true })).toBeVisible();
   await expectNoSeriousAxeViolations(page);
-  await signInAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  // Re-spec (#122): the seed admin's aal2 session from the setup project
+  // (e2e/seed-admin.setup.ts) instead of password and code here, whose TOTP
+  // verify would end the parallel tests' half-done sign-ins; the sign-in
+  // itself is covered by admin.spec.ts and admin-mfa.spec.ts.
+  await openAdminAsSeedAdmin(page);
 
   // The category: list, create form, back on the list.
   await expect(page).toHaveURL(/\/admin\/categories\/?$/);
@@ -720,7 +720,9 @@ test('an admin reorders categories, quizzes, questions and answers by keyboard, 
   await createQuestion(request, quizIds[2], `${unique(testInfo, 'Füllfrage')}?`, ['Ja', 'Nein']);
   for (const id of quizIds) await publishQuiz(request, id);
 
-  await signInAs(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  // Re-spec (#122): the seed admin's aal2 session from the setup project,
+  // as in flow B above.
+  await openAdminAsSeedAdmin(page);
   // Re-spec (#116): the sign-in lands on the category list, not the dashboard.
   await expect(page).toHaveURL(/\/admin\/categories\/?$/);
 

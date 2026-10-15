@@ -17,6 +17,8 @@
 -- The probes at the end grant the columns and show that every rejected case
 -- then gets data (the camelCase ones once inflection is on too); they come
 -- last because pg_graphql caches its schema per transaction.
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(48);
 
@@ -200,7 +202,7 @@ reset role;
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select * from pg_temp.check_cases('an admin');
 

@@ -454,6 +454,40 @@ const mockSupabase = {
   auth: {
     getSession: () => Promise.resolve({ data: { session: mockAuth.session }, error: null }),
     getUser: () => Promise.resolve({ data: { user: mockAuth.session?.user ?? null }, error: null }),
+    // Re-spec (#122): admin rights need an aal2 session (password and TOTP).
+    // The app reads the level and the factors through auth.mfa. Here the
+    // admin's session is aal2 with one verified TOTP factor, anyone else's
+    // aal1 without a factor; admin-mfa.test.tsx covers the step-up itself.
+    mfa: {
+      getAuthenticatorAssuranceLevel: () => {
+        const level =
+          mockAuth.session !== null
+            ? mockAuth.session?.user.id === ADMIN.id
+              ? 'aal2'
+              : 'aal1'
+            : null;
+        return Promise.resolve({
+          data: { currentLevel: level, nextLevel: level, currentAuthenticationMethods: [] },
+          error: null,
+        });
+      },
+      listFactors: () => {
+        const totp =
+          mockAuth.session?.user.id === ADMIN.id
+            ? [
+                {
+                  id: 'f0000000-0000-4000-8000-000000000001',
+                  factor_type: 'totp',
+                  status: 'verified',
+                  friendly_name: '',
+                  created_at: '2026-10-01T00:00:00Z',
+                  updated_at: '2026-10-01T00:00:00Z',
+                },
+              ]
+            : [];
+        return Promise.resolve({ data: { all: totp, totp, phone: [] }, error: null });
+      },
+    },
     onAuthStateChange: (listener: Listener) => {
       mockAuth.listeners.add(listener);
       void Promise.resolve().then(() => listener('INITIAL_SESSION', mockAuth.session));

@@ -8,6 +8,8 @@
 -- owner, independent of seed.sql, and vanish on rollback. Storage objects
 -- the deleted questions point to are left alone (orphan cleanup is a
 -- follow-up for the image upload slice).
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(13);
 
@@ -68,7 +70,7 @@ insert into public.attempt_answers
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select lives_ok(
   $$ delete from public.categories where id = 'c0000000-0000-0000-0000-000000000001' $$,

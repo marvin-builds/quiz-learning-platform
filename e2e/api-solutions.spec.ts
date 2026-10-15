@@ -3,6 +3,8 @@ import path from 'node:path';
 
 import { type APIRequestContext, expect, test } from '@playwright/test';
 
+import { API_ADMIN, passwordSession, seedAdminAccessToken, stepUp } from './admin-auth';
+
 // The solutions and the scores over plain HTTP, the way any client can call
 // the local Supabase API with the public key the app ships. The pgTAP tests
 // check the grants role by role; this spec checks what PostgREST makes of
@@ -198,8 +200,33 @@ async function signUpLearner(request: APIRequestContext): Promise<Record<string,
 
 const learner: Caller = { name: 'a learner', headers: signUpLearner };
 
-for (const caller of [learner, anonymousUser]) {
+// Admin rights need a second factor (#122): an admin with a verified TOTP
+// factor signed in with the password only has an aal1 session, which GoTrue
+// marks in the token's aal claim, and gets exactly a learner's refusal.
+// Re-spec: was the seed admin; now a dedicated admin (API_ADMIN in
+// ./admin-auth, seeded with a verified factor), since a TOTP verify of the
+// seed admin elsewhere in the run would end its aal1 session. One sign-in
+// per worker (the local stack's rate limits); its tests run one after the
+// other, the step-up of the same session last.
+let apiAdminSession: ReturnType<typeof passwordSession> | undefined;
+
+function apiAdminPasswordSession(request: APIRequestContext): ReturnType<typeof passwordSession> {
+  apiAdminSession ??= passwordSession(request, API_ADMIN.email, API_ADMIN.password);
+  return apiAdminSession;
+}
+
+const passwordOnlyAdmin: Caller = {
+  name: 'an admin with the password only (aal1)',
+  headers: async (request) => {
+    const session = await apiAdminPasswordSession(request);
+    return { apikey: KEY, Authorization: `Bearer ${session.access_token}` };
+  },
+};
+
+for (const caller of [learner, anonymousUser, passwordOnlyAdmin]) {
   test.describe(`admin_question as ${caller.name}`, () => {
+    if (caller === passwordOnlyAdmin) test.describe.configure({ mode: 'serial' });
+
     for (const [what, questionId] of [
       ['a question with an explanation', FRANCE],
       ['an unknown question', UNKNOWN_QUESTION],
@@ -240,8 +267,48 @@ for (const caller of [learner, anonymousUser]) {
       expect(text).not.toContain('"explanation":');
       expect(text).not.toContain(FRANCE_EXPLANATION);
     });
+
+    // The positive control for the aal1 refusal above: the same session
+    // after the TOTP code (aal2) reads the question with its explanation,
+    // so the refusal is about the missing second factor, not the user.
+    if (caller === passwordOnlyAdmin) {
+      test('the same session after the TOTP code (aal2) reads admin_question', async ({
+        request,
+      }) => {
+        const session = await apiAdminPasswordSession(request);
+        const token = await stepUp(request, session, API_ADMIN.totpSecret);
+
+        const response = await request.post(`${API_URL}/rest/v1/rpc/admin_question`, {
+          headers: { apikey: KEY, Authorization: `Bearer ${token}` },
+          data: { question_id: FRANCE },
+        });
+
+        expect(response.ok(), await response.text()).toBe(true);
+        expect(await response.json()).toEqual([
+          expect.objectContaining({ id: FRANCE, explanation: FRANCE_EXPLANATION }),
+        ]);
+      });
+    }
   });
 }
+
+// An admin with password and TOTP code (aal2) reads admin_question: the
+// seed admin's aal2 token from the setup project (e2e/seed-admin.setup.ts).
+test('the seed admin with password and TOTP code (aal2) reads admin_question', async ({
+  request,
+}) => {
+  const token = await seedAdminAccessToken();
+
+  const response = await request.post(`${API_URL}/rest/v1/rpc/admin_question`, {
+    headers: { apikey: KEY, Authorization: `Bearer ${token}` },
+    data: { question_id: FRANCE },
+  });
+
+  expect(response.ok(), await response.text()).toBe(true);
+  expect(await response.json()).toEqual([
+    expect.objectContaining({ id: FRANCE, explanation: FRANCE_EXPLANATION }),
+  ]);
+});
 
 test('anon cannot call admin_question', async ({ request }) => {
   const response = await request.post(`${API_URL}/rest/v1/rpc/admin_question`, {

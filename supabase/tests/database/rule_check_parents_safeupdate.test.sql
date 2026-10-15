@@ -10,6 +10,9 @@
 -- `authenticated` with the seed admin's claims (supabase/seed.sql), and runs
 -- the deferred checks at once (set constraints all immediate) inside a
 -- transaction that is rolled back: nothing is left behind.
+--
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(4);
 
@@ -37,7 +40,8 @@ select dblink_exec('api', format(
   'set local "request.jwt.claims" = %L',
   json_build_object(
     'sub', (select id from auth.users where email = 'admin@example.com'),
-    'role', 'authenticated')::text));
+    'role', 'authenticated',
+    'aal', 'aal2')::text));
 
 select lives_ok(
   $$select * from dblink('api', $q$

@@ -1,6 +1,8 @@
 -- Access rules for public.profiles, per role: anon, anonymous user, learner,
 -- admin. Nobody makes themselves admin: not by updating their role, not by
 -- inserting a profile, not with sign-up metadata.
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(60);
 
@@ -185,7 +187,7 @@ reset role;
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select results_eq(
   $$ select id, role::text from public.profiles $$,
@@ -476,7 +478,7 @@ reset role;
 -- admin owner (carol)
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select results_eq(
   $$ update public.profiles set display_name = repeat('c', 50)
