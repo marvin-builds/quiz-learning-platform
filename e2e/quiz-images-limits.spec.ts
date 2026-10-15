@@ -5,12 +5,14 @@ import path from 'node:path';
 
 import { type APIRequestContext, expect, test } from '@playwright/test';
 
+import { seedAdminAccessToken } from './admin-auth';
+
 // The quiz-images limits against running Storage (#124, S6/S7): the bucket
 // takes png, jpeg and webp up to 5 MiB, and Storage must refuse anything
 // else from an admin, who may otherwise write the bucket. Until now the
 // limits were only checked as rows in pgTAP.
 //
-// Every upload is the seed admin's (admin@example.com / admin-password), under
+// Every upload is the seed admin's (admin@example.com), under
 // a name the Storage policies accept (`<lowercase uuid>.png` at the bucket
 // root), so a refusal can only come from the limits; each refusal is pinned
 // to Storage's own error (InvalidMimeType, 415; EntityTooLarge, 413), never
@@ -30,9 +32,12 @@ import { type APIRequestContext, expect, test } from '@playwright/test';
 // name is a fresh random UUID, and every object the spec may have created is
 // removed afterwards, also when a test failed half-way, since the bucket is
 // shared with the seed images and other specs.
+//
+// Re-spec (#122): admin rights need an aal2 session (password and TOTP), so
+// the spec uses the seed admin's aal2 access token that the setup project
+// saved (e2e/seed-admin.setup.ts) instead of a password sign-in. No assertion
+// changed.
 
-const ADMIN_EMAIL = 'admin@example.com';
-const ADMIN_PASSWORD = 'admin-password';
 const BUCKET = 'quiz-images';
 const FIVE_MIB = 5 * 1024 * 1024;
 
@@ -74,15 +79,6 @@ function freshName(): string {
   return name;
 }
 
-async function signInAsAdmin(request: APIRequestContext): Promise<string> {
-  const response = await request.post(`${API_URL}/auth/v1/token?grant_type=password`, {
-    headers: { apikey: KEY },
-    data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
-  });
-  expect(response.ok(), await response.text()).toBe(true);
-  return ((await response.json()) as { access_token: string }).access_token;
-}
-
 const adminHeaders = () => ({ apikey: KEY, Authorization: `Bearer ${adminToken}` });
 
 // The names of the bucket's root objects among `names`, as the admin lists them.
@@ -96,8 +92,8 @@ async function existing(request: APIRequestContext, names: string[]): Promise<st
   return objects.map((object) => object.name).filter((name) => names.includes(name));
 }
 
-test.beforeAll(async ({ request }) => {
-  adminToken = await signInAsAdmin(request);
+test.beforeAll(async () => {
+  adminToken = await seedAdminAccessToken();
 });
 
 test.afterAll(async ({ request }) => {
