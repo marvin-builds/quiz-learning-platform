@@ -74,14 +74,22 @@ export async function uploadImage(path: string, file: { uri: string; mimeType: s
 }
 
 /**
- * Removes objects, best effort: an object that stays is an orphan the plan
- * documents (decisions table, Images), not a failure of the save.
+ * Removes objects and says whether all of them are gone. A removal fails when
+ * the request rejects, when it returns an error, or when its result doesn't
+ * list every object it was asked to remove: Storage deletes nothing it may
+ * not see and says so only by leaving the object out. An object that stays
+ * is still publicly reachable until the scheduled cleanup
+ * (scripts/clean-up-images.mjs) removes it after its grace period, so the
+ * caller tells the admin.
  */
-export async function removeImages(paths: string[]) {
-  if (paths.length === 0) return;
+export async function removeImages(paths: string[]): Promise<boolean> {
+  if (paths.length === 0) return true;
   try {
-    await supabase.storage.from(BUCKET).remove(paths);
+    const { data, error } = await supabase.storage.from(BUCKET).remove(paths);
+    if (error || !data) return false;
+    const removed = new Set(data.map((object) => object.name));
+    return paths.every((path) => removed.has(path));
   } catch {
-    // Left as an orphan.
+    return false;
   }
 }
