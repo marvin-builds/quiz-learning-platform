@@ -14,8 +14,9 @@ There are two builds, both defined in [`eas.json`](../eas.json):
 
 ## One-time setup (human)
 
-1. An Expo account. Log in with `npx -y eas-cli@24.10.0 login`, then run
-   `eas init` once (`npx -y eas-cli@24.10.0 init`) on a branch and commit the
+1. An Expo account. Log in with `npx --no-install eas login` (eas-cli is a
+   dev dependency, so `npm ci` installs it), then run
+   `eas init` once (`npx --no-install eas init`) on a branch and commit the
    `extra.eas.projectId` and `owner` it writes into `app.json`. Builds fail
    without them.
 2. Create an access token on expo.dev and store it as the `EXPO_TOKEN`
@@ -84,8 +85,18 @@ npx expo run:android
 
 This builds a debug app on the dev machine and needs the Android SDK and
 JDK 17. Alternatively, with an Expo account,
-`npx -y eas-cli@24.10.0 build --local -p android --profile development`
-builds an installable development client APK. Then start the dev server and
+
+```sh
+EAS_LOCAL_BUILD_PLUGIN_PATH=./node_modules/.bin/eas-cli-local-build-plugin \
+EAS_BUILD_DISABLE_EXPO_DOCTOR_STEP=1 \
+  npx --no-install eas build --local -p android --profile development
+```
+
+builds an installable development client APK with the build plugin from the
+lockfile (without the variable, eas-cli downloads it with `npx` at run time)
+and without the plugin's expo-doctor step, which would download expo-doctor
+with `npx`; it isn't in the lockfile either.
+Then start the dev server and
 open the app on the phone:
 
 ```sh
