@@ -28,6 +28,8 @@
 -- user, anon, an anonymous user and a learner, also with an image payload.
 -- Fixtures are created here as the owner, independent of seed.sql, and
 -- vanish on rollback.
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(24);
 
@@ -121,7 +123,7 @@ create temporary table original_images as select * from pg_temp.fixture_images()
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select lives_ok(
   $$ select set_config('test.created', public.save_question(
@@ -156,7 +158,7 @@ select results_eq(
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select is(
   pg_temp.outcome(pg_temp.save_fixture(
@@ -180,7 +182,7 @@ select results_eq(
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select is(
   pg_temp.outcome(pg_temp.save_fixture(null, null, null, null)),
@@ -210,7 +212,7 @@ where o.what = a.text and a.question_id = 'e0000000-0000-0000-0000-000000000001'
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select is(
   pg_temp.outcome(pg_temp.save_fixture(
@@ -310,7 +312,7 @@ select results_eq(
 -- repeating one and comparing with what the control stored.
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 select pg_temp.outcome(pg_temp.save_fixture(
   '../0a1b2c3d-0000-4000-8000-000000000009.png', 'Ein Bild',
   '0a1b2c3d-0000-4000-8000-000000000009.png', null));

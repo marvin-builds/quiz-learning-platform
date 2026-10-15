@@ -21,6 +21,8 @@
 -- 'not available', stores nothing and reveals no solution, so a quiz that is
 -- unpublished and edited as a draft can't leak the draft. The check doesn't
 -- latch: once the quiz is published again, submissions work again.
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(99);
 
@@ -912,7 +914,7 @@ select set_config('request.jwt.claims',
 select set_config('test.guest_unpub', public.start_attempt('d0000000-0000-0000-0000-000000000003')::text, true);
 
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 select set_config('test.admin_unpub', public.start_attempt('d0000000-0000-0000-0000-000000000003')::text, true);
 
 select set_config('request.jwt.claims',
@@ -1124,7 +1126,7 @@ reset role;
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select set_config('test.admin', public.start_attempt('d0000000-0000-0000-0000-000000000002')::text, true);
 

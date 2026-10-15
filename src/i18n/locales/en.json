@@ -79,6 +79,27 @@
       "noAccess": "This account has no access to the admin area.",
       "retry": "Try again"
     },
+    "mfa": {
+      "enroll": {
+        "title": "Set up a second factor",
+        "intro": "The admin area needs a code from an authenticator app besides the password. Scan the QR code with the app or type in the key, then enter the code it shows.",
+        "qrAlt": "QR code for setting up the authenticator app",
+        "secret": "Key for typing in",
+        "loading": "Preparing the setup …",
+        "error": "The setup could not be prepared."
+      },
+      "challenge": {
+        "title": "Confirm the code",
+        "intro": "Enter the current code from your authenticator app."
+      },
+      "code": "Code from the authenticator app",
+      "submit": "Confirm",
+      "submitting": "Checking the code …",
+      "errors": {
+        "invalidCode": "The code is wrong or has expired. Enter the current code.",
+        "network": "The code could not be checked. Check your connection and try again."
+      }
+    },
     "dashboard": {
       "title": "Admin area"
     },

@@ -13,6 +13,8 @@
 -- An id that is no uuid at all raises 22P02 from the cast, as before.
 -- Fixtures are created here as the owner, independent of seed.sql, and
 -- vanish on rollback.
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(10);
 
@@ -55,7 +57,7 @@ insert into public.answers (id, question_id, text, is_correct, sort_order) value
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select throws_ok(
   $$ select public.save_question(
@@ -154,7 +156,7 @@ select is(
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 -- Positive control, after the effects above: the same question saves with
 -- each answer named once, in any spelling.

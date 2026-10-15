@@ -31,6 +31,8 @@
 -- The target object is created here as the owner, independent of the seed's
 -- images, and reset before each role, so one role's failure doesn't carry
 -- over to the next. Everything vanishes on rollback.
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(49);
 
@@ -305,7 +307,7 @@ select pg_temp.reset_fixture();
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select results_eq(
   $$ select name from storage.objects
@@ -467,7 +469,7 @@ select is_empty(
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 select pg_temp.attempt(
   $$ delete from storage.objects where id = '0b000000-0000-4000-8000-000000000001' $$);
 reset role;

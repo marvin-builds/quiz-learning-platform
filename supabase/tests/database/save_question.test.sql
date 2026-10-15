@@ -39,6 +39,8 @@
 -- the signature gains (text, text), the argument names gain image_path and
 -- image_alt, and the six-argument overload must be gone. The calls below
 -- name their arguments and send no image, so they stay as they were.
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(72);
 
@@ -235,7 +237,7 @@ select ok(
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select lives_ok(
   $$ select set_config('test.single', public.save_question(
@@ -374,7 +376,7 @@ select is_empty(
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 -- Moves the correct mark from Paris to Lyon, renames Marseille, adds Nizza
 -- and drops nothing: one call, which row by row would need a moment with
@@ -537,7 +539,7 @@ select is_empty(
 -- The admin still can't read the solutions through a select.
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select throws_ok(
   $$ select is_correct from public.answers
@@ -740,7 +742,7 @@ update public.profiles set role = 'learner' where id = '33333333-3333-3333-3333-
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select is(
   pg_temp.outcome($$ select public.save_question(

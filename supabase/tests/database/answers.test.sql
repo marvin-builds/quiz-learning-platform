@@ -40,6 +40,8 @@
 -- 'no INSERT/UPDATE grant on answers.sort_order' and 'an admin cannot change
 -- the sort_order of an answer (reordering is item 6)'; the stored-edits
 -- check now expects the admin's new sort_order instead of the old one.
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(129);
 
@@ -692,7 +694,7 @@ select is_empty(
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select results_eq(
   $$ select id, question_id, text, image_path, image_alt, sort_order,

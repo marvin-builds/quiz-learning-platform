@@ -19,6 +19,8 @@
 -- reusing still works at the ceiling. internal.attempt_limits() holds both
 -- numbers, owner-only, and the tests read them from there. The refusals above
 -- come first, then a per-user advisory lock, reuse, the ceiling, the insert.
+-- Re-spec (#122): admin rights need an aal2 session, so the admin's JWT claims
+-- carry "aal": "aal2" (password and TOTP). No assertion changed.
 begin;
 select plan(89);
 
@@ -336,7 +338,7 @@ reset role;
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}', true);
+  '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated", "aal": "aal2"}', true);
 
 select isnt(
   set_config('test.admin_attempt',
@@ -755,7 +757,7 @@ select pg_temp.add_attempts('a7000000-0000-0000-0000-000000000003',
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "a7000000-0000-0000-0000-000000000003", "role": "authenticated"}', true);
+  '{"sub": "a7000000-0000-0000-0000-000000000003", "role": "authenticated", "aal": "aal2"}', true);
 
 select isnt(
   set_config('test.cap_admin',
@@ -786,7 +788,7 @@ select is(
 
 set local role authenticated;
 select set_config('request.jwt.claims',
-  '{"sub": "a7000000-0000-0000-0000-000000000003", "role": "authenticated"}', true);
+  '{"sub": "a7000000-0000-0000-0000-000000000003", "role": "authenticated", "aal": "aal2"}', true);
 
 select is(
   pg_temp.try_start('d0000000-0000-0000-0000-000000000001'),

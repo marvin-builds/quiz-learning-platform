@@ -52,7 +52,9 @@ function SignOut() {
   const queryClient = useQueryClient();
   const signOut = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.auth.signOut();
+      // This device only: a global sign-out would also end the admin's
+      // other sessions, which GoTrue's MFA endpoints then refuse.
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
       if (error) throw error;
     },
     onSuccess: () => {

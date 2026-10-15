@@ -2,9 +2,10 @@ import { expect, type Page, test } from '@playwright/test';
 
 import de from '../src/i18n/locales/de.json';
 import { expectNoSeriousAxeViolations } from './axe';
+import { adminFor, enterTotpCode, openAdminAsSeedAdmin, TEST_ADMINS } from './admin-auth';
 
-// The admin area against the local stack: the seed admin (supabase/seed.sql,
-// admin@example.com / admin-password) signs in at /admin/sign-in and reaches
+// The admin area against the local stack: an admin (supabase/seed.sql)
+// signs in at /admin/sign-in and reaches
 // the admin start, the category list at /admin/categories; an anonymous
 // visitor opening /admin doesn't see it. Runs once per project in playwright.config.ts (phone and desktop);
 // every test starts in a fresh browser context without a session.
@@ -12,9 +13,17 @@ import { expectNoSeriousAxeViolations } from './axe';
 // Re-spec (#116): the dashboard is gone. The admin start is the category
 // list at /admin/categories, where the sign-in and /admin land, and
 // "Abmelden" sits in the admin header (`nav.signOut`).
+//
+// Re-spec (#122): the sign-in and the sign-out run as this file's dedicated
+// admin for the project (TEST_ADMINS.signIn in ./admin-auth, seeded with a
+// verified TOTP factor), one after the other: a TOTP verify ends the user's
+// other half-done sign-ins and a sign-out ends the session, so they can't
+// share the seed admin with the tests running at the same time. A test that
+// only needs to be signed in uses the seed admin's aal2 session from the
+// setup project (e2e/seed-admin.setup.ts).
 
+// The wrong-password tests start no session, so they may use the seed admin.
 const ADMIN_EMAIL = 'admin@example.com';
-const ADMIN_PASSWORD = 'admin-password';
 
 // Reads a text from de.json by path, so keys that don't exist yet fail at run
 // time with their name instead of breaking the typecheck.
@@ -81,19 +90,50 @@ test('the sign-in screen labels its fields and passes axe', async ({ page }) => 
   expect(errors).toEqual([]);
 });
 
-// Re-spec (#116): was "reaches the dashboard at /admin".
-test('the seed admin signs in and reaches the category list at /admin/categories', async ({
-  page,
-}) => {
-  const errors = watchErrors(page);
+test.describe('as the dedicated admin of this file', () => {
+  test.describe.configure({ mode: 'serial' });
 
-  await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  // Re-spec (#116): was "reaches the dashboard at /admin".
+  // Re-spec (#122): was "the seed admin signs in …"; the dedicated admin.
+  test('an admin signs in with password and code and reaches the category list at /admin/categories', async ({
+    page,
+  }, testInfo) => {
+    const admin = adminFor(TEST_ADMINS.signIn, testInfo);
+    const errors = watchErrors(page);
 
-  await expect(adminStartHeading(page)).toBeVisible();
-  await expect(page).toHaveURL(/\/admin\/categories\/?$/);
-  await expect(page.getByText('Geografie', { exact: true })).toBeVisible();
-  await expectNoSeriousAxeViolations(page);
-  expect(errors).toEqual([]);
+    await signIn(page, admin.email, admin.password);
+    // Re-spec (#122): the TOTP code after the password.
+    await enterTotpCode(page, admin.totpSecret);
+
+    await expect(adminStartHeading(page)).toBeVisible();
+    await expect(page).toHaveURL(/\/admin\/categories\/?$/);
+    await expect(page.getByText('Geografie', { exact: true })).toBeVisible();
+    await expectNoSeriousAxeViolations(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('signing out returns to the learner area and closes /admin again', async ({
+    page,
+  }, testInfo) => {
+    const admin = adminFor(TEST_ADMINS.signIn, testInfo);
+    await signIn(page, admin.email, admin.password);
+    // Re-spec (#122): the TOTP code after the password.
+    await enterTotpCode(page, admin.totpSecret);
+    await expect(adminStartHeading(page)).toBeVisible();
+
+    // Re-spec (#116): "Abmelden" is in the admin header, a link or a button.
+    const header = page.getByRole('banner');
+    await header
+      .getByRole('button', { name: text('nav.signOut'), exact: true })
+      .or(header.getByRole('link', { name: text('nav.signOut'), exact: true }))
+      .click();
+
+    await expect(page.getByText(de.home.title, { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/\/$/);
+
+    await page.goto('/admin');
+    await expectKeptOut(page);
+  });
 });
 
 test('a wrong password shows the wrong-credentials message', async ({ page }) => {
@@ -123,30 +163,13 @@ test('an anonymous visitor opening /admin does not see the admin start', async (
   await expectKeptOut(page);
 });
 
-test('signing out returns to the learner area and closes /admin again', async ({ page }) => {
-  await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-  await expect(adminStartHeading(page)).toBeVisible();
-
-  // Re-spec (#116): "Abmelden" is in the admin header, a link or a button.
-  const header = page.getByRole('banner');
-  await header
-    .getByRole('button', { name: text('nav.signOut'), exact: true })
-    .or(header.getByRole('link', { name: text('nav.signOut'), exact: true }))
-    .click();
-
-  await expect(page.getByText(de.home.title, { exact: true })).toBeVisible();
-  await expect(page).toHaveURL(/\/$/);
-
-  await page.goto('/admin');
-  await expectKeptOut(page);
-});
-
 // The admin policies let RLS return drafts to an admin, so the learner area
 // filters on `published` itself: a signed-in admin sees it like a learner.
 // Seed (supabase/seed.sql): Musik is an unpublished category, Flüsse in
 // Deutschland a draft in Geografie, Komponisten a published quiz in Musik.
 test('a signed-in admin sees the learner area without drafts', async ({ page }) => {
-  await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  // Re-spec (#122): the seed admin's aal2 session from the setup project.
+  await openAdminAsSeedAdmin(page);
   await expect(adminStartHeading(page)).toBeVisible();
 
   await page.goto('/');
