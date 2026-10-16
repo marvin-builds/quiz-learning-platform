@@ -257,7 +257,7 @@ if (report.ui) {
   }
   await work(
     'ui-stop',
-    `Stop the dev server on port ${web} that a previous step started for this worktree (find its PID with \`lsof -ti tcp:${web}\` or \`fuser ${web}/tcp\`; kill only that process). Then fix in production code what the ui-verifier found that breaks an acceptance criterion:\n${report.stages['ui-verifier'] ?? '(the ui-verifier did not run)'}\nRerun \`npm run -s check\` after a fix; commit by concern.`,
+    `Stop the dev server on port ${web} that a previous step started for this worktree (find its PID with \`lsof -ti tcp:${web}\` or \`fuser ${web}/tcp\`; kill only that process). Then fix in production code what the ui-verifier found that breaks an acceptance criterion:\n${report.stages['ui-verifier'] ?? '(the ui-verifier did not run)'}\nRerun \`npm run -s check\` after a fix; commit by concern. If the slice changes a screen the README shows (listed in \`e2e/readme.shots.ts\`) or the seed data on it, run \`npm run screenshots:readme\` in ${WT}, look at the new images in docs/screenshots/ and commit them.`,
     { phase: 'Verify' },
   );
 }

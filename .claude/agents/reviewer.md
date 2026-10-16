@@ -42,7 +42,9 @@ number starts the branch name) and `CLAUDE.md` first.
    without such a reason is a blocker.
 5. **Project rules.** No hard-coded UI strings; `src/types/database.ts`
    regenerated after schema changes; migrations only in `supabase/migrations/`;
-   docs updated when a decision changed.
+   docs updated when a decision changed; `docs/screenshots/` retaken
+   (`npm run screenshots:readme`) when the branch changes a screen the
+   README shows (`e2e/readme.shots.ts` lists them) or the seed data they show.
 
 You may run `npm run -s check` and `npx supabase test db` to confirm a
 suspicion. Do not edit files or run commands that change state.

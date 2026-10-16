@@ -477,3 +477,17 @@ Issue #82. The never-break rule "Learners never see the solutions" in
 `admin_question(question_id)` as the admin's read of the solutions
 ([ADR 0002 addendum](0002-supabase-backend.md#addendum-2026-10-12-answers-their-rules-and-admin_answers)).
 This is a rule wording update, not a workflow change.
+
+### Amendment (2026-10-16): UI changes retake the README screenshots
+
+The README presents the project with screenshots of the learner and admin
+screens (`docs/screenshots/`), taken from the showcase quizzes in the local
+seed. Screenshots that no longer match the app would misrepresent it, so a
+slice that changes a screen they show, or the seed data on it, retakes them
+with `npm run screenshots:readme` (`e2e/readme.shots.ts` on the e2e setup and
+lock) and commits the images. `feature-slice` step 5, `semi-auto-workflow`
+and the `slice` workflow's verify step say so, it is part of the definition
+of done in `CLAUDE.md`, and the `reviewer` reports a branch that changes such
+a screen without new screenshots. The shots aren't compared in CI: pixel
+diffs across fonts and machines would be flaky, and the reviewer's check
+plus my review of the diff are enough for a page this size.
