@@ -78,8 +78,8 @@ insert into public.answers (id, question_id, text, is_correct, sort_order) value
 
 -- Images (supabase/seed-images/, uploaded to the quiz-images bucket by
 -- `supabase start` and `db reset`). Named by random UUIDs, so a file name
--- gives nothing away. Only in Chemie-Grundlagen: the e2e specs of Hauptstädte
--- find its answers by their exact names, which an answer image would extend.
+-- gives nothing away. Never in Hauptstädte Europas: its e2e specs find its
+-- answers by their exact names, which an answer image would extend.
 update public.questions
 set image_path = '063fa988-b996-4b4e-908f-1118f445ae46.png',
     image_alt = 'Ausschnitt aus dem Periodensystem mit den Edelgasen'
@@ -89,6 +89,119 @@ update public.answers
 set image_path = '39c5ec8d-57d6-4ab5-8ff7-f32a80a0a25d.png',
     image_alt = 'Mit Helium gefüllter Ballon'
 where id = '40000000-0000-4000-8000-000000000011';
+
+-- Showcase content for the README screenshots: two more categories with
+-- photo-heavy quizzes, sorted after the content above so the e2e specs keep
+-- finding theirs where they expect it. The photos are public domain (NASA,
+-- U.S. Fish and Wildlife Service); supabase/seed-images-sources.md lists them.
+insert into public.categories (id, name, description, sort_order, published) values
+  ('10000000-0000-4000-8000-000000000005', 'Tiere',
+   'Wildtiere und ihre Lebensräume', 5, true),
+  ('10000000-0000-4000-8000-000000000006', 'Weltraum',
+   'Planeten und Raumfahrt', 6, true);
+
+insert into public.quizzes (id, category_id, title, description, sort_order, published) values
+  ('20000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-000000000005',
+   'Wildtiere Nordamerikas', 'Erkennst du diese Tiere?', 1, true),
+  ('20000000-0000-4000-8000-000000000006', '10000000-0000-4000-8000-000000000006',
+   'Unser Sonnensystem', 'Die Planeten auf einen Blick', 1, true),
+  ('20000000-0000-4000-8000-000000000007', '10000000-0000-4000-8000-000000000006',
+   'Raumfahrt', 'Meilensteine der bemannten Raumfahrt', 2, true);
+
+insert into public.questions (id, quiz_id, text, multiple_correct, explanation, sort_order, image_path, image_alt) values
+  -- Wildtiere Nordamerikas
+  ('30000000-0000-4000-8000-000000000008', '20000000-0000-4000-8000-000000000005',
+   'Welches Tier ist auf dem Foto zu sehen?', false,
+   'Ein Rotfuchs in der dunklen Farbvariante „Kreuzfuchs“: Fell und Größe täuschen, Ohren und Schnauze verraten ihn.', 1,
+   '1fcf0357-b880-42de-bb89-8da84b9d73b4.jpg', 'Ein dunkelgrauer Fuchs läuft durch das Gras auf die Kamera zu'),
+  ('30000000-0000-4000-8000-000000000009', '20000000-0000-4000-8000-000000000005',
+   'Welches dieser Tiere ist das Wappentier der USA?', false,
+   'Der Weißkopfseeadler ist seit 1782 das Wappentier der Vereinigten Staaten.', 2, null, null),
+  ('30000000-0000-4000-8000-000000000010', '20000000-0000-4000-8000-000000000005',
+   'Welche dieser Tiere sind Säugetiere?', true,
+   'Fuchs, Eisbär und Seeotter säugen ihre Jungen; der Weißkopfseeadler ist ein Vogel.', 3, null, null),
+  ('30000000-0000-4000-8000-000000000011', '20000000-0000-4000-8000-000000000005',
+   'Wovon ernährt sich der Eisbär hauptsächlich?', false,
+   'Eisbären jagen vor allem Robben auf dem Meereis.', 4, null, null),
+  -- Unser Sonnensystem
+  ('30000000-0000-4000-8000-000000000012', '20000000-0000-4000-8000-000000000006',
+   'Welcher Planet ist hier zu sehen?', false,
+   'Saturn erkennt man an seinen auffälligen Ringen aus Eis und Gestein.', 1,
+   '26c2d244-dd39-4d5f-8649-45e43d39e362.jpg', 'Ein heller Planet mit breiten, flachen Ringen vor schwarzem Hintergrund'),
+  ('30000000-0000-4000-8000-000000000013', '20000000-0000-4000-8000-000000000006',
+   'Welcher dieser Planeten ist der größte?', false,
+   'Jupiter ist der größte Planet des Sonnensystems; sein Durchmesser beträgt etwa das Elffache der Erde.', 2, null, null),
+  ('30000000-0000-4000-8000-000000000014', '20000000-0000-4000-8000-000000000006',
+   'Welche dieser Planeten sind Gesteinsplaneten?', true,
+   'Merkur, Venus, Erde und Mars bestehen vor allem aus Gestein; Saturn ist ein Gasriese.', 3, null, null),
+  ('30000000-0000-4000-8000-000000000015', '20000000-0000-4000-8000-000000000006',
+   'Warum erscheint der Mars rötlich?', false,
+   'Eisenoxid, also Rost, im Staub färbt seine Oberfläche rötlich.', 4, null, null),
+  -- Raumfahrt
+  ('30000000-0000-4000-8000-000000000016', '20000000-0000-4000-8000-000000000007',
+   'In welchem Jahr landeten erstmals Menschen auf dem Mond?', false,
+   'Apollo 11 landete am 20. Juli 1969; das Foto zeigt Buzz Aldrin auf der Mondoberfläche.', 1,
+   '7eff5860-aff2-4b0c-ba16-c74fb8b3107e.jpg', 'Ein Astronaut im weißen Raumanzug steht auf der grauen Mondoberfläche'),
+  ('30000000-0000-4000-8000-000000000017', '20000000-0000-4000-8000-000000000007',
+   'Wer war der erste Mensch im Weltall?', false,
+   'Juri Gagarin umrundete am 12. April 1961 mit Wostok 1 die Erde.', 2, null, null),
+  ('30000000-0000-4000-8000-000000000018', '20000000-0000-4000-8000-000000000007',
+   'Wie lange dauerte der Flug von Apollo 11 von der Erde zum Mond ungefähr?', false,
+   'Start war am 16. Juli 1969, die Ankunft in der Mondumlaufbahn am 19. Juli.', 3, null, null);
+
+insert into public.answers (id, question_id, text, is_correct, sort_order, image_path, image_alt) values
+  -- Fuchs
+  ('40000000-0000-4000-8000-000000000024', '30000000-0000-4000-8000-000000000008', 'Fuchs', true, 1, null, null),
+  ('40000000-0000-4000-8000-000000000025', '30000000-0000-4000-8000-000000000008', 'Wolf', false, 2, null, null),
+  ('40000000-0000-4000-8000-000000000026', '30000000-0000-4000-8000-000000000008', 'Luchs', false, 3, null, null),
+  -- Wappentier: each answer with a photo
+  ('40000000-0000-4000-8000-000000000027', '30000000-0000-4000-8000-000000000009', 'Weißkopfseeadler', true, 1,
+   '82b94db9-f9a7-4301-8a52-d78a95d4d414.jpg', 'Ein Adler mit weißem Kopf und braunem Gefieder sitzt auf einem Ast'),
+  ('40000000-0000-4000-8000-000000000028', '30000000-0000-4000-8000-000000000009', 'Eisbär', false, 2,
+   'd6e7ac51-f1e7-4dcf-b558-2f9e70ce1676.jpg', 'Ein Eisbär steht am Ufer vor dem Meer'),
+  ('40000000-0000-4000-8000-000000000029', '30000000-0000-4000-8000-000000000009', 'Seeotter', false, 3,
+   'becbfcfa-4ed2-4b15-9102-a17241f42bc9.jpg', 'Ein Seeotter treibt auf dem Rücken im Wasser'),
+  -- Säugetiere: three correct answers
+  ('40000000-0000-4000-8000-000000000030', '30000000-0000-4000-8000-000000000010', 'Fuchs', true, 1, null, null),
+  ('40000000-0000-4000-8000-000000000031', '30000000-0000-4000-8000-000000000010', 'Weißkopfseeadler', false, 2, null, null),
+  ('40000000-0000-4000-8000-000000000032', '30000000-0000-4000-8000-000000000010', 'Eisbär', true, 3, null, null),
+  ('40000000-0000-4000-8000-000000000033', '30000000-0000-4000-8000-000000000010', 'Seeotter', true, 4, null, null),
+  -- Eisbär
+  ('40000000-0000-4000-8000-000000000034', '30000000-0000-4000-8000-000000000011', 'Robben', true, 1, null, null),
+  ('40000000-0000-4000-8000-000000000035', '30000000-0000-4000-8000-000000000011', 'Beeren', false, 2, null, null),
+  ('40000000-0000-4000-8000-000000000036', '30000000-0000-4000-8000-000000000011', 'Lachse', false, 3, null, null),
+  -- Saturn
+  ('40000000-0000-4000-8000-000000000037', '30000000-0000-4000-8000-000000000012', 'Jupiter', false, 1, null, null),
+  ('40000000-0000-4000-8000-000000000038', '30000000-0000-4000-8000-000000000012', 'Saturn', true, 2, null, null),
+  ('40000000-0000-4000-8000-000000000039', '30000000-0000-4000-8000-000000000012', 'Uranus', false, 3, null, null),
+  -- Größter Planet: each answer with a photo
+  ('40000000-0000-4000-8000-000000000040', '30000000-0000-4000-8000-000000000013', 'Mars', false, 1,
+   '472ff712-967f-4c3d-8c44-443624776ff3.jpg', 'Der Mars mit einer langen Schluchtenlandschaft quer über die Oberfläche'),
+  ('40000000-0000-4000-8000-000000000041', '30000000-0000-4000-8000-000000000013', 'Jupiter', true, 2,
+   'dafc186d-4135-44b1-b0d8-bd075d72ac33.jpg', 'Ein Planet mit hellen und braunen Wolkenbändern und einem roten Fleck'),
+  ('40000000-0000-4000-8000-000000000042', '30000000-0000-4000-8000-000000000013', 'Erde', false, 3,
+   'f4b627d5-c035-49f9-a1e6-76b08cbc1edf.jpg', 'Die Erde aus dem All mit Afrika, Ozeanen und Wolken'),
+  -- Gesteinsplaneten: three correct answers
+  ('40000000-0000-4000-8000-000000000043', '30000000-0000-4000-8000-000000000014', 'Merkur', true, 1, null, null),
+  ('40000000-0000-4000-8000-000000000044', '30000000-0000-4000-8000-000000000014', 'Venus', true, 2, null, null),
+  ('40000000-0000-4000-8000-000000000045', '30000000-0000-4000-8000-000000000014', 'Saturn', false, 3, null, null),
+  ('40000000-0000-4000-8000-000000000046', '30000000-0000-4000-8000-000000000014', 'Mars', true, 4, null, null),
+  -- Mars
+  ('40000000-0000-4000-8000-000000000047', '30000000-0000-4000-8000-000000000015', 'Eisenoxid im Staub', true, 1, null, null),
+  ('40000000-0000-4000-8000-000000000048', '30000000-0000-4000-8000-000000000015', 'Glühende Lava', false, 2, null, null),
+  ('40000000-0000-4000-8000-000000000049', '30000000-0000-4000-8000-000000000015', 'Rote Pflanzen', false, 3, null, null),
+  -- Mondlandung
+  ('40000000-0000-4000-8000-000000000050', '30000000-0000-4000-8000-000000000016', '1965', false, 1, null, null),
+  ('40000000-0000-4000-8000-000000000051', '30000000-0000-4000-8000-000000000016', '1969', true, 2, null, null),
+  ('40000000-0000-4000-8000-000000000052', '30000000-0000-4000-8000-000000000016', '1972', false, 3, null, null),
+  -- Erster Mensch im All
+  ('40000000-0000-4000-8000-000000000053', '30000000-0000-4000-8000-000000000017', 'Neil Armstrong', false, 1, null, null),
+  ('40000000-0000-4000-8000-000000000054', '30000000-0000-4000-8000-000000000017', 'Juri Gagarin', true, 2, null, null),
+  ('40000000-0000-4000-8000-000000000055', '30000000-0000-4000-8000-000000000017', 'John Glenn', false, 3, null, null),
+  -- Flugdauer
+  ('40000000-0000-4000-8000-000000000056', '30000000-0000-4000-8000-000000000018', 'Etwa 3 Stunden', false, 1, null, null),
+  ('40000000-0000-4000-8000-000000000057', '30000000-0000-4000-8000-000000000018', 'Etwa 3 Tage', true, 2, null, null),
+  ('40000000-0000-4000-8000-000000000058', '30000000-0000-4000-8000-000000000018', 'Etwa 3 Wochen', false, 3, null, null);
 
 -- Admin (e2e tests and ui-verifier): admin@example.com / admin-password.
 -- GoTrue fails the sign-in on null token columns, so they are empty strings.
