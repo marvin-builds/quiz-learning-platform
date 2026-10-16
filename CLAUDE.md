@@ -95,6 +95,8 @@ memory before using an Expo or React Native API.
 
 ## Workflow
 
+Git workflow: pull requests
+
 - **Session start:** list the open Dependabot PRs, the issues in progress
   (a `<n>-*` branch or worktree exists; give each its step, see
   `feature-slice` → Resume) and the next issue without one (lowest open
