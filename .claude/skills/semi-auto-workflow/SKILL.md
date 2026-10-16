@@ -164,7 +164,8 @@ them while they are still new, following `quality-review-loop`:
    the app or the e2e setup changed; the `ui-verifier` for UI changes, as in
    `feature-slice` step 5. After `EnterWorktree` the Playwright MCP server
    still runs in the main checkout, so its screenshots land there, under
-   `.claude/state/ui-verifier/`. Commit by concern.
+   `.claude/state/ui-verifier/`. Retake the README screenshots as in
+   `feature-slice` step 5 when a screen they show changed. Commit by concern.
 2. `git fetch origin` and `git rebase origin/main`. If anything came in, run
    `npm ci` when `package-lock.json` changed, then repeat the verification.
 3. `git push -u origin <branch>`, then `gh pr create` with a body that

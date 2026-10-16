@@ -29,6 +29,8 @@ Keep this file under ~150 lines and move procedures into `.claude/skills/`.
 - `npm run test:e2e`: Playwright and axe in Chromium (phone and desktop) on
   the static web export, one run at a time across worktrees (a lock); needs `npx supabase start && npx supabase db reset`
   first, and once `npx playwright install chromium`
+- `npm run screenshots:readme`: retakes the README screenshots in
+  `docs/screenshots/` (`e2e/readme.shots.ts`), with the e2e setup and lock
 - `npm run export:web`: the static web export in `dist/` plus `dist/_headers`
   (security headers, CSP from `EXPO_PUBLIC_SUPABASE_URL`); the deploy and the
   e2e server build with it, never with a bare `expo export`
@@ -119,7 +121,8 @@ memory before using an Expo or React Native API.
   When a cap is hit, stop and write down what was tried and where it is stuck.
 - **Definition of done:** the acceptance criteria are covered by tests; lint,
   typecheck and all tests are green locally and in CI; no hard-coded UI
-  strings; docs updated when a decision changed.
+  strings; docs updated when a decision changed; the README screenshots
+  retaken when the change alters a screen they show.
 
 ## Harness
 

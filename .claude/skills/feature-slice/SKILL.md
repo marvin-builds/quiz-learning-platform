@@ -82,7 +82,10 @@ uses (`npx expo start --web --port <port>`) and delegate to the `ui-verifier`
 agent with the URL and the issue's acceptance criteria: it checks phone and
 desktop width in the browser and saves screenshots under
 `.claude/state/ui-verifier/`. Fix what it finds before the review, then stop
-the server. New or changed e2e specs follow the `e2e-flow` skill.
+the server. When the slice changes a screen the README shows (listed in
+`e2e/readme.shots.ts`) or the seed data on it, run `npm run screenshots:readme`,
+look at the new images and commit them. New or changed e2e specs follow the
+`e2e-flow` skill.
 
 The Playwright MCP server (`.mcp.json`) needs approving once when Claude Code
 asks, and its own browser, separate from the e2e tests' one:
